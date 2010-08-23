@@ -331,8 +331,8 @@ class AbstractRpcServer(object):
         req.add_header("Content-Type", content_type)
         req.add_header("X-appcfg-api-version", "1")
         try:
-          logger.debug('Sending HTTP request:\n%s',
-                       HttpRequestToString(req, include_data=self.debug_data))
+#          logger.debug('Sending HTTP request:\n%s',
+#                       HttpRequestToString(req, include_data=self.debug_data))
           f = self.opener.open(req)
           response = f.read()
           f.close()
