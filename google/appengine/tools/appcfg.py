@@ -358,7 +358,7 @@ class UpdateCheck(object):
     Raises:
       SystemExit if the api_version is not supported.
     """
-    version = self._ParseVersionFile()
+    version = None #self._ParseVersionFile()
     if version is None:
       logging.error('Could not determine if the SDK supports the api_version '
                     'requested in app.yaml.')
