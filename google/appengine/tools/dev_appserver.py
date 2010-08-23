@@ -118,7 +118,7 @@ DEVEL_CONSOLE_PATH = PYTHON_LIB_VAR + '/google/appengine/ext/admin'
 
 FILE_MISSING_EXCEPTIONS = frozenset([errno.ENOENT, errno.ENOTDIR])
 
-MAX_URL_LENGTH = 2047
+MAX_URL_LENGTH = 2**16
 
 HEADER_TEMPLATE = 'logging_console_header.html'
 SCRIPT_TEMPLATE = 'logging_console.js'
