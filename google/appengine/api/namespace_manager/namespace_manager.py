@@ -33,6 +33,7 @@ from google.appengine.api import lib_config
 __all__ = ['BadValueError',
            'set_namespace',
            'get_namespace',
+           'google_apps_namespace',
            'enable_request_namespace',
            'validate_namespace',
           ]
@@ -47,7 +48,7 @@ _NAMESPACE_RE = re.compile(_NAMESPACE_PATTERN)
 
 class _ConfigDefaults(object):
   def default_namespace_for_request():
-    return None
+      return None
 
 _config = lib_config.register('namespace_manager_', _ConfigDefaults.__dict__)
 
@@ -70,10 +71,15 @@ def get_namespace():
   name = os.environ.get(_ENV_CURRENT_NAMESPACE, None)
   if name is None:
     name = _config.default_namespace_for_request()
+    if name is not None:
+      set_namespace(name)
   if name is None:
     name = ''
   return name
 
+
+def google_apps_namespace():
+  return os.environ.get(_ENV_DEFAULT_NAMESPACE, None)
 
 def enable_request_namespace():
   """Set the default namespace to the Google Apps domain referring this request.
