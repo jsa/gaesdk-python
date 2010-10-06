@@ -43,18 +43,12 @@ they are not serialized with the task and may not be the same when your task
 executes as they were when it was enqueued (in fact, they will almost certainly
 be different).
 
-If your app relies on manipulating the import path, make sure that the function
-you are deferring is defined in a module that can be found without import path
-manipulation. Alternately, you can include deferred.TaskHandler in your own
-webapp application instead of using the easy-install method detailed below.
-
-When you create a deferred task using deferred.defer, the task is serialized,
-and an attempt is made to add it directly to the task queue. If the task is too
-big (larger than about 10 kilobytes when serialized), a datastore entry will be
-created for the task, and a new task will be enqueued, which will fetch the
-original task from the datastore and execute it. This is much less efficient
-than the direct execution model, so it's a good idea to minimize the size of
-your tasks when possible.
+When you create a deferred task, the task is serialized, and an attempt is made
+to add it directly to the task queue. If the task is too big (larger than about
+10 kilobytes when serialized), a datastore entry will be created for the task,
+and a new task will be enqueued, which will fetch the original task from the
+datastore and execute it. This is much less efficient than the direct execution
+model, so it's a good idea to minimize the size of your tasks when possible.
 
 In order for tasks to be processed, you need to set up the handler. Add the
 following to your app.yaml handlers section:
@@ -66,7 +60,37 @@ handlers:
 
 By default, the deferred module uses the URL above, and the default queue.
 
-Example usage:
+If your app relies on manipulating the import path, make sure that the function
+you are deferring is defined in a module that can be found without import path
+manipulation. Alternately, you can include deferred.TaskHandler in your own
+webapp application instead of using the easy-install method detailed below. If
+you are using a framework other than webapp, you can write a custom deferred
+handler in your framework. To do so, simply have it call deferred.run, passing
+in the raw body of the request.
+
+Example usage, using the new decorator syntax:
+
+  @task
+  def do_something_later(key, amount):
+    entity = MyModel.get(key)
+    entity.total += amount
+    entity.put()
+
+  # Use default options
+  do_something_later.defer(my_key, 20)
+
+  # Providing non-default options at runtime
+  do_something_later.defer.options(queue='foo', countdown=60)(my_key, 20)
+
+  # Providing non-default options with the definition
+  @task(queue='slow_queue')
+  def do_with_options(key, amount):
+    # ...
+
+  # Uses the default options from the decorator, unless overridden.
+  do_something_later.defer(my_key, 30)
+
+Example usage, old 'defer' syntax:
 
   def do_something_later(key, amount):
     entity = MyModel.get(key)
@@ -74,16 +98,17 @@ Example usage:
     entity.put()
 
   # Use default URL and queue name, no task name, execute ASAP.
-  deferred.defer(do_something_later, 20)
+  deferred.defer(do_something_later, my_key, 20)
 
   # Providing non-default task queue arguments
-  deferred.defer(do_something_later, 20, _queue="foo", countdown=60)
+  deferred.defer(do_something_later, my_key, 20, _queue="foo", _countdown=60)
 """
 
 
 
 
 
+import inspect
 import logging
 import os
 import pickle
@@ -98,6 +123,9 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 _TASKQUEUE_HEADERS = {"Content-Type": "application/octet-stream"}
 _DEFAULT_URL = "/_ah/queue/deferred"
 _DEFAULT_QUEUE = "default"
+_FUNCTION_SHIM_TEMPLATE = """def shim%s:
+  return target%s
+"""
 
 
 class Error(Exception):
@@ -212,6 +240,24 @@ def serialize(obj, *args, **kwargs):
   return pickle.dumps(curried, protocol=pickle.HIGHEST_PROTOCOL)
 
 
+def _create_deferred_task(pickled, taskargs):
+  """Creates a deferred task from a serialized invocation and task args.
+
+  Args:
+    pickled: The serialized deferred function invocation.
+    taskargs: A dict of arguments to pass to the task constructor.
+  Returns:
+    A taskqueue.Task object.
+  """
+  try:
+    task = taskqueue.Task(payload=pickled, **taskargs)
+  except taskqueue.TaskTooLargeError:
+    key = _DeferredTaskEntity(data=pickled).put()
+    pickled = serialize(run_from_datastore, str(key))
+    task = taskqueue.Task(payload=pickled, **taskargs)
+  return task
+
+
 def defer(obj, *args, **kwargs):
   """Defers a callable for execution later.
 
@@ -224,6 +270,8 @@ def defer(obj, *args, **kwargs):
     obj: The callable to execute. See module docstring for restrictions.
     _countdown, _eta, _name, _transactional, _url, _queue: Passed through to
     the task queue - see the task queue documentation for details.
+    _add: If set to False (default: True), doesn't add the task to the queue
+      before returning it.
     args: Positional arguments to call the callable with.
     kwargs: Any other keyword arguments are passed through to the callable.
   Returns:
@@ -232,18 +280,141 @@ def defer(obj, *args, **kwargs):
   taskargs = dict((x, kwargs.pop(("_%s" % x), None))
                   for x in ("countdown", "eta", "name"))
   taskargs["url"] = kwargs.pop("_url", _DEFAULT_URL)
-  transactional = kwargs.pop("_transactional", False)
   taskargs["headers"] = _TASKQUEUE_HEADERS
+
+  transactional = kwargs.pop("_transactional", False)
   queue = kwargs.pop("_queue", _DEFAULT_QUEUE)
+  add = kwargs.pop("_add", True)
+
   pickled = serialize(obj, *args, **kwargs)
-  try:
-    task = taskqueue.Task(payload=pickled, **taskargs)
-    return task.add(queue, transactional=transactional)
-  except taskqueue.TaskTooLargeError:
-    key = _DeferredTaskEntity(data=pickled).put()
-    pickled = serialize(run_from_datastore, str(key))
-    task = taskqueue.Task(payload=pickled, **taskargs)
-    return task.add(queue)
+  task = _create_deferred_task(pickled, taskargs)
+  if add:
+    task.add(queue)
+  return task
+
+
+def create_function_shim(func, target, is_method=False, name=None):
+  """Creates and returns a function that imitates func but calls target.
+
+  Args:
+    func: The function to imitate.
+    target: The actual function the returned function should invoke.
+    is_method: If True, add 'self' as an additional first argument.
+  Returns:
+    A function with the same signature as func, which calls target when invoked.
+  """
+  args, varargs, varkw, defaults = inspect.getargspec(func)
+  if is_method:
+    args.insert(0, 'self')
+
+  signature = inspect.formatargspec(args, varargs, varkw)
+  body = _FUNCTION_SHIM_TEMPLATE % (signature, signature)
+  evaldict = {
+      'target': target,
+  }
+
+  code = compile(body, '<string>', 'single')
+  exec code in evaldict
+  shim = evaldict['shim']
+
+  shim.__name__ = name or func.__name__
+  shim.__doc__ = func.__doc__
+  shim.func_defaults = func.func_defaults
+  shim.__module__ = target.__module__
+  return shim
+
+
+class TaskGenerator(object):
+  """Facilitates instantiating a deferred task with specific arguments."""
+
+  VALID_TASK_ARGS = set(['countdown', 'eta', 'name', 'url'])
+  FUNC = None
+
+  def __init__(self, task_args, queue=_DEFAULT_QUEUE, transactional=False,
+               add=True):
+    """Constructor.
+
+    Args:
+      task_args: Arguments to pass to the Task() constructor.
+      queue: Name of the queue to add the task to if add is True.
+      transactional: If add is True, indicates if this task should be added
+        transactionally.
+      add: If True, add the task to the queue before returning it.
+    """
+    self.__task_args = task_args or {}
+    self.__queue = queue
+    self.__transactional = transactional
+    self.__add = add
+
+  def options(self, **kwargs):
+    """Returns a new TaskGenerator with the provided options set.
+
+    Args:
+      add: If True (default), add the task to a queue when it is created.
+      queue: The name of the queue to add the task to, if add is True.
+      transactional: If add is True, indicates if this task should be added
+        transactionally.
+      countdown, eta, name, url: Passed to Task constructor.
+    """
+    ret = type(self)(dict(self.__task_args), self.__queue, self.__transactional,
+                     self.__add)
+    ret.__queue = kwargs.pop('queue', self.__queue)
+    ret.__add = kwargs.pop('add', self.__add)
+    ret.__transactional = kwargs.pop('transactional', self.__transactional)
+    for k, v in kwargs.iteritems():
+      if k not in self.VALID_TASK_ARGS:
+        raise ValueError('Invalid keyword argument %r' % k)
+      ret.__task_args[k] = v
+    return ret
+
+  def call(self, *args, **kwargs):
+    func = self.__class__.__dict__['FUNC']
+    pickled = serialize(func, *args, **kwargs)
+    task = _create_deferred_task(pickled, self.__task_args)
+    if self.__add:
+      task.add(self.__queue, transactional=self.__transactional)
+    return task
+
+  @classmethod
+  def create(cls, func, defaults=None):
+    """Creates a TaskGenerator subclass for func and returns a default instance.
+
+    Args:
+      func: The function deferred calls will be made to.
+      defaults: A dict of arguments, as passed to the options() method, to
+        modify the default instance of this class with.
+    Returns:
+      A new subclass of TaskGenerator.
+    """
+    klass = type(func.__name__ + "TaskGenerator", (cls,), {
+        '__call__': create_function_shim(func, cls.call, is_method=True,
+                                         name='__call__'),
+        'FUNC': func,
+    })
+    instance = klass({
+        'headers': _TASKQUEUE_HEADERS,
+        'url': _DEFAULT_URL,
+    })
+    if defaults:
+      instance = instance.options(**defaults)
+    return instance
+
+
+def task(callable=None, **defaults):
+  """Decorator to make any callable usable with deferred.
+
+  Can be used 'bare' to add deferred support with default settings, or with
+  any valid parameter for TaskGenerator.options() to set that option
+  as a default.
+  """
+  def task_decorator(func):
+    func.defer = TaskGenerator.create(func, defaults)
+    return func
+
+  if callable:
+    return task_decorator(callable)
+  else:
+    return task_decorator
 
 
 class TaskHandler(webapp.RequestHandler):
