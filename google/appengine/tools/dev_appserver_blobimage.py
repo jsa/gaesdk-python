@@ -109,7 +109,7 @@ def CreateBlobImageDispatcher(images_stub):
 
       output_settings = images_service_pb.OutputSettings()
       output_mime_type = images_service_pb.OutputSettings.JPEG
-      if original_mime_type == 'PNG':
+      if original_mime_type in ['PNG', 'GIF']:
         output_mime_type = images_service_pb.OutputSettings.PNG
       output_settings.set_mime_type(output_mime_type)
       return (self._images_stub._EncodeImage(image, output_settings),
