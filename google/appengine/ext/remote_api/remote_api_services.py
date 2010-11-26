@@ -69,6 +69,8 @@ SERVICE_PB_MAP = {
                       images_service_pb.ImagesCompositeResponse),
         'Histogram': (images_service_pb.ImagesHistogramRequest,
                       images_service_pb.ImagesHistogramResponse),
+        'GetUrlBase': (images_service_pb.ImagesGetUrlBaseRequest,
+                      images_service_pb.ImagesGetUrlBaseResponse),
     },
     'mail': {
         'Send':         (mail_service_pb.MailMessage, api_base_pb.VoidProto),
