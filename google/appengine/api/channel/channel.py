@@ -32,10 +32,6 @@ from google.appengine.api import apiproxy_stub_map
 from google.appengine.api.channel import channel_service_pb
 from google.appengine.runtime import apiproxy_errors
 
-MAX_DURATION = 60 * 60 * 4
-
-MAX_SIMULTANEOUS_CONNECTIONS = 10
-
 
 class Error(Exception):
   """Base error class for this module."""
@@ -44,15 +40,9 @@ class Error(Exception):
 class InvalidChannelKeyError(Error):
   """Error that indicates a bad channel id."""
 
-class InvalidChannelKeyError(Error):
-  """Error that indicates a bad channel key."""
 
 class InvalidMessageError(Error):
   """Error that indicates a message is malformed."""
-
-
-class ChannelTimeoutError(Error):
-  """Error that indicates the given channel has timed out."""
 
 
 def _ToChannelError(error):
@@ -70,8 +60,6 @@ def _ToChannelError(error):
       InvalidChannelKeyError,
       channel_service_pb.ChannelServiceError.BAD_MESSAGE:
       InvalidMessageError,
-      channel_service_pb.ChannelServiceError.CHANNEL_TIMEOUT:
-      ChannelTimeoutError
       }
 
   if error.application_error in error_map:
