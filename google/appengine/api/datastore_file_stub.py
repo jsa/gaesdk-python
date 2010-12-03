@@ -310,6 +310,8 @@ class DatastoreFileStub(apiproxy_stub.APIProxyStub):
     datastore_types.PostalAddress: entity_pb.PropertyValue.kstringValue,
     datastore_types.Rating: entity_pb.PropertyValue.kint64Value,
     str: entity_pb.PropertyValue.kstringValue,
+    datastore_types.ByteString: entity_pb.PropertyValue.kstringValue,
+    datastore_types.BlobKey: entity_pb.PropertyValue.kstringValue,
     datastore_types.Text: entity_pb.PropertyValue.kstringValue,
     type(None): 0,
     unicode: entity_pb.PropertyValue.kstringValue,
@@ -674,7 +676,7 @@ class DatastoreFileStub(apiproxy_stub.APIProxyStub):
         assert (clone.has_entity_group() and
                 clone.entity_group().element_size() > 0)
 
-    datastore_stub_util.PrepareSpecialPropertiesForStore(clone)
+      datastore_stub_util.PrepareSpecialPropertiesForStore(clone)
 
     self.__entities_lock.acquire()
 

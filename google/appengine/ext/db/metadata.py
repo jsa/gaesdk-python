@@ -69,7 +69,7 @@ class Namespace(BaseMetadata):
     Args:
       namespace: namespace whose key is requested.
     Returns:
-      The key for namepace.
+      The key for namespace.
     """
     if namespace:
       return db.Key.from_path(cls.KIND_NAME, namespace)
@@ -83,7 +83,7 @@ class Namespace(BaseMetadata):
     Args:
       key: key whose name is requested.
     Returns:
-      The namepace specified by key.
+      The namespace specified by key.
     """
     return key.name() or ''
 
@@ -105,7 +105,7 @@ class Kind(BaseMetadata):
     Args:
       kind: kind whose key is requested.
     Returns:
-      The key for namepace.
+      The key for kind.
     """
     return db.Key.from_path(cls.KIND_NAME, kind)
 
