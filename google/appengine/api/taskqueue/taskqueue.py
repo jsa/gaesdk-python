@@ -803,10 +803,13 @@ class Queue(object):
       retry_retry_parameters: A taskqueue_service_pb.TaskQueueRetryParameters
         to populate.
     """
-    retry_retry_parameters.set_min_backoff_sec(
-        retry_options.min_backoff_seconds)
-    retry_retry_parameters.set_max_backoff_sec(
-        retry_options.max_backoff_seconds)
+    if retry_options.min_backoff_seconds is not None:
+      retry_retry_parameters.set_min_backoff_sec(
+          retry_options.min_backoff_seconds)
+
+    if retry_options.max_backoff_seconds is not None:
+      retry_retry_parameters.set_max_backoff_sec(
+          retry_options.max_backoff_seconds)
 
     if retry_options.task_retry_limit is not None:
       retry_retry_parameters.set_retry_limit(retry_options.task_retry_limit)

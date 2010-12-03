@@ -462,14 +462,17 @@ class MultiRpc(object):
     state: The combined state of all RPCs.
   """
 
-  def __init__(self, rpcs):
+  def __init__(self, rpcs, extra_hook=None):
     """Constructor.
 
     Args:
       rpcs: A list of UserRPC and MultiRpc objects; it is flattened
         before being stored.
+      extra_hook: Optional function to be applied to the final result
+        or list of results.
     """
     self.__rpcs = self.flatten(rpcs)
+    self.__extra_hook = extra_hook
 
   @property
   def rpcs(self):
@@ -535,19 +538,26 @@ class MultiRpc(object):
 
        c. Any other wrapped result is appended to the result list.
 
+    After all results are combined, if __extra_hook is set, it is
+    called with the combined results and its return value becomes the
+    final result.
+
     NOTE: This first waits for all wrapped RPCs to finish, and then
     checks all their success.  This makes debugging easier.
     """
     self.check_success()
     if len(self.__rpcs) == 1:
-      return self.__rpcs[0].get_result()
-    results = []
-    for rpc in self.__rpcs:
-      result = rpc.get_result()
-      if isinstance(result, list):
-        results.extend(result)
-      elif result is not None:
-        results.append(result)
+      results = self.__rpcs[0].get_result()
+    else:
+      results = []
+      for rpc in self.__rpcs:
+        result = rpc.get_result()
+        if isinstance(result, list):
+          results.extend(result)
+        elif result is not None:
+          results.append(result)
+    if self.__extra_hook is not None:
+      results = self.__extra_hook(results)
     return results
 
   @classmethod
@@ -654,8 +664,9 @@ class BaseConnection(object):
   assertion.
   """
 
-  STANDARD_DATASTORE = 0
-  HIGH_REPLICATION_DATASTORE = 1
+  UNKNOWN_DATASTORE = 0
+  MASTER_SLAVE_DATASTORE = 1
+  HIGH_REPLICATION_DATASTORE = 2
 
   @_positional(1)
   def __init__(self, adapter=None, config=None):
@@ -744,11 +755,17 @@ class BaseConnection(object):
     return set(self.__pending_rpcs)
 
   def get_datastore_type(self, app=None):
-    """Returns the type of datastore of the given application."""
-    app = datastore_types.ResolveAppId(app)
-    if app.startswith('s~'):
+    """Tries to get the datastore type for the given app.
+
+    This function is only guaranteed to return something other than
+    UNKNOWN_DATASTORE when running in production and querying the current app.
+    """
+    current_app = datastore_types.ResolveAppId(None)
+    if app not in (current_app, None):
+      return BaseConnection.UNKNOWN_DATASTORE
+    if current_app.startswith('s~'):
       return BaseConnection.HIGH_REPLICATION_DATASTORE
-    return BaseConnection.STANDARD_DATASTORE
+    return BaseConnection.MASTER_SLAVE_DATASTORE
 
   def wait_for_all_pending_rpcs(self):
     """Wait for all currently pending RPCs to complete."""
@@ -978,6 +995,9 @@ class BaseConnection(object):
                  self.MAX_GET_KEYS)
     pbsgen = self.__generate_pb_lists(keys, self.__adapter.key_to_pb,
                                       base_size, max_count, config)
+    user_data = None
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      user_data = extra_hook
     for pbs in pbsgen:
       req = datastore_pb.GetRequest()
       req.CopyFrom(base_req)
@@ -986,11 +1006,12 @@ class BaseConnection(object):
       self._set_request_transaction(req)
       resp = datastore_pb.GetResponse()
       rpc = self.make_rpc_call(config, 'Get', req, resp,
-                               self.__get_hook, extra_hook)
+                               self.__get_hook, user_data)
       rpcs.append(rpc)
-    if len(rpcs) == 1 and rpcs[0] is config:
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      assert len(rpcs) == 1 and rpcs[0] is config, rpcs
       return config
-    return MultiRpc(rpcs)
+    return MultiRpc(rpcs, extra_hook)
 
   def __get_hook(self, rpc):
     """Internal method used as get_result_hook for Get operation."""
@@ -1046,6 +1067,9 @@ class BaseConnection(object):
                  self.MAX_PUT_ENTITIES)
     pbsgen = self.__generate_pb_lists(entities, self.__adapter.entity_to_pb,
                                       base_size, max_count, config)
+    user_data = None
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      user_data = extra_hook
     for pbs in pbsgen:
       req = datastore_pb.PutRequest()
       req.CopyFrom(base_req)
@@ -1054,11 +1078,12 @@ class BaseConnection(object):
       self._set_request_transaction(req)
       resp = datastore_pb.PutResponse()
       rpc = self.make_rpc_call(config, 'Put', req, resp,
-                               self.__put_hook, extra_hook)
+                               self.__put_hook, user_data)
       rpcs.append(rpc)
-    if len(rpcs) == 1 and rpcs[0] is config:
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      assert len(rpcs) == 1 and rpcs[0] is config
       return config
-    return MultiRpc(rpcs)
+    return MultiRpc(rpcs, extra_hook)
 
   def __put_hook(self, rpc):
     """Internal method used as get_result_hook for Put operation."""
@@ -1102,25 +1127,29 @@ class BaseConnection(object):
                  self.MAX_DELETE_KEYS)
     pbsgen = self.__generate_pb_lists(keys, self.__adapter.key_to_pb,
                                       base_size, max_count, config)
+    user_data = None
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      user_data = extra_hook
     for pbs in pbsgen:
       req = datastore_pb.DeleteRequest()
       req.CopyFrom(base_req)
-      req.key_list().extend(self.__adapter.key_to_pb(key) for key in keys)
+      req.key_list().extend(pbs)
       self._check_entity_group(req.key_list())
       self._set_request_transaction(req)
       resp = datastore_pb.DeleteResponse()
       rpc = self.make_rpc_call(config, 'Delete', req, resp,
-                               self.__delete_hook, extra_hook)
+                               self.__delete_hook, user_data)
       rpcs.append(rpc)
-    if len(rpcs) == 1 and rpcs[0] is config:
+    if isinstance(config, apiproxy_stub_map.UserRPC):
+      assert len(rpcs) == 1 and rpcs[0] is config
       return config
-    return MultiRpc(rpcs)
+    return MultiRpc(rpcs, extra_hook)
 
   def __delete_hook(self, rpc):
     """Internal method used as get_result_hook for Delete operation."""
     self.check_rpc_success(rpc)
     if rpc.user_data is not None:
-      rpc.user_data()
+      rpc.user_data(None)
 
 
   def begin_transaction(self, app):
