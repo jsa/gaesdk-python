@@ -1,10 +1,18 @@
 from django.core.urlresolvers import RegexURLPattern, RegexURLResolver
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.importlib import import_module
 
 __all__ = ['handler404', 'handler500', 'include', 'patterns', 'url']
 
 handler404 = 'django.views.defaults.page_not_found'
 handler500 = 'django.views.defaults.server_error'
+
+def _validate_urls(mod):
+    if not isinstance(mod, list):
+        if isinstance(mod, basestring):
+            mod = import_module(mod)
+        mod = mod.urlpatterns
+    assert all(isinstance(p, RegexURLPattern) for p in mod)
 
 def include(arg, namespace=None, app_name=None):
     if isinstance(arg, tuple):
@@ -13,6 +21,7 @@ def include(arg, namespace=None, app_name=None):
             raise ImproperlyConfigured('Cannot override the namespace for a dynamic module that provides a namespace')
         urlconf_module, app_name, namespace = arg
     else:
+        _validate_urls(arg)
         # No namespace hint - use manually provided namespace
         urlconf_module = arg
     return (urlconf_module, app_name, namespace)
@@ -21,9 +30,17 @@ def patterns(prefix, *args):
     pattern_list = []
     for t in args:
         if isinstance(t, (list, tuple)):
+            assert isinstance(t[0], basestring)
+            if isinstance(t[1], tuple):
+                _validate_urls(t[1])
+            else:
+                from django.core.urlresolvers import get_callable
+                assert callable(t[1]) or get_callable('%s.%s' % (prefix, t[1]))
             t = url(prefix=prefix, *t)
         elif isinstance(t, RegexURLPattern):
             t.add_prefix(prefix)
+        else:
+            assert "Unrecognized URL pattern item %r" % t
         pattern_list.append(t)
     return pattern_list
 
