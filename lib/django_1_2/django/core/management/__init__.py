@@ -416,7 +416,7 @@ def setup_environ(settings_mod, original_settings_path=None):
     # Import the project module. We add the parent directory to PYTHONPATH to
     # avoid some of the path errors new users can have.
     sys.path.append(os.path.join(project_directory, os.pardir))
-    project_module = import_module(project_name)
+#    project_module = import_module(project_name)
     sys.path.pop()
 
     return project_directory
@@ -433,6 +433,6 @@ def execute_manager(settings_mod, argv=None):
     Like execute_from_command_line(), but for use by manage.py, a
     project-specific django-admin.py utility.
     """
-    setup_environ(settings_mod)
+#    setup_environ(settings_mod)
     utility = ManagementUtility(argv)
     utility.execute()
