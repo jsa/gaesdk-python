@@ -113,6 +113,8 @@ def translation(language):
     else:
         projectpath = None
 
+    base_lang = lambda x: x.split('-', 1)[0]
+
     def _fetch(lang, fallback=None):
 
         global _translations
@@ -137,7 +139,6 @@ def translation(language):
         # the same translation object (thus, merging en-us with a local update
         # doesn't affect en-gb), even though they will both use the core "en"
         # translation. So we have to subvert Python's internal gettext caching.
-        base_lang = lambda x: x.split('-', 1)[0]
         if res and base_lang(lang) in [base_lang(trans) for trans in _translations]:
             res._info = res._info.copy()
             res._catalog = res._catalog.copy()
@@ -173,8 +174,18 @@ def translation(language):
         _translations[lang] = res
         return res
 
-    default_translation = _fetch(settings.LANGUAGE_CODE)
-    current_translation = _fetch(language, fallback=default_translation)
+#    default_translation = _fetch(settings.LANGUAGE_CODE)
+    base = base_lang(language)
+    if base != language:
+        base_translation = _fetch(base)
+        _translations.pop(base)
+        current_translation = _fetch(language, fallback=base_translation)
+        base_translation.merge(current_translation)
+        current_translation = base_translation
+        current_translation.set_language(language)
+        _translations[language] = current_translation
+    else:
+        current_translation = _fetch(language)
 
     return current_translation
 
