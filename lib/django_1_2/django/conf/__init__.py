@@ -62,28 +62,28 @@ class LazySettings(LazyObject):
 class Settings(object):
     def __init__(self, settings_module):
         # update this dict from global settings (but only for ALL_CAPS settings)
-        for setting in dir(global_settings):
-            if setting == setting.upper():
-                setattr(self, setting, getattr(global_settings, setting))
+#        for setting in dir(global_settings):
+#            if setting == setting.upper():
+#                setattr(self, setting, getattr(global_settings, setting))
 
         # store the settings module in case someone later cares
         self.SETTINGS_MODULE = settings_module
 
         try:
-            mod = importlib.import_module(self.SETTINGS_MODULE)
+            self.mod = importlib.import_module(self.SETTINGS_MODULE)
         except ImportError, e:
             raise ImportError("Could not import settings '%s' (Is it on sys.path? Does it have syntax errors?): %s" % (self.SETTINGS_MODULE, e))
 
         # Settings that should be converted into tuples if they're mistakenly entered
         # as strings.
-        tuple_settings = ("INSTALLED_APPS", "TEMPLATE_DIRS")
+#        tuple_settings = ("INSTALLED_APPS", "TEMPLATE_DIRS")
 
-        for setting in dir(mod):
-            if setting == setting.upper():
-                setting_value = getattr(mod, setting)
-                if setting in tuple_settings and type(setting_value) == str:
-                    setting_value = (setting_value,) # In case the user forgot the comma.
-                setattr(self, setting, setting_value)
+#        for setting in dir(mod):
+#            if setting == setting.upper():
+#                setting_value = getattr(mod, setting)
+#                if setting in tuple_settings and type(setting_value) == str:
+#                    setting_value = (setting_value,) # In case the user forgot the comma.
+#                setattr(self, setting, setting_value)
 
         # Expand entries in INSTALLED_APPS like "django.contrib.*" to a list
         # of all those apps.
@@ -108,6 +108,15 @@ class Settings(object):
             os.environ['TZ'] = self.TIME_ZONE
             time.tzset()
 
+    def __getattr__(self, name):
+        try:
+            return getattr(self.mod, name)
+        except AttributeError:
+            return getattr(global_settings, name)
+
+    def get_all_members(self):
+        return dir(self)
+
 class UserSettingsHolder(object):
     """
     Holder for user configured settings.
@@ -126,11 +135,8 @@ class UserSettingsHolder(object):
     def __getattr__(self, name):
         return getattr(self.default_settings, name)
 
-    def __dir__(self):
-        return self.__dict__.keys() + dir(self.default_settings)
-
-    # For Python < 2.6:
-    __members__ = property(lambda self: self.__dir__())
+    def get_all_members(self):
+        return dir(self) + dir(self.default_settings)
 
 settings = LazySettings()
 
