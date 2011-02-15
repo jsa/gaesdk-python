@@ -1,5 +1,5 @@
-from django.core.urlresolvers import RegexURLPattern, RegexURLResolver
 from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import get_callable, RegexURLPattern, RegexURLResolver
 from django.utils.importlib import import_module
 
 __all__ = ['handler404', 'handler500', 'include', 'patterns', 'url']
@@ -8,11 +8,16 @@ handler404 = 'django.views.defaults.page_not_found'
 handler500 = 'django.views.defaults.server_error'
 
 def _validate_urls(mod):
-    if not isinstance(mod, list):
+    while True:
         if isinstance(mod, basestring):
             mod = import_module(mod)
-        mod = mod.urlpatterns
-    assert all(isinstance(p, RegexURLPattern) for p in mod)
+        elif isinstance(mod, tuple):
+            mod = mod[0]
+        elif isinstance(mod, list):
+            break
+        else:
+            mod = mod.urlpatterns
+    assert all(isinstance(p, (RegexURLPattern, RegexURLResolver)) for p in mod)
 
 def include(arg, namespace=None, app_name=None):
     if isinstance(arg, tuple):
@@ -34,7 +39,6 @@ def patterns(prefix, *args):
             if isinstance(t[1], tuple):
                 _validate_urls(t[1])
             else:
-                from django.core.urlresolvers import get_callable
                 assert callable(t[1]) or get_callable('%s.%s' % (prefix, t[1]))
             t = url(prefix=prefix, *t)
         elif isinstance(t, RegexURLPattern):
