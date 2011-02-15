@@ -1,5 +1,6 @@
 """Translation helper functions."""
 
+import copy
 import locale
 import os
 import re
@@ -98,7 +99,7 @@ def translation(language):
     """
     global _translations
 
-    t = _translations.get(language, None)
+    t = _translations.get(language)
     if t is not None:
         return t
 
@@ -121,13 +122,14 @@ def translation(language):
 
         loc = to_locale(lang)
 
-        res = _translations.get(lang, None)
+        res = _translations.get(lang)
         if res is not None:
             return res
 
         def _translation(path):
             try:
                 t = gettext_module.translation('django', path, [loc], DjangoTranslation)
+                t = copy.deepcopy(t)
                 t.set_language(lang)
                 return t
             except IOError, e:
