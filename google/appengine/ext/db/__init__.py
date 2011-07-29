@@ -965,7 +965,9 @@ class Model(object):
         entity[prop.name] = datastore_value
 
 
-    entity.set_unindexed_properties(self._unindexed_properties)
+    set_unindexed_properties = getattr(entity, 'set_unindexed_properties', None)
+    if set_unindexed_properties:
+      set_unindexed_properties(self._unindexed_properties)
 
   def _populate_internal_entity(self, _entity_class=datastore.Entity):
     """Populates self._entity, saving its state to the datastore.
@@ -3719,6 +3721,28 @@ class ComputedProperty(Property):
 
 
 
+def to_dict(model_instance, dictionary=None):
+  """Convert model to dictionary.
+
+  Args:
+    model_instance: Model instance for which to make dictionary.
+    dictionary: dict instance or compatible to receive model values.
+      The dictionary is not cleared of original values.  Similar to using
+      dictionary.update.  If dictionary is None, a new dictionary instance is
+      created and returned.
+
+    Returns:
+      New dictionary appropriate populated with model instances values
+      if entity is None, else entity.
+  """
+  if dictionary is None:
+    dictionary = {}
+
+  model_instance._to_entity(dictionary)
+  return dictionary
+
+
+
 
 run_in_transaction = datastore.RunInTransaction
 run_in_transaction_custom_retries = datastore.RunInTransactionCustomRetries
@@ -3732,6 +3756,9 @@ websafe_decode_cursor = datastore_query.Cursor.from_websafe_string
 
 
 is_in_transaction = datastore.IsInTransaction
+
+
+transactional = datastore.Transactional
 
 
 create_config = datastore.CreateConfig
