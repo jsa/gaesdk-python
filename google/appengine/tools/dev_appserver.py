@@ -109,13 +109,16 @@ from google.appengine.api import mail_stub
 from google.appengine.api import urlfetch_stub
 from google.appengine.api import user_service_stub
 from google.appengine.api import yaml_errors
+from google.appengine.api.app_identity import app_identity_stub
 from google.appengine.api.blobstore import blobstore_stub
 from google.appengine.api.blobstore import file_blob_storage
 
 from google.appengine.api.capabilities import capability_stub
+from google.appengine.api.conversion import conversion_stub
 from google.appengine.api.channel import channel_service_stub
 from google.appengine.api.files import file_service_stub
 from google.appengine.api.logservice import logservice_stub
+from google.appengine.api.search import simple_search_stub
 from google.appengine.api.taskqueue import taskqueue_stub
 from google.appengine.api.prospective_search import prospective_search_stub
 from google.appengine.api.memcache import memcache_stub
@@ -123,6 +126,7 @@ from google.appengine.api.memcache import memcache_stub
 from google.appengine.api.system import system_stub
 from google.appengine.api.xmpp import xmpp_service_stub
 from google.appengine.datastore import datastore_sqlite_stub
+from google.appengine.datastore import datastore_stub_util
 
 from google.appengine import dist
 
@@ -204,6 +208,9 @@ SITE_PACKAGES = os.path.normcase(os.path.join(os.path.dirname(os.__file__),
 DEVEL_PAYLOAD_HEADER = 'HTTP_X_APPENGINE_DEVELOPMENT_PAYLOAD'
 DEVEL_PAYLOAD_RAW_HEADER = 'X-AppEngine-Development-Payload'
 
+DEVEL_FAKE_IS_ADMIN_HEADER = 'HTTP_X_APPENGINE_FAKE_IS_ADMIN'
+DEVEL_FAKE_IS_ADMIN_RAW_HEADER = 'X-AppEngine-Fake-Is-Admin'
+
 CODING_COOKIE_RE = re.compile("coding[:=]\s*([-\w.]+)")
 DEFAULT_ENCODING = 'ascii'
 
@@ -223,6 +230,12 @@ class AppConfigNotFoundError(Error):
 
 class TemplatesNotLoadedError(Error):
   """Templates for the debugging console were not loaded."""
+
+
+class CompileError(Error):
+  """Application could not be compiled."""
+  def __init__(self, text):
+    self.text = text
 
 
 
@@ -286,6 +299,20 @@ def CopyStreamPart(source, destination, content_size):
   return bytes_copied
 
 
+def AppIdWithDefaultPartition(app_id, default_partition):
+  """Add a partition to an application id if necessary."""
+  if not default_partition:
+    return app_id
+
+
+
+  if '~' in app_id:
+    return app_id
+
+  return default_partition + '~' + app_id
+
+
+
 
 class AppServerRequest(object):
   """Encapsulates app-server request.
@@ -333,7 +360,8 @@ class AppServerRequest(object):
     self.headers = headers
     self.infile = infile
     self.force_admin = force_admin
-    if DEVEL_PAYLOAD_RAW_HEADER in self.headers:
+    if (DEVEL_PAYLOAD_RAW_HEADER in self.headers or
+        DEVEL_FAKE_IS_ADMIN_RAW_HEADER in self.headers):
       self.force_admin = True
 
   def __eq__(self, other):
@@ -786,6 +814,11 @@ def SetupEnvironment(cgi_path,
     infile.write(new_data)
     infile.seek(0)
     env['CONTENT_LENGTH'] = str(len(new_data))
+
+
+
+  if DEVEL_FAKE_IS_ADMIN_HEADER in env:
+    del env[DEVEL_FAKE_IS_ADMIN_HEADER]
 
   return env
 
@@ -1943,6 +1976,7 @@ class HardenedModulesHook(object):
 
   def __init__(self,
                module_dict,
+               app_code_path,
                imp_module=imp,
                os_module=os,
                dummy_thread_module=dummy_thread,
@@ -1954,6 +1988,7 @@ class HardenedModulesHook(object):
     Args:
       module_dict: Module dictionary to use for managing system modules.
         Should be sys.modules.
+      app_code_path: The absolute path to the application code on disk.
       imp_module, os_module, dummy_thread_module, pickle_module: References to
         modules that exist in the dev_appserver that must be used by this class
         in order to function, even if these modules have been unloaded from
@@ -1969,6 +2004,7 @@ class HardenedModulesHook(object):
     self._socket.buffer = buffer
     self._select = select_module
     self._indent_level = 0
+    self._app_code_path = app_code_path
 
   @Trace
   def find_module(self, fullname, path=None):
@@ -2337,6 +2373,23 @@ class HardenedModulesHook(object):
                                          source_file,
                                          pathname,
                                          description)
+
+
+
+
+    if (getattr(module, '__path__', None) is not None and
+        search_path != self._app_code_path):
+      try:
+        app_search_path = os.path.join(self._app_code_path,
+                                       *(submodule_fullname.split('.')[:-1]))
+        source_file, pathname, description = self.FindModuleRestricted(submodule,
+                                    submodule_fullname,
+                                    [app_search_path])
+
+
+        module.__path__.append(pathname)
+      except ImportError, e:
+        pass
 
 
 
@@ -2906,6 +2959,20 @@ def ExecuteCGI(root_path,
   """
 
 
+
+
+
+
+
+
+
+  if handler_path == '_go_app':
+    from google.appengine.ext.go import execute_go_cgi
+    return execute_go_cgi(root_path, handler_path, cgi_path,
+        env, infile, outfile)
+
+
+
   old_module_dict = sys.modules.copy()
   old_builtin = __builtin__.__dict__.copy()
   old_argv = sys.argv
@@ -2935,8 +3002,11 @@ def ExecuteCGI(root_path,
     else:
       os.chdir(root_path)
 
+    sdk_dir = os.path.dirname(os.path.dirname(google.__file__))
+    dist.fix_paths(root_path, sdk_dir)
 
-    hook = HardenedModulesHook(sys.modules)
+
+    hook = HardenedModulesHook(sys.modules, root_path)
     sys.meta_path = [hook]
     if hasattr(sys, 'path_importer_cache'):
       sys.path_importer_cache.clear()
@@ -3792,7 +3862,8 @@ def _ClearTemplateCache(module_dict=sys.modules):
 def CreateRequestHandler(root_path,
                          login_url,
                          require_indexes=False,
-                         static_caching=True):
+                         static_caching=True,
+                         default_partition=None):
   """Creates a new BaseHTTPRequestHandler sub-class.
 
   This class will be used with the Python BaseHTTPServer module's HTTP server.
@@ -3807,6 +3878,7 @@ def CreateRequestHandler(root_path,
     login_url: Relative URL which should be used for handling user logins.
     require_indexes: True if index.yaml is read-only gospel; default False.
     static_caching: True if browser caching of static files should be allowed.
+    default_partition: Default partition to use in the application id.
 
   Returns:
     Sub-class of BaseHTTPRequestHandler.
@@ -4022,11 +4094,30 @@ def CreateRequestHandler(root_path,
         config, explicit_matcher = LoadAppConfig(root_path, self.module_dict,
                                                  cache=self.config_cache,
                                                  static_caching=static_caching)
+
+        config.application = AppIdWithDefaultPartition(config.application,
+                                                       default_partition)
+
         if config.api_version != API_VERSION:
           logging.error(
               "API versions cannot be switched dynamically: %r != %r",
               config.api_version, API_VERSION)
           sys.exit(1)
+
+        (exclude, service_match) = ReservedPathFilter(
+            config.inbound_services).ExcludePath(self.path)
+        if exclude:
+          logging.warning(
+              'Request to %s excluded because %s is not enabled '
+              'in inbound_services in app.yaml' % (self.path, service_match))
+          self.send_response(httplib.NOT_FOUND)
+          return
+
+        if config.runtime == 'go':
+
+          from google.appengine.ext import go
+          go.APP_CONFIG = config
+
         version = GetVersionObject()
         env_dict['SDK_VERSION'] = version['release']
         env_dict['CURRENT_VERSION_ID'] = config.version + ".1"
@@ -4099,6 +4190,12 @@ def CreateRequestHandler(root_path,
 
         logging.info('Server interrupted by user, terminating')
         self.server.stop_serving_forever()
+      except CompileError, e:
+        msg = 'Compile error:\n' + e.text + '\n'
+        logging.error(msg)
+        self.send_response(httplib.INTERNAL_SERVER_ERROR, 'Compile error')
+        self.wfile.write('Content-Type: text/plain; charset=utf-8\r\n\r\n')
+        self.wfile.write(msg)
       except:
         msg = 'Exception encountered handling request'
         logging.exception(msg)
@@ -4367,6 +4464,33 @@ def LoadAppConfig(root_path,
   raise AppConfigNotFoundError
 
 
+class ReservedPathFilter():
+  """Checks a path against a set of inbound_services."""
+
+  reserved_paths = {
+      '/_ah/channel/connect': 'channel_presence',
+      '/_ah/channel/disconnect': 'channel_presence'
+      }
+
+  def __init__(self, inbound_services):
+    self.inbound_services = inbound_services
+
+  def ExcludePath(self, path):
+    """Check to see if this is a service url and matches inbound_services."""
+    skip = False
+    for reserved_path in self.reserved_paths.keys():
+      if path.startswith(reserved_path):
+        if (not self.inbound_services or
+            self.reserved_paths[reserved_path] not in self.inbound_services):
+          return (True, self.reserved_paths[reserved_path])
+
+    return (False, None)
+
+
+def CreateInboundServiceFilter(inbound_services):
+  return ReservedPathFilter(inbound_services)
+
+
 def ReadCronConfig(croninfo_path, parse_cron_config=croninfo.LoadSingleCron):
   """Reads cron.yaml file and returns a list of CronEntry instances.
 
@@ -4408,8 +4532,11 @@ def SetupStubs(app_id, **config):
     login_url: Relative URL which should be used for handling user login/logout.
     blobstore_path: Path to the directory to store Blobstore blobs in.
     datastore_path: Path to the file to store Datastore file stub data in.
-    prospective_search_path: Path to the file to store Prospective Search stub data in.
+    default_partition: Default partition for the appid.
+    prospective_search_path: Path to the file to store Prospective Search stub
+        data in.
     use_sqlite: Use the SQLite stub for the datastore.
+    high_replication: Use the high replication consistency model
     history_path: DEPRECATED, No-op.
     clear_datastore: If the datastore should be cleared on startup.
     smtp_host: SMTP host used for sending test mail.
@@ -4445,6 +4572,7 @@ def SetupStubs(app_id, **config):
   prospective_search_path = config.get('prospective_search_path', '')
   clear_prospective_search = config.get('clear_prospective_search', False)
   use_sqlite = config.get('use_sqlite', False)
+  high_replication = config.get('high_replication', False)
   require_indexes = config.get('require_indexes', False)
   rdbms_sqlite_path = config.get('rdbms_sqlite_path', '')
   mysql_host = config.get('mysql_host', None)
@@ -4464,6 +4592,13 @@ def SetupStubs(app_id, **config):
   trusted = config.get('trusted', False)
   serve_port = config.get('port', 8080)
   serve_address = config.get('address', 'localhost')
+  default_partition = config.get('default_partition')
+
+
+
+
+
+  app_id = AppIdWithDefaultPartition(app_id, default_partition)
 
   os.environ['APPLICATION_ID'] = app_id
 
@@ -4499,6 +4634,10 @@ def SetupStubs(app_id, **config):
       datastore = datastore_file_stub.DatastoreFileStub(
           app_id, datastore_path, require_indexes=require_indexes,
           trusted=trusted)
+
+    if high_replication:
+      datastore.SetConsistencyPolicy(
+          datastore_stub_util.TimeBasedHRConsistencyPolicy())
     apiproxy_stub_map.apiproxy.RegisterStub(
         'datastore_v3', datastore)
 
@@ -4511,7 +4650,8 @@ def SetupStubs(app_id, **config):
         taskqueue_stub.TaskQueueServiceStub(
             root_path=root_path,
             auto_task_running=(not disable_task_running),
-            task_retry_seconds=task_retry_seconds))
+            task_retry_seconds=task_retry_seconds,
+            default_http_server='%s:%s' % (serve_address, serve_port)))
 
     if ((mysql_host and mysql_host != 'localhost') or mysql_port != 3306 or
         mysql_user or mysql_password or mysql_socket):
@@ -4578,6 +4718,13 @@ def SetupStubs(app_id, **config):
           prospective_search_path,
           apiproxy_stub_map.apiproxy.GetStub('taskqueue')))
 
+  apiproxy_stub_map.apiproxy.RegisterStub(
+      'app_identity_service',
+      app_identity_stub.AppIdentityServiceStub())
+
+  apiproxy_stub_map.apiproxy.RegisterStub(
+      'search',
+      simple_search_stub.SearchServiceStub())
 
 
 
@@ -4586,6 +4733,10 @@ def SetupStubs(app_id, **config):
 
 
 
+
+  apiproxy_stub_map.apiproxy.RegisterStub(
+      'conversion',
+      conversion_stub.ConversionServiceStub())
 
   try:
     from google.appengine.api.images import images_stub
@@ -4764,7 +4915,8 @@ def CreateServer(root_path,
                  allow_skipped_files=False,
                  static_caching=True,
                  python_path_list=sys.path,
-                 sdk_dir=os.path.dirname(os.path.dirname(google.__file__))):
+                 sdk_dir=os.path.dirname(os.path.dirname(google.__file__)),
+                 default_partition=None):
   """Creates an new HTTPServer for an application.
 
   The sdk_dir argument must be specified for the directory storing all code for
@@ -4785,6 +4937,7 @@ def CreateServer(root_path,
     static_caching: True if browser caching of static files should be allowed.
     python_path_list: Used for dependency injection.
     sdk_dir: Directory where the SDK is stored.
+    default_partition: Default partition to use for the appid.
 
   Returns:
     Instance of BaseHTTPServer.HTTPServer that's ready to start accepting.
@@ -4804,7 +4957,8 @@ def CreateServer(root_path,
   handler_class = CreateRequestHandler(absolute_root_path,
                                        login_url,
                                        require_indexes,
-                                       static_caching)
+                                       static_caching,
+                                       default_partition)
 
 
   if absolute_root_path not in python_path_list:
@@ -4818,9 +4972,11 @@ def CreateServer(root_path,
     server = HTTPServerWithScheduler((serve_address, port), handler_class)
 
 
+
   queue_stub = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
-  if queue_stub:
-    queue_stub._add_event = server.AddEvent
+  if queue_stub and hasattr(queue_stub, 'StartBackgroundExecution'):
+      queue_stub.StartBackgroundExecution()
+
 
   channel_stub = apiproxy_stub_map.apiproxy.GetStub('channel')
   if channel_stub:

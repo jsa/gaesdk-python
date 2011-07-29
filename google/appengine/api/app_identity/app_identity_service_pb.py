@@ -27,10 +27,10 @@ except ImportError:
   _net_proto___parse__python = None
 import sys
 try:
-  __import__('google.net.rpc.python.rpc_internals')
-  __import__('google.net.rpc.python.pywraprpc')
-  rpc_internals = sys.modules.get('google.net.rpc.python.rpc_internals')
-  pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc')
+  __import__('google.net.rpc.python.rpc_internals_lite')
+  __import__('google.net.rpc.python.pywraprpc_lite')
+  rpc_internals = sys.modules.get('google.net.rpc.python.rpc_internals_lite')
+  pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc_lite')
   _client_stub_base_class = rpc_internals.StubbyRPCBaseStub
 except ImportError:
   _client_stub_base_class = object
@@ -1213,6 +1213,7 @@ class _SigningService_ClientBaseStub(_client_stub_base_class):
 
 
 class _SigningService_ClientStub(_SigningService_ClientBaseStub):
+  __slots__ = ('_params',)
   def __init__(self, rpc_stub_parameters, service_name):
     if service_name is None:
       service_name = 'SigningService'
@@ -1221,6 +1222,7 @@ class _SigningService_ClientStub(_SigningService_ClientBaseStub):
 
 
 class _SigningService_RPC2ClientStub(_SigningService_ClientBaseStub):
+  __slots__ = ()
   def __init__(self, server, channel, service_name):
     if service_name is None:
       service_name = 'SigningService'
