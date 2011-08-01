@@ -301,6 +301,7 @@ def CopyStreamPart(source, destination, content_size):
 
 def AppIdWithDefaultPartition(app_id, default_partition):
   """Add a partition to an application id if necessary."""
+  return app_id
   if not default_partition:
     return app_id
 
