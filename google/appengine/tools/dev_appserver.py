@@ -4311,7 +4311,8 @@ def LoadAppConfig(root_path,
   Raises:
     AppConfigNotFound: if an app.yaml file cannot be found.
   """
-  for appinfo_path in [os.path.join(root_path, 'app.yaml'),
+  for appinfo_path in [os.path.join(root_path, 'app-25.yaml'),
+                       os.path.join(root_path, 'app.yaml'),
                        os.path.join(root_path, 'app.yml')]:
 
     if os.path.isfile(appinfo_path):
