@@ -371,7 +371,7 @@ class _LogQueryResult(object):
     """Provides an iterator that yields log records one at a time.
 
     This iterator yields items held locally first, and once these items have
-    been exhausted, it fetched more items via _advance() and yields them. The
+    been exhausted, it fetches more items via _advance() and yields them. The
     number of items it holds is min(MAX_ITEMS_PER_FETCH, batch_size) - the
     latter value can be provided by the user on an initial call to fetch().
     """
@@ -400,24 +400,26 @@ class _LogQueryResult(object):
       self._request.mutable_offset().CopyFrom(response.offset())
 
 
-
-_FETCH_KWARGS = frozenset([
-    'start_time_usec', 'end_time_usec', 'min_log_level', 'prototype_request'])
+_FETCH_KWARGS = frozenset(['prototype_request'])
 
 
 @datastore_rpc._positional(0)
 def fetch(start_time=None,
           end_time=None,
+          offset=None,
           minimum_log_level=None,
           include_incomplete=False,
           include_app_logs=False,
           version_ids=None,
           batch_size=None,
           **kwargs):
-  """Fetches an application's request and application logs.
+  """Returns an iterator yielding an application's request and application logs.
 
-  Results will be yielded in reverse chronological order by request end time,
-  or by last flush time for requests still in progress (if requested).
+  Logs will be returned by the iterator in reverse chronological order by
+  request end time, or by last flush time for requests still in progress (if
+  requested).  The items yielded are
+  google.appengine.api.logservice.log_service_pb.RequestLog protocol buffer
+  objects, the contents of which are accessible via method calls.
 
   All parameters are optional.
 
@@ -426,6 +428,8 @@ def fetch(start_time=None,
       results should be fetched for, in seconds since the Unix epoch.
     end_time: The latest request completion or last-update time that
       results should be fetched for, in seconds since the Unix epoch.
+    offset: A LogOffset protocol buffer previously returned by a query similar
+      to this one indicating a point in the result stream at which to continue.
     minimum_log_level: An application log level which serves as a filter on the
       requests returned--requests with no application log at or above the
       specified level will be omitted.  Works even if include_app_logs is not
@@ -458,23 +462,6 @@ def fetch(start_time=None,
 
   request.set_app_id(os.environ['APPLICATION_ID'])
 
-  start_time_usec = kwargs.get('start_time_usec')
-  if start_time_usec is not None:
-    if not isinstance(start_time_usec, (float, int, long)):
-      raise InvalidArgumentError('start_time_usec must be a float or integer')
-    if start_time is not None:
-      raise InvalidArgumentError(
-          'start_time_usec and start_time may not be used together')
-    request.set_start_time(long(start_time_usec))
-  end_time_usec = kwargs.get('end_time_usec')
-  if end_time_usec is not None:
-    if not isinstance(end_time_usec, (float, int, long)):
-      raise InvalidArgumentError('end_time_usec must be a float or integer')
-    if end_time is not None:
-      raise InvalidArgumentError(
-          'end_time_usec and end_time may not be used together')
-    request.set_end_time(long(end_time_usec))
-
   if start_time is not None:
     if not isinstance(start_time, (float, int, long)):
       raise InvalidArgumentError('start_time must be a float or integer')
@@ -484,6 +471,11 @@ def fetch(start_time=None,
     if not isinstance(end_time, (float, int, long)):
       raise InvalidArgumentError('end_time must be a float or integer')
     request.set_end_time(long(end_time * 1000000))
+
+  if offset is not None:
+    if not isinstance(offset, log_service_pb.LogOffset):
+      raise InvalidArgumentError('end_time must be a LogOffset')
+    request.mutable_offset().CopyFrom(offset)
 
   if batch_size is not None:
     if not isinstance(batch_size, (int, long)):
@@ -496,8 +488,6 @@ def fetch(start_time=None,
       raise InvalidArgumentError('batch_size specified is too large')
     request.set_count(batch_size)
 
-  if minimum_log_level is None:
-    minimum_log_level = kwargs.get('min_log_level')
   if minimum_log_level is not None:
     if not isinstance(minimum_log_level, int):
       raise InvalidArgumentError('minimum_log_level must be an int')
