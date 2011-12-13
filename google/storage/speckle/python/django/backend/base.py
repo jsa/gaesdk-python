@@ -28,10 +28,10 @@ Engine app, this backend will instead use a driver that communicates over the
 Google API for SQL Service.
 
 Communicating over Google API requires valid OAuth 2.0 credentials.  Before
-the backend can be used with this transport, users should first run the provided
-Django management command 'getoauthtoken', and follow the instructions to add
-the obtained OAuth2 refresh token to their database configuration in the project
-settings file.
+the backend can be used with this transport on dev_appserver, users should
+first run the Django 'syncdb' management command (or any other of the commands
+that interact with the database), and follow the instructions to obtain an
+OAuth2 token and persist it to disk for subsequent use.
 
 If you should need to manually force the selection of a particular driver
 module, you can do so by specifying it in the OPTIONS section of the database
@@ -40,13 +40,12 @@ configuration in settings.py.  For example:
 DATABASES = {
     'default': {
         'ENGINE': 'google.storage.speckle.python.django.backend',
-        'INSTANCE': 'examplecom:foo',
+        'INSTANCE': 'example.com:project:instance',
         'NAME': 'mydb',
         'USER': 'myusername',
         'PASSWORD': 'mypassword',
         'OPTIONS': {
             'driver': 'google.storage.speckle.python.api.rdbms_googleapi',
-            'OAUTH2_SECRET': '**********************',
         }
     }
 }
@@ -121,6 +120,7 @@ _SETTINGS_CONNECT_ARGS = (
 
     ('OAUTH2_SECRET', 'oauth2_refresh_token', False),
     ('driver', 'driver_name', False),
+    ('oauth_storage', 'oauth_storage', False),
 )
 
 
@@ -157,7 +157,9 @@ def Connect(driver_name=None, oauth2_refresh_token=None, **kwargs):
   Args:
     driver_name: The name of the driver module to use.
     oauth2_refresh_token: The OAuth2 refresh token used to aquire an access
-      token for authenticating requests made by the Google API driver.
+      token for authenticating requests made by the Google API driver; defaults
+      to the value provided by the GOOGLE_SQL_OAUTH2_REFRESH_TOKEN environment
+      variable, if present.
     kwargs: Additional keyword arguments to pass to the driver's connect
       function.
 
@@ -170,7 +172,7 @@ def Connect(driver_name=None, oauth2_refresh_token=None, **kwargs):
   """
   driver = _GetDriver(driver_name)
   server_software = os.getenv('SERVER_SOFTWARE', '')
-  if driver.__name__.endswith('rdbms_googleapi'):
+  if server_software and driver.__name__.endswith('rdbms_googleapi'):
     if server_software.startswith(PROD_SERVER_SOFTWARE):
       logging.warning(
           'Using the Google API driver is not recommended when running on '
@@ -187,11 +189,13 @@ def Connect(driver_name=None, oauth2_refresh_token=None, **kwargs):
     credentials = storage.get()
     if credentials is None or credentials.invalid:
       if not oauth2_refresh_token:
+        oauth2_refresh_token = os.getenv('GOOGLE_SQL_OAUTH2_REFRESH_TOKEN')
+      if not oauth2_refresh_token:
         raise exceptions.ImproperlyConfigured(
-            'No valid OAuth 2.0 credentials found in storage.  Before using '
-            'the Google API transport for the Google SQL Service backend, you '
-            'must first run "manage.py getoauthtoken" and follow the '
-            'given instructions to setup your OAuth 2.0 access credentials.')
+            'No valid OAuth 2.0 credentials.  Before using the Google SQL '
+            'Service backend on dev_appserver, you must first run "manage.py '
+            'syncdb" and proceed through the given instructions to fetch an '
+            'OAuth 2.0 token.')
       credentials = oauth2client.client.OAuth2Credentials(
           None, rdbms_googleapi.CLIENT_ID, rdbms_googleapi.CLIENT_SECRET,
           oauth2_refresh_token, None,

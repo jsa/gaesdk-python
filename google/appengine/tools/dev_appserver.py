@@ -32,6 +32,8 @@ Example:
   server.serve_forever()
 """
 
+from __future__ import with_statement
+
 
 
 from google.appengine.tools import os_compat
@@ -57,6 +59,7 @@ import os
 import pdb
 import select
 import shutil
+import simplejson
 import tempfile
 import yaml
 
@@ -144,6 +147,8 @@ from google.appengine.tools import dev_appserver_login
 from google.appengine.tools import dev_appserver_oauth
 from google.appengine.tools import dev_appserver_multiprocess as multiprocess
 from google.appengine.tools import dev_appserver_upload
+
+from google.storage.speckle.python.api import rdbms
 
 
 CouldNotFindModuleError = dev_appserver_import_hook.CouldNotFindModuleError
@@ -683,6 +688,20 @@ def _generate_request_id_hash():
   return hashlib.sha1(str(_request_id)).hexdigest()[:8].upper()
 
 
+def GetGoogleSqlOAuth2RefreshToken(oauth_file_path):
+  """Reads the user's Google Cloud SQL OAuth2.0 token from disk."""
+  if not os.path.exists(oauth_file_path):
+    return None
+  try:
+    with open(oauth_file_path) as oauth_file:
+      token = simplejson.load(oauth_file)
+      return token['refresh_token']
+  except (IOError, KeyError, simplejson.decoder.JSONDecodeError):
+    logging.exception(
+        'Could not read OAuth2.0 token from %s', oauth_file_path)
+    return None
+
+
 def SetupEnvironment(cgi_path,
                      relative_url,
                      headers,
@@ -758,6 +777,10 @@ def SetupEnvironment(cgi_path,
 
   if DEVEL_FAKE_IS_ADMIN_HEADER in env:
     del env[DEVEL_FAKE_IS_ADMIN_HEADER]
+
+  token = GetGoogleSqlOAuth2RefreshToken(rdbms.OAUTH_CREDENTIALS_PATH)
+  if token:
+    env['GOOGLE_SQL_OAUTH2_REFRESH_TOKEN'] = token
 
   return env
 
