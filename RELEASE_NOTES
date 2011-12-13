@@ -34,6 +34,9 @@ Version 1.6.1
     http://code.google.com/p/googleappengine/issues/detail?id=4168
 - Fixed an issue where the SDK didn't work with virtualenv.
     http://code.google.com/p/googleappengine/issues/detail?id=4339
+- Fixed an issue where cached static files served to IPs on the DoS blacklist
+  consumed bandwidth quota.
+    http://code.google.com/p/googleappengine/issues/detail?id=4607
 - Fixed an issue that was causing slow serving of requests in the SDK.
     http://code.google.com/p/googleappengine/issues/detail?id=6005
 - Fixed an issue where the Channel API didn't work in the SDK with Python 2.7.
@@ -41,12 +44,16 @@ Version 1.6.1
 - Fixed an httplib compatibility issue between Python 2.5 and Python 2.7 in the
   SDK.
     http://code.google.com/p/googleappengine/issues/detail?id=6271
+- Fixed an issue where queries larger than 1MB didn't work with Python 2.7.
+    http://code.google.com/p/googleappengine/issues/detail?id=6282
 - Fixed an error in the SDK on first page load for a handler.
     http://code.google.com/p/googleappengine/issues/detail?id=6302
 - Fixed an issue in the SDK that caused slowness due to app's logs being written
   to the datastore. Set the --persist_logs flag in the SDK if you are using the
   Logservice API to read logs.
     http://code.google.com/p/googleappengine/issues/detail?id=6355
+- WARNING: Starting with the 1.6.2 release of the experimental Python 2.7
+  runtime, the mapreduce and datastore_admin builtins will not be supported.
 
 Version 1.6.0
 ===============================

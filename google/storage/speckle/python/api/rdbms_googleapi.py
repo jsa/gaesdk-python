@@ -24,7 +24,6 @@
 
 
 import logging
-import os
 
 import google
 
@@ -84,7 +83,7 @@ class RdbmsGoogleApiClient(object):
   """A Google API client for rdbms."""
 
   def __init__(self, api_url='https://www.googleapis.com/sql/v1/',
-               oauth_credentials_path='~/.sqlservice_oauth2.dat',
+               oauth_credentials_path=rdbms.OAUTH_CREDENTIALS_PATH,
                oauth_storage=None, developer_key=None):
     """Constructs an RdbmsGoogleApiClient.
 
@@ -99,8 +98,7 @@ class RdbmsGoogleApiClient(object):
     """
     self._api_url = api_url
     self._developer_key = developer_key
-    storage = oauth_storage or oauth_file.Storage(
-        os.path.expanduser(oauth_credentials_path))
+    storage = oauth_storage or oauth_file.Storage(oauth_credentials_path)
     credentials = storage.get()
     if credentials is None or credentials.invalid:
       credentials = tools.run(GetFlow(), storage)
