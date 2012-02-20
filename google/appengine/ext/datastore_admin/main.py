@@ -192,9 +192,11 @@ class RouteByActionHandler(webapp.RequestHandler):
     """Obtain a list of operation, ordered by last_updated."""
     query = utils.DatastoreAdminOperation.all()
     if active:
-      query.filter('active_jobs > ', 0)
+      query.filter('status = ', utils.DatastoreAdminOperation.STATUS_ACTIVE)
     else:
-      query.filter('active_jobs = ', 0)
+      query.filter('status IN ', [
+          utils.DatastoreAdminOperation.STATUS_COMPLETED,
+          utils.DatastoreAdminOperation.STATUS_FAILED])
     operations = query.fetch(max(10000, limit) if limit else 1000)
     operations = sorted(operations, key=operator.attrgetter('last_updated'),
                         reverse=True)
