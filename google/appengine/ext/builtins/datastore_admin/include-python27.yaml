@@ -1,5 +1,6 @@
 builtins:
 - mapreduce: on
+- deferred: on
 
 handlers:
 - url: /_ah/datastore_admin.*
