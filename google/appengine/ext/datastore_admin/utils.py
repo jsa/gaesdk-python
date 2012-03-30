@@ -57,6 +57,7 @@ class ConfigDefaults(object):
 
   BASE_PATH = '/_ah/datastore_admin'
   MAPREDUCE_PATH = '/_ah/mapreduce'
+  DEFERRED_PATH = BASE_PATH + '/queue/deferred'
   CLEANUP_MAPREDUCE_STATE = True
 
 
