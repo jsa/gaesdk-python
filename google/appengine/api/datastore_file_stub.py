@@ -101,11 +101,10 @@ class KindPseudoKind(object):
   """
   name = '__kind__'
 
-  def Query(self, entities, query, filters, orders):
+  def Query(self, query, filters, orders):
     """Perform a query on this pseudo-kind.
 
     Args:
-      entities: all the app's entities.
       query: the original datastore_pb.Query.
       filters: the filters from query.
       orders: the orders from query.
@@ -122,7 +121,7 @@ class KindPseudoKind(object):
     kinds = []
 
 
-    for app_namespace, kind in entities:
+    for app_namespace, kind in self._stub._GetAllEntities():
       if app_namespace != app_namespace_str: continue
       kind = kind.decode('utf-8')
       if not kind_range.Contains(kind): continue
@@ -142,22 +141,10 @@ class PropertyPseudoKind(object):
   """
   name = '__property__'
 
-  def __init__(self, filestub):
-    """Constructor.
-
-    Initializes a __property__ pseudo-kind definition.
-
-    Args:
-      filestub: the DatastoreFileStub instance being served by this
-          pseudo-kind.
-    """
-    self.filestub = filestub
-
-  def Query(self, entities, query, filters, orders):
+  def Query(self, query, filters, orders):
     """Perform a query on this pseudo-kind.
 
     Args:
-      entities: all the app's entities.
       query: the original datastore_pb.Query.
       filters: the filters from query.
       orders: the orders from query.
@@ -180,6 +167,7 @@ class PropertyPseudoKind(object):
     else:
       usekey = '__property__'
 
+    entities = self._stub._GetAllEntities()
     for app_namespace, kind in entities:
       if app_namespace != app_namespace_str: continue
 
@@ -195,7 +183,7 @@ class PropertyPseudoKind(object):
         continue
 
 
-      kind_properties = self.filestub._GetSchemaCache(app_kind, usekey)
+      kind_properties = self._stub._GetSchemaCache(app_kind, usekey)
       if not kind_properties:
         kind_properties = []
         kind_key = datastore_types.Key.from_path(KindPseudoKind.name, kind,
@@ -229,7 +217,7 @@ class PropertyPseudoKind(object):
 
           kind_properties.append(property_e._ToPb())
 
-        self.filestub._SetSchemaCache(app_kind, usekey, kind_properties)
+        self._stub._SetSchemaCache(app_kind, usekey, kind_properties)
 
 
       def InQuery(property_e):
@@ -250,11 +238,10 @@ class NamespacePseudoKind(object):
   """
   name = '__namespace__'
 
-  def Query(self, entities, query, filters, orders):
+  def Query(self, query, filters, orders):
     """Perform a query on this pseudo-kind.
 
     Args:
-      entities: all the app's entities.
       query: the original datastore_pb.Query.
       filters: the filters from query.
       orders: the orders from query.
@@ -271,7 +258,7 @@ class NamespacePseudoKind(object):
 
     namespaces = set()
 
-    for app_namespace, _ in entities:
+    for app_namespace, _ in self._stub._GetAllEntities():
       (app_id, namespace) = datastore_types.DecodeAppIdNamespace(app_namespace)
       if app_id == app_str and namespace_range.Contains(namespace):
         namespaces.add(namespace)
@@ -368,8 +355,9 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
 
     self._RegisterPseudoKind(KindPseudoKind())
-    self._RegisterPseudoKind(PropertyPseudoKind(weakref.proxy(self)))
+    self._RegisterPseudoKind(PropertyPseudoKind())
     self._RegisterPseudoKind(NamespacePseudoKind())
+    self._RegisterPseudoKind(datastore_stub_util.EntityGroupPseudoKind())
 
     self.Read()
 
@@ -386,6 +374,14 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
       self.__schema_cache = {}
     finally:
       self.__entities_lock.release()
+
+  def _GetAllEntities(self):
+    """Get all entities.
+
+    Returns:
+      Map from kind to _StoredEntity() list. Do not modify directly.
+    """
+    return self.__entities_by_kind
 
   def _GetEntityLocation(self, key):
     """Get keys to self.__entities_by_* from the given key.
@@ -647,8 +643,7 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
       app_ns = datastore_types.EncodeAppIdNamespace(app_id, namespace)
       if pseudo_kind:
 
-        (results, filters, orders) = pseudo_kind.Query(self.__entities_by_kind,
-                                                       query, filters, orders)
+        (results, filters, orders) = pseudo_kind.Query(query, filters, orders)
       elif query.has_kind():
         results = [entity.protobuf for entity in
                    self.__entities_by_kind[app_ns, query.kind()].values()]

@@ -34,7 +34,6 @@ import datetime
 import re
 import string
 import sys
-import warnings
 
 from google.appengine.datastore import document_pb
 from google.appengine.api import apiproxy_stub_map
@@ -50,10 +49,8 @@ __all__ = [
     'AddDocumentError',
     'AddDocumentResult',
     'AtomField',
+    'Cursor',
     'DateField',
-    'DocumentCursor',
-    'RemoveDocumentError',
-    'RemoveDocumentResult',
     'Document',
     'DocumentOperationResult',
     'Error',
@@ -63,20 +60,19 @@ __all__ = [
     'Index',
     'InternalError',
     'InvalidRequest',
-    'ListIndexesResponse',
     'ListDocumentsResponse',
+    'ListIndexesResponse',
     'MatchScorer',
     'NumberField',
     'Query',
     'QueryOptions',
+    'RemoveDocumentError',
+    'RemoveDocumentResult',
     'RescoringMatchScorer',
     'ScoredDocument',
-    'SearchResponse',
-    'SearchResult',
     'SearchResults',
     'SortExpression',
-    'SortOption',
-    'SortSpec',
+    'SortOptions',
     'TextField',
     'TransientError',
     'list_indexes',
@@ -1058,100 +1054,109 @@ def _CopyFieldExpressionToProtocolBuffer(field_expression, pb):
   pb.set_expression(field_expression.expression)
 
 
-class SortOption(object):
-  """Represents a single dimension for sorting on.
+class SortOptions(object):
+  """Represents a mulit-dimensional sort of Documents.
 
-  Use subclasses of this class: MatchScorer, RescoringMatchScorer or
-  SortExpression.
+   The following code shows how to sort documents based on product rating
+   in descending order and then cheapest product within similarly rated
+   products, sorting at most 1000 documents:
+
+     SortOptions(expressions=[
+         SortExpression(expression='rating',
+             direction=SortExpression.DESCENDING, default_value=0),
+         SortExpression(expression='price + tax',
+             direction=SortExpression.ASCENDING, default_value=999999.99)],
+         limit=1000)
   """
 
-
-  ASCENDING, DESCENDING = ('ASCENDING', 'DESCENDING')
-
-  _DIRECTIONS = frozenset([ASCENDING, DESCENDING])
-
-  def __init__(self, limit=1000):
+  def __init__(self, expressions=None, match_scorer=None, limit=1000):
     """Initializer.
 
     Args:
-      limit: The limit on the number of documents to score. Applicable if
-        using a scorer, ignored otherwise.
+      expressions: An iterable of SortExpression representing a
+        multi-dimensional sort of Documents.
+      match_scorer: A match scorer specification which may be used to
+        score documents or in a SortExpression combined with other features.
+      limit: The limit on the number of documents to score. It is advisable
+        to set this limit on large indexes.
 
     Raises:
       TypeError: If any of the parameters has an invalid type, or an unknown
         attribute is passed.
       ValueError: If any of the parameters has an invalid value.
     """
+    self._match_scorer = match_scorer
+    self._expressions = _GetList(expressions)
+    for expression in self._expressions:
+      if not isinstance(expression, SortExpression):
+        raise TypeError('expected a SortExpression but got %s' %
+                        type(expression))
     self._limit = _CheckSortLimit(limit)
+
+  @property
+  def expressions(self):
+    """A list of SortExpression specifying a multi-dimensional sort."""
+    return self._expressions
+
+  @property
+  def match_scorer(self):
+    """Returns a match scorer to score documents with."""
+    return self._match_scorer
 
   @property
   def limit(self):
     """Returns the limit on the number of documents to score."""
     return self._limit
 
-  @property
-  def direction(self):
-    """Returns the direction to sort documents based on score."""
-    return self.DESCENDING
-
-  def _CheckDirection(self, direction):
-    """Checks direction is a valid SortOption direction and returns it."""
-    return _CheckEnum(direction, 'direction', values=self._DIRECTIONS)
-
   def __repr__(self):
     return _Repr(
-        self, [('direction', self.direction),
+        self, [('match_scorer', self.match_scorer),
+               ('expressions', self.expressions),
                ('limit', self.limit)])
 
 
-class MatchScorer(SortOption):
+class MatchScorer(object):
   """Sort documents in ascending order of score.
 
   Match scorer assigns a document a score based on term frequency
   divided by document frequency.
   """
 
-  def __init__(self, limit=1000):
+  def __init__(self):
     """Initializer.
-
-    Args:
-      limit: The limit on the number of documents to score. Applicable if
-        using a scorer, ignored otherwise.
 
     Raises:
       TypeError: If any of the parameters has an invalid type, or an unknown
         attribute is passed.
       ValueError: If any of the parameters has an invalid value.
     """
-    super(MatchScorer, self).__init__(limit=limit)
+
+  def __repr__(self):
+    return _Repr(self, [])
 
 
-class RescoringMatchScorer(SortOption):
+class RescoringMatchScorer(MatchScorer):
   """Sort documents in ascending order of score weighted on document parts.
 
   A rescoring match scorer assigns a document a score based on
   a match scorer and further assigning weights to document parts.
   """
 
-  def __init__(self, limit=1000):
+  def __init__(self):
     """Initializer.
-
-    Args:
-      limit: The limit on the number of documents to score. Applicable if
-        using a scorer, ignored otherwise.
 
     Raises:
       TypeError: If any of the parameters has an invalid type, or an unknown
         attribute is passed.
       ValueError: If any of the parameters has an invalid value.
     """
-    super(RescoringMatchScorer, self).__init__(limit=limit)
+    super(RescoringMatchScorer, self).__init__()
 
 
 def _CopySortExpressionToProtocolBuffer(sort_expression, pb):
   """Copies a SortExpression to a search_service_pb.SortSpec protocol buffer."""
   pb.set_sort_expression(sort_expression.expression)
-  if sort_expression.direction == SortOption.ASCENDING:
+  if sort_expression.direction == SortExpression.ASCENDING:
     pb.set_sort_descending(False)
   if sort_expression.default_value is not None:
     if isinstance(sort_expression.default_value, basestring):
@@ -1161,22 +1166,20 @@ def _CopySortExpressionToProtocolBuffer(sort_expression, pb):
   return pb
 
 
-def _CopySortOptionToScorerSpecProtocolBuffer(sort_option, pb):
-  """Copies a SortOption to a search_service_pb.ScorerSpec."""
-  if isinstance(sort_option, RescoringMatchScorer):
+def _CopyMatchScorerToScorerSpecProtocolBuffer(match_scorer, limit, pb):
+  """Copies a MatchScorer to a search_service_pb.ScorerSpec."""
+  if isinstance(match_scorer, RescoringMatchScorer):
     pb.set_scorer(search_service_pb.ScorerSpec.RESCORING_MATCH_SCORER)
-  elif isinstance(sort_option, MatchScorer):
+  elif isinstance(match_scorer, MatchScorer):
     pb.set_scorer(search_service_pb.ScorerSpec.MATCH_SCORER)
-  elif isinstance(sort_option, SortSpec):
-    _CopySortSpecToScorerSpecProtocolBuffer(sort_option, pb)
   else:
     raise TypeError('Expected MatchScorer or RescoringMatchRescorer but got %s'
-                    % type(sort_option))
-  pb.set_limit(sort_option.limit)
+                    % type(match_scorer))
+  pb.set_limit(limit)
   return pb
 
 
-class SortExpression(SortOption):
+class SortExpression(object):
   """Sort by a user specified scoring expression."""
 
 
@@ -1188,8 +1191,12 @@ class SortExpression(SortOption):
 
   MIN_FIELD_VALUE = ''
 
-  def __init__(self, expression=None, direction=SortOption.DESCENDING,
-               default_value=None, limit=1000):
+
+  ASCENDING, DESCENDING = ('ASCENDING', 'DESCENDING')
+
+  _DIRECTIONS = frozenset([ASCENDING, DESCENDING])
+
+  def __init__(self, expression=None, direction=DESCENDING, default_value=None):
     """Initializer.
 
     Args:
@@ -1204,14 +1211,12 @@ class SortExpression(SortOption):
         present nor can be calculated for a document. A text value must
         be specified for text sorts. A numeric value must be specified for
         numeric sorts.
-      limit: The limit on the number of documents to score.
 
     Raises:
       TypeError: If any of the parameters has an invalid type, or an unknown
         attribute is passed.
       ValueError: If any of the parameters has an invalid value.
     """
-    super(SortExpression, self).__init__(limit=limit)
     self._expression = expression
     self._direction = self._CheckDirection(direction)
     self._default_value = default_value
@@ -1238,259 +1243,15 @@ class SortExpression(SortOption):
     """Returns a default value for the expression if no value computed."""
     return self._default_value
 
-  def __repr__(self):
-    return _Repr(
-        self, [('expression', self.expression),
-               ('direction', self.direction),
-               ('default_value', self.default_value),
-               ('limit', self.limit)])
-
-
-class SortSpec(object):
-  """Sorting specification for a single dimension.
-
-  Multi-dimensional sorting is supported by a list of SortSpecs. For example,
-
-    [SortSpec(expression='author', default_value=SortSpec.MAX_FIELD_VALUE),
-     SortSpec(expression='subject', direction=SortSpec.ASCENDING,
-              default_value=SortSpec.MIN_FIELD_VALUE)]
-
-  will sort the result set by author in descending order and then subject in
-  ascending order. Documents with no author will appear at the top of results.
-  Documents with no subject will appear at the top of the author group.
-  """
-
-  ASCENDING, DESCENDING = ('ASCENDING', 'DESCENDING')
-
-
-  CUSTOM, MATCH_SCORER, RESCORING_MATCH_SCORER = (
-      'CUSTOM', 'MATCH_SCORER', 'RESCORING_MATCH_SCORER')
-
-  _DIRECTIONS = frozenset([ASCENDING, DESCENDING])
-
-  _TYPES = frozenset([CUSTOM, MATCH_SCORER, RESCORING_MATCH_SCORER])
-
-
-  try:
-    MAX_FIELD_VALUE = unichr(0x10ffff) * 80
-  except ValueError:
-
-    MAX_FIELD_VALUE = unichr(0xffff) * 80
-
-  MIN_FIELD_VALUE = ''
-
-  def __init__(self, sort_type=CUSTOM, expression=None, direction=DESCENDING,
-               default_value=None, limit=1000):
-    """Initializer.
-
-    Args:
-      sort_type: The type of sorting to use on search results. The possible
-        types include:
-          CUSTOM: User must specify the scoring function in the expression
-            field.
-          MATCH_SCORER: Sort documents using a scorer that returns a score
-            based on term frequency divided by document frequency.
-          RESCORING_MATCH_SCORER: Sort documents using match scoring and
-            rescoring.
-      expression: An expression to be evaluated on each matching document
-        to be used to sort by. The expression can simply be a field name,
-        or some compound expression such as "score + count(likes) * 0.1"
-        which will add the score from a scorer to a count of the values
-        of a likes field times 0.1.
-      direction: The direction to sort the search results, either ASCENDING
-        or DESCENDING
-      default_value: The default value of the expression, if no field
-        present nor can be calculated for a document. A text value must
-        be specified for text sorts. A numeric value must be specified for
-        numeric sorts.
-      limit: The limit on the number of documents to score. Applicable if
-        using a scorer, ignored otherwise.
-
-    Raises:
-      TypeError: If any of the parameters has an invalid type, or an unknown
-        attribute is passed.
-      ValueError: If any of the parameters has an invalid value.
-    """
-    warnings.warn('search.Index.SortSpec is deprecated: '
-                  'use MatchScorer, RescoringMatchScorer or SortExpression in '
-                  'search.QueryOptions.sort_options instead.',
-                  DeprecationWarning, stacklevel=2)
-    self._sort_type = self._CheckType(sort_type)
-    self._expression = expression
-    self._direction = self._CheckDirection(direction)
-    self._default_value = default_value
-    if sort_type == SortSpec.CUSTOM:
-      if expression is None:
-        raise TypeError('expression required for CUSTOM sort_type')
-      _CheckExpression(expression)
-      if isinstance(self.default_value, basestring):
-        _CheckText(self._default_value, 'default_value')
-      elif self._default_value is not None:
-        _CheckNumber(self._default_value, 'default_value')
-    else:
-      if expression is not None:
-        raise TypeError('expression only allowed in CUSTOM sort_type')
-      if default_value is not None:
-        raise TypeError('default_value only allowed in CUSTOM sort_type')
-    self._limit = _CheckSortLimit(limit)
-
-  @property
-  def sort_type(self):
-    """Returns the type of the scorer to use."""
-    return self._sort_type
-
-  @property
-  def expression(self):
-    """Returns the expression to sort by."""
-    return self._expression
-
-  @property
-  def direction(self):
-    """Returns the direction to sort field, either ASCENDING or DESCENDING."""
-    return self._direction
-
-  @property
-  def default_value(self):
-    """Returns a default value used for sorting fields which have no value."""
-    return self._default_value
-
-  @property
-  def limit(self):
-    """Returns the limit on the number of documents to score."""
-    return self._limit
-
-  def _CheckType(self, sort_type):
-    """Checks sort_type is a valid SortSpec type and returns it."""
-    return _CheckEnum(sort_type, 'sort_type', values=self._TYPES)
-
   def _CheckDirection(self, direction):
-    """Checks direction is a valid SortSpec direction and returns it."""
+    """Checks direction is a valid SortExpression direction and returns it."""
     return _CheckEnum(direction, 'direction', values=self._DIRECTIONS)
 
   def __repr__(self):
     return _Repr(
-        self, [('sort_type', self.sort_type),
-               ('expression', self.expression),
+        self, [('expression', self.expression),
                ('direction', self.direction),
-               ('default_value', self.default_value),
-               ('limit', self.limit)])
-
-
-def _CopySortSpecToProtocolBuffer(sort_spec, pb):
-  """Copies this SortSpec to a search_service_pb.SortSpec protocol buffer."""
-  pb.set_sort_expression(sort_spec.expression)
-  if sort_spec.direction == SortSpec.ASCENDING:
-    pb.set_sort_descending(False)
-  if sort_spec.default_value is not None:
-    if isinstance(sort_spec.default_value, basestring):
-      pb.set_default_value_text(sort_spec.default_value)
-    else:
-      pb.set_default_value_numeric(sort_spec.default_value)
-  return pb
-
-
-_SORT_TYPE_PB_MAP = {
-    SortSpec.RESCORING_MATCH_SCORER:
-    search_service_pb.ScorerSpec.RESCORING_MATCH_SCORER,
-    SortSpec.MATCH_SCORER: search_service_pb.ScorerSpec.MATCH_SCORER}
-
-
-def _CopySortSpecToScorerSpecProtocolBuffer(sort_spec, pb):
-  """Copies a SortSpec to a search_service_pb.ScorerSpec."""
-  pb.set_scorer(_SORT_TYPE_PB_MAP.get(sort_spec.sort_type))
-  pb.set_limit(sort_spec.limit)
-  return pb
-
-
-class SearchResult(object):
-  """Represents a result of executing a search request."""
-
-  def __init__(self, document, sort_scores=None, expressions=None, cursor=None):
-    """Initializer.
-
-    Args:
-      document: The document returned as a query result. Only fields
-        specified in a search request returned_fields parameters will be
-        returned in the document.
-      sort_scores: The list of scores assigned during sort evaluation. Each
-        sort dimension is included. Positive scores are used for ascending
-        sorts; negative scores for descending.
-      expressions: The list of computed fields which are the result of
-        expressions requested.
-      cursor: A DocumentCursor associated with the document.
-
-    Raises:
-      TypeError: If any of the parameters have invalid types, or an unknown
-        attribute is passed.
-      ValueError: If any of the parameters have invalid values.
-    """
-    self._document = document
-    self._sort_scores = self._CheckSortScores(_GetList(sort_scores))
-    self._expressions = _GetList(expressions)
-    self._cursor = _CheckCursor(cursor)
-
-  @property
-  def document(self):
-    """A document which matches the query."""
-    return self._document
-
-  @property
-  def sort_scores(self):
-    """The list of scores assigned during sort evaluation.
-
-    Each sort dimension is included. Positive scores are used for ascending
-    sorts; negative scores for descending.
-
-    Returns:
-      The list of numeric sort scores.
-    """
-    return self._sort_scores
-
-  @property
-  def expressions(self):
-    """The list of computed fields the result of expression evaluation.
-
-    For example, if a request has
-      FieldExpression(name='snippet', 'snippet("good story", content)')
-    meaning to compute a snippet field containing HTML snippets extracted
-    from the matching of the query 'good story' on the field 'content'.
-    This means a field such as the following will be returned in expressions
-    for the search result:
-      HtmlField(name='snippet', value='that was a <b>good story</b> to finish')
-
-    Returns:
-      The computed fields.
-    """
-    return self._expressions
-
-  @property
-  def cursor(self):
-    """A cursor associated with a result, a continued search starting point.
-
-    To get this cursor to appear, set the Index.cursor_type to
-    Index.RESULT_CURSOR, otherwise this will be None.
-
-    Returns:
-      The result cursor.
-    """
-    return self._cursor
-
-  def _CheckSortScores(self, sort_scores):
-    """Checks sort_scores is a list of floats, and returns it."""
-    for sort_score in sort_scores:
-      _CheckNumber(sort_score, 'sort_scores')
-    return sort_scores
-
-  def _CheckCursor(self, cursor):
-    """Checks cursor is a string which is not too long, and returns it."""
-    return _ValidateString(cursor, 'cursor', _MAXIMUM_CURSOR_LENGTH,
-                           empty_ok=True)
-
-  def __repr__(self):
-    return _Repr(self, [('document', self.document),
-                        ('sort_scores', self.sort_scores),
-                        ('expressions', self.expressions),
-                        ('cursor', self.cursor)])
+               ('default_value', self.default_value)])
 
 
 class ScoredDocument(Document):
@@ -1528,8 +1289,8 @@ class ScoredDocument(Document):
                                          language=language, order_id=order_id)
     self._sort_scores = self._CheckSortScores(_GetList(sort_scores))
     self._expressions = _GetList(expressions)
-    if cursor is not None and not isinstance(cursor, DocumentCursor):
-      raise TypeError('expected a DocumentCursor but got %s' % type(cursor))
+    if cursor is not None and not isinstance(cursor, Cursor):
+      raise TypeError('expected a Cursor but got %s' % type(cursor))
     self._cursor = cursor
 
   @property
@@ -1604,7 +1365,7 @@ class SearchResults(object):
       number_found: The number of documents found for the query.
       results: The list of ScoredDocuments returned from executing a
         search request.
-      cursor: A DocumentCursor to continue the search from the end of the
+      cursor: A Cursor to continue the search from the end of the
         search results.
 
     Raises:
@@ -1614,8 +1375,8 @@ class SearchResults(object):
     """
     self._number_found = _CheckInteger(number_found, 'number_found')
     self._results = _GetList(results)
-    if cursor is not None and not isinstance(cursor, DocumentCursor):
-      raise TypeError('expected a DocumentCursor but got %s' % type(cursor))
+    if cursor is not None and not isinstance(cursor, Cursor):
+      raise TypeError('expected a Cursor but got %s' % type(cursor))
     self._cursor = cursor
 
   def __iter__(self):
@@ -1656,75 +1417,6 @@ class SearchResults(object):
   def __repr__(self):
     return _Repr(self, [('results', self.results),
                         ('number_found', self.number_found),
-                        ('cursor', self.cursor)])
-
-
-class SearchResponse(object):
-  """Represents the result of executing a search request. Deprecated."""
-
-  def __init__(self, matched_count, results=None, cursor=None):
-    """Initializer.
-
-    Args:
-      matched_count: The count of documents that matched the query.
-      results: The list of SearchResult returned from executing a search
-        request.
-      cursor: A cursor to continue the search from the end of the
-        search results.
-
-    Raises:
-      TypeError: If any of the parameters have an invalid type, or an unknown
-        attribute is passed.
-      ValueError: If any of the parameters have an invalid value.
-    """
-    self._matched_count = _CheckInteger(matched_count, 'matched_count')
-    self._results = _GetList(results)
-    self._cursor = cursor
-
-  def __iter__(self):
-
-    for result in self.results:
-      yield result
-
-  @property
-  def results(self):
-    """Returns the list of SearchResult that matched the query."""
-    return self._results
-
-  @property
-  def matched_count(self):
-    """Returns the count of documents which matched the query.
-
-    Note that this is an approximation and not an exact count.
-    If Index.search matched_count_accuracy parameter is set to 100
-    for example, then matched_count <= 100 is accurate.
-
-    Returns:
-      The number of documents matched.
-    """
-    return self._matched_count
-
-
-  @property
-  def returned_count(self):
-    """Returns the count of documents returned in results."""
-    return len(self._results)
-
-  @property
-  def cursor(self):
-    """Returns a cursor that can be used to continue search from last result.
-
-    This corresponds to setting Index.search cursor_type parameter to
-    Index.RESPONSE_CURSOR, otherwise this will be None.
-
-    Returns:
-      The response cursor.
-    """
-    return self._cursor
-
-  def __repr__(self):
-    return _Repr(self, [('results', self.results),
-                        ('matched_count', self.matched_count),
                         ('cursor', self.cursor)])
 
 
@@ -1802,7 +1494,7 @@ class ListIndexesResponse(object):
     return _Repr(self, [('indexes', self.indexes)])
 
 
-class DocumentCursor(object):
+class Cursor(object):
   """Specifies how to get the next page of results in a search.
 
   A cursor returned in a previous set of search results to use as a starting
@@ -1815,19 +1507,19 @@ class DocumentCursor(object):
   # get the first set of results, the first cursor is used to specify
   # that cursors are to be returned in the SearchResults.
   results = index.search(Query(query_string='some stuff',
-      QueryOptions(cursor=DocumentCursor()))
+      QueryOptions(cursor=Cursor()))
 
   # get the next set of results
   results = index.search(Query(query_string='some stuff',
       QueryOptions(cursor=results.cursor)))
 
   If you want to continue search from any one of the ScoredDocuments in
-  SearchResults, then you can set DocumentCursor.per_result to True.
+  SearchResults, then you can set Cursor.per_result to True.
 
   # get the first set of results, the first cursor is used to specify
   # that cursors are to be returned in the SearchResults.
   results = index.search(Query(query_string='some stuff',
-      QueryOptions(cursor=DocumentCursor(per_result=True)))
+      QueryOptions(cursor=Cursor(per_result=True)))
 
   # this shows how to access the per_document cursors returned from a search
   per_document_cursor = None
@@ -1841,24 +1533,34 @@ class DocumentCursor(object):
 
 
 
-  def __init__(self, cursor_string=None, per_result=False):
+  def __init__(self, web_safe_string=None, per_result=False):
     """Initializer.
 
     Args:
-      cursor_string: The cursor string returned from the search service to
+      web_safe_string: The cursor string returned from the search service to
         be interpreted by the search service to get the next set of results.
       per_result: A bool when true will return a cursor per ScoredDocument in
         SearchResults, otherwise will return a single cursor for the whole
         SearchResults. If using offset this is ignored, as the user is
         responsible for calculating a next offset if any.
+    Raises:
+
+      ValueError: if the web_safe_string is not of required format.
     """
-    self._cursor_string = _CheckCursor(cursor_string)
+    self._web_safe_string = _CheckCursor(web_safe_string)
     self._per_result = per_result
+    if web_safe_string:
+      parts = web_safe_string.split(':', 1)
+      if len(parts) != 2 or parts[0] not in ['True', 'False']:
+        raise ValueError('invalid format for web_safe_string')
+      self._internal_cursor = parts[1]
+
+      self._per_result = (parts[0] == 'True')
 
   @property
-  def cursor_string(self):
+  def web_safe_string(self):
     """Returns the cursor string generated by the search service."""
-    return self._cursor_string
+    return self._web_safe_string
 
   @property
   def per_result(self):
@@ -1866,8 +1568,12 @@ class DocumentCursor(object):
     return self._per_result
 
   def __repr__(self):
-    return _Repr(self, [('cursor_string', self.cursor_string),
-                        ('per_result', self.per_result)])
+    return _Repr(self, [('web_safe_string', self.web_safe_string)])
+
+
+def _ToWebSafeString(per_result, internal_cursor):
+  """Returns the web safe string combining per_result with internal cursor."""
+  return str(per_result) + ':' + internal_cursor
 
 
 def _CheckQuery(query):
@@ -1966,9 +1672,11 @@ class QueryOptions(object):
           query='subject:first good',
           options=QueryOptions(
             limit=20,
-            cursor=DocumentCursor(),
-            sort_options=[
-                SortOptions(expression='subject', default_value='')],
+            cursor=Cursor(),
+            sort_options=SortOptions(
+                expressions=[
+                    SortExpression(expression='subject', default_value='')],
+                limit=1000),
             returned_fields=['author', 'subject', 'summary'],
             snippeted_fields=['content'])))
 
@@ -1980,7 +1688,7 @@ class QueryOptions(object):
         any SearchResults with number_found <= 100 is accurate. This option
         may add considerable latency/expense, especially when used with
         returned_fields.
-      cursor: A DocumentCursor describing where to get the next set of results,
+      cursor: A Cursor describing where to get the next set of results,
         or to provide next cursors in SearchResults.
       offset: The offset is number of documents to skip in search results. This
         is an alternative to using a query cursor, but allows random access into
@@ -1988,8 +1696,8 @@ class QueryOptions(object):
         can only use either cursor or offset, but not both. Using an offset
         means that no cursor is returned in SearchResults.cursor, nor in each
         ScoredDocument.cursor.
-      sort_options: An iterable of SortOptions specifying a multi-dimensional
-        sort over the search results.
+      sort_options: A SortOptions specifying a multi-dimensional sort over
+        search results.
       returned_fields: An iterable of names of fields to return in search
         results.
       ids_only: Only return document ids, do not return any fields.
@@ -2004,17 +1712,16 @@ class QueryOptions(object):
     self._limit = _CheckLimit(limit)
     self._number_found_accuracy = _CheckNumberFoundAccuracy(
         number_found_accuracy)
-    if cursor is not None and not isinstance(cursor, DocumentCursor):
-      raise TypeError('expected a DocumentCursor but got %s' % type(cursor))
+    if cursor is not None and not isinstance(cursor, Cursor):
+      raise TypeError('expected a Cursor but got %s' % type(cursor))
     if cursor is not None and offset is not None:
       raise ValueError('cannot set cursor and offset together')
     self._cursor = cursor
     self._offset = _CheckOffset(offset)
-    self._sort_options = _GetList(sort_options)
-    for sort_option in self._sort_options:
-      if not isinstance(sort_option, SortOption):
-        raise TypeError('expected a subtype of SortOption but got %s' %
-                        type(sort_option))
+    if sort_options is not None and not isinstance(sort_options, SortOptions):
+      raise TypeError('expected a SortOptions but got %s' %
+                      type(sort_options))
+    self._sort_options = sort_options
 
     self._returned_fields = _ConvertToList(returned_fields)
     _CheckFieldNames(self._returned_fields)
@@ -2042,7 +1749,7 @@ class QueryOptions(object):
 
   @property
   def cursor(self):
-    """Returns the DocumentCursor for the query."""
+    """Returns the Cursor for the query."""
     return self._cursor
 
   @property
@@ -2052,7 +1759,7 @@ class QueryOptions(object):
 
   @property
   def sort_options(self):
-    """Returns iterable of SortOptions specifying sort order over results."""
+    """Returns a SortOptions."""
     return self._sort_options
 
   @property
@@ -2089,7 +1796,7 @@ class QueryOptions(object):
 def _CopyQueryOptionsObjectToProtocolBuffer(query, options, params):
   """Copies a QueryOptions object to a SearchParams proto buff."""
   offset = 0
-  cursor_string = None
+  web_safe_string = None
   cursor_type = search_service_pb.SearchParams.NONE
   offset = options.offset
   if options.cursor:
@@ -2098,11 +1805,11 @@ def _CopyQueryOptionsObjectToProtocolBuffer(query, options, params):
       cursor_type = search_service_pb.SearchParams.PER_RESULT
     else:
       cursor_type = search_service_pb.SearchParams.SINGLE
-    if cursor.cursor_string:
-      cursor_string = cursor.cursor_string
+    if isinstance(cursor, Cursor) and cursor.web_safe_string:
+      web_safe_string = cursor.web_safe_string
   _CopyQueryOptionsToProtocolBuffer(
       query, offset, options.limit, options.number_found_accuracy,
-      cursor_string, cursor_type, options.ids_only, options.returned_fields,
+      web_safe_string, cursor_type, options.ids_only, options.returned_fields,
       options.snippeted_fields, options.returned_expressions,
       options.sort_options, params)
 
@@ -2137,15 +1844,17 @@ def _CopyQueryOptionsToProtocolBuffer(
       _CopyFieldExpressionToProtocolBuffer(
           expression, field_spec_pb.add_expression())
 
-  sort_options = _GetList(sort_options)
-  if sort_options:
-    for sort_option in sort_options:
-      if isinstance(sort_option, SortExpression):
-        sort_spec_pb = params.add_sort_spec()
-        _CopySortExpressionToProtocolBuffer(sort_option, sort_spec_pb)
-      else:
-        _CopySortOptionToScorerSpecProtocolBuffer(
-            sort_option, params.mutable_scorer_spec())
+  if sort_options is not None:
+    for expression in sort_options.expressions:
+      sort_spec_pb = params.add_sort_spec()
+      _CopySortExpressionToProtocolBuffer(expression, sort_spec_pb)
+    if sort_options.match_scorer:
+      scorer_spec = params.mutable_scorer_spec()
+      _CopyMatchScorerToScorerSpecProtocolBuffer(
+          sort_options.match_scorer, sort_options.limit, scorer_spec)
+      scorer_spec.set_limit(sort_options.limit)
+    else:
+      params.mutable_scorer_spec().set_limit(sort_options.limit)
 
 
 class Query(object):
@@ -2168,16 +1877,17 @@ class Query(object):
           query_string='subject:first good',
           options=QueryOptions(
               limit=20,
-              cursor=DocumentCursor(),
-              sort_options=[
-                  SortOptions(expression='subject', default_value='')],
+              cursor=Cursor(),
+              sort_options=SortOptions(
+                  expressions=[
+                      SortExpression(expression='subject', default_value='')],
+                  limit=1000),
               returned_fields=['author', 'subject', 'summary'],
               snippeted_fields=['content'])))
 
-    In order to a DocumentCursor, you specify it in the QueryOptions.cursor
-    and extract the next request from results.cursor
-    it to the next request, to continue from the last found document, as shown
-    below:
+    In order to get a Cursor, you specify a Cursor in QueryOptions.cursor
+    and extract the Cursor for the next request from results.cursor to
+    continue from the last found document, as shown below:
 
       results = index.search(
           Query(query_string='subject:first good',
@@ -2224,9 +1934,9 @@ def _CopyQueryToProtocolBuffer(query, params):
 
 def _CopyQueryObjectToProtocolBuffer(query, params):
   _CopyQueryToProtocolBuffer(query.query_string, params)
-  options = QueryOptions()
-  if query.options is not None:
-    options = query.options
+  options = query.options
+  if query.options is None:
+    options = QueryOptions()
   _CopyQueryOptionsObjectToProtocolBuffer(query.query_string, options, params)
 
 
@@ -2500,27 +2210,6 @@ class Index(object):
         raise RemoveDocumentError(
             'one or more remove document operations failed', results)
 
-  def _NewSearchResponse(self, response):
-    """Returns a SearchResponse populated from a search_service response pb."""
-    results = []
-    for result_pb in response.result_list():
-      cursor = None
-      if result_pb.has_cursor():
-        cursor = result_pb.cursor()
-      results.append(
-          SearchResult(
-              document=_NewDocumentFromPb(result_pb.document()),
-              sort_scores=result_pb.score_list(),
-              expressions=[_NewFieldFromPb(f) for f in
-                           result_pb.expression_list()],
-              cursor=cursor))
-    response_cursor = None
-    if response.has_cursor():
-      response_cursor = response.cursor()
-    return SearchResponse(
-        results=results, matched_count=response.matched_count(),
-        cursor=response_cursor)
-
   def _NewScoredDocumentFromPb(self, doc_pb, sort_scores, expressions, cursor):
     """Constructs a Document from a document_pb.Document protocol buffer."""
     lang = None
@@ -2537,24 +2226,25 @@ class Index(object):
     for result_pb in response.result_list():
       per_result_cursor = None
       if result_pb.has_cursor():
-        per_result_cursor = DocumentCursor(cursor_string=result_pb.cursor(),
-                                           per_result=cursor.per_result)
+        if isinstance(cursor, Cursor):
+
+          per_result_cursor = Cursor(web_safe_string=_ToWebSafeString(
+              cursor.per_result, result_pb.cursor()))
       results.append(
           self._NewScoredDocumentFromPb(
               result_pb.document(), result_pb.score_list(),
               result_pb.expression_list(), per_result_cursor))
     results_cursor = None
     if response.has_cursor():
-      results_cursor = DocumentCursor(cursor_string=response.cursor(),
-                                      per_result=cursor.per_result)
+      if isinstance(cursor, Cursor):
+
+        results_cursor = Cursor(web_safe_string=_ToWebSafeString(
+            cursor.per_result, response.cursor()))
     return SearchResults(
         results=results, number_found=response.matched_count(),
         cursor=results_cursor)
 
-  def search(self, query, offset=0, limit=20, matched_count_accuracy=100,
-             ids_only=False, cursor=None, cursor_type=None, sort_specs=None,
-             returned_fields=None, snippeted_fields=None,
-             returned_expressions=None, **kwargs):
+  def search(self, query, **kwargs):
     """Search the index for documents matching the query.
 
     For example, the following code fragment requests a search for
@@ -2567,9 +2257,11 @@ class Index(object):
       results = index.search(
           query=Query('subject:first good',
               options=QueryOptions(limit=20,
-                  cursor=DocumentCursor(),
+                  cursor=Cursor(),
                   sortOptions=SortOptions(
-                      [SortExpression(expression='subject', default_value='')]),
+                      expressions=[SortExpression(expression='subject',
+                                                  default_value='')],
+                      limit=1000),
                   returned_fields=['author', 'subject', 'summary'],
                   snippeted_fields=['content'])))
 
@@ -2587,7 +2279,7 @@ class Index(object):
       results = index.search(
           query=Query('subject:first good',
               options=QueryOptions(limit=20,
-                  cursor=DocumentCursor(per_result=True),
+                  cursor=Cursor(per_result=True),
                   ...)))
 
       cursor = None
@@ -2625,65 +2317,10 @@ class Index(object):
       request.set_app_id(self._app_id)
 
     params = request.mutable_params()
+    if isinstance(query, basestring):
+      query = Query(query_string=query)
     _CopyMetadataToProtocolBuffer(self, params.mutable_index_spec())
-
-    if isinstance(query, Query):
-      _CopyQueryObjectToProtocolBuffer(query, params)
-    else:
-      if cursor is not None:
-        warnings.warn('search.Index.search(cursor) is deprecated: '
-                      'use search.QueryOptions(cursor) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if cursor_type is not None:
-        warnings.warn('search.Index.search(cursor_type) is deprecated: '
-                      'use search.QueryOptions(cursor) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if offset is not None:
-        warnings.warn('search.Index.search(offset) is deprecated: '
-                      'use search.QueryOptions(offset) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if sort_specs is not None:
-        warnings.warn('search.Index.search(sort_specs) is deprecated: '
-                      'use search.QueryOptions(sort_specs) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if returned_fields is not None:
-        warnings.warn('search.Index.search(returned_fields) is deprecated: '
-                      'use search.QueryOptions(returned_fields) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if snippeted_fields is not None:
-        warnings.warn('search.Index.search(snippeted_fields) is deprecated: '
-                      'use search.QueryOptions(snippeted_fields) instead.',
-                      DeprecationWarning, stacklevel=2)
-      if returned_expressions is not None:
-        warnings.warn('search.Index.search(returned_expressions) is deprecated:'
-                      ' use search.QueryOptions(returned_expressions) instead.',
-                      DeprecationWarning, stacklevel=2)
-
-      _CheckQuery(query)
-      _CheckOffset(offset)
-      _CheckLimit(limit)
-      _CheckCursor(cursor)
-      _CheckNumberFoundAccuracy(matched_count_accuracy)
-      self._CheckCursorType(cursor_type)
-      returned_fields = _ConvertToList(returned_fields)
-      _CheckFieldNames(returned_fields)
-      snippeted_fields = _ConvertToList(snippeted_fields)
-      _CheckFieldNames(snippeted_fields)
-      returned_expressions = _ConvertToList(returned_expressions)
-      for expression in returned_expressions:
-        _CheckFieldName(expression.name)
-        _CheckExpression(expression.expression)
-      _CheckNumberOfFields(returned_expressions, snippeted_fields,
-                           returned_fields)
-      sort_specs = _GetList(sort_specs)
-
-      _CopyQueryToProtocolBuffer(query, params)
-
-      _CopyQueryOptionsToProtocolBuffer(
-          query, offset, limit, matched_count_accuracy, cursor,
-          _CURSOR_TYPE_PB_MAP.get(cursor_type),
-          ids_only, returned_fields, snippeted_fields, returned_expressions,
-          sort_specs, params)
+    _CopyQueryObjectToProtocolBuffer(query, params)
 
     response = search_service_pb.SearchResponse()
 
@@ -2693,13 +2330,10 @@ class Index(object):
       raise _ToSearchError(e)
 
     _CheckStatus(response.status())
-    if isinstance(query, Query):
-      cursor = None
-      if query.options:
-        cursor = query.options.cursor
-      return self._NewSearchResults(response, cursor)
-    else:
-      return self._NewSearchResponse(response)
+    cursor = None
+    if query.options:
+      cursor = query.options.cursor
+    return self._NewSearchResults(response, cursor)
 
   def _NewListDocumentsResponse(self, response):
     """Returns a ListDocumentsResponse from the list_documents response pb."""

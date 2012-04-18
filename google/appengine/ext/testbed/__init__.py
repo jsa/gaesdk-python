@@ -69,6 +69,8 @@ Enable stubs and disable services
 ---------------------------------
 
 This module allows you to use stubs for the following services:
+- capability_service
+- channel
 - datastore_v3 (aka datastore)
 - images (only for dev_appserver)
 - mail (only for dev_appserver)
@@ -77,7 +79,6 @@ This module allows you to use stubs for the following services:
 - urlfetch
 - user
 - xmpp
-- channel
 
 To use a particular service stub, call self.init_SERVICENAME_stub().
 This will replace calls to the service with calls to the service
@@ -116,6 +117,7 @@ from google.appengine.api import urlfetch_stub
 from google.appengine.api import user_service_stub
 from google.appengine.api.blobstore import blobstore_stub
 from google.appengine.api.blobstore import dict_blob_storage
+from google.appengine.api.capabilities import capability_stub
 from google.appengine.api.channel import channel_service_stub
 try:
   from google.appengine.api.images import images_stub
@@ -153,6 +155,7 @@ DEFAULT_SERVER_PORT = DEFAULT_ENVIRONMENT['SERVER_PORT']
 
 
 BLOBSTORE_SERVICE_NAME = 'blobstore'
+CAPABILITY_SERVICE_NAME = 'capability_service'
 CHANNEL_SERVICE_NAME = 'channel'
 DATASTORE_SERVICE_NAME = 'datastore_v3'
 IMAGES_SERVICE_NAME = 'images'
@@ -165,6 +168,7 @@ XMPP_SERVICE_NAME = 'xmpp'
 
 
 SUPPORTED_SERVICES = [BLOBSTORE_SERVICE_NAME,
+                      CAPABILITY_SERVICE_NAME,
                       CHANNEL_SERVICE_NAME,
                       DATASTORE_SERVICE_NAME,
                       IMAGES_SERVICE_NAME,
@@ -355,6 +359,19 @@ class Testbed(object):
     stub = blobstore_stub.BlobstoreServiceStub(storage)
     self._register_stub(BLOBSTORE_SERVICE_NAME, stub)
 
+  def init_capability_stub(self, enable=True):
+    """Enable the capability stub.
+
+    Args:
+      enable: True, if the fake service should be enabled, False if real
+              service should be disabled.
+    """
+    if not enable:
+      self._disable_stub(CAPABILITY_SERVICE_NAME)
+      return
+    stub = capability_stub.CapabilityServiceStub()
+    self._register_stub(CAPABILITY_SERVICE_NAME, stub)
+
   def init_channel_stub(self, enable=True):
     """Enable the channel stub.
 
@@ -537,7 +554,14 @@ class Testbed(object):
     if service_name not in SUPPORTED_SERVICES:
       msg = 'The "%s" service is not supported by testbed' % service_name
       raise StubNotSupportedError(msg)
-    method_name = 'init_%s_stub' % service_name
+
+
+
+    if service_name == CAPABILITY_SERVICE_NAME:
+      method_name = 'init_capability_stub'
+    else:
+      method_name = 'init_%s_stub' % service_name
+
     method = getattr(self, method_name)
     method(*args, **kwargs)
 
