@@ -1710,6 +1710,10 @@ class CGIDispatcher(URLDispatcher):
     before_level = logging.root.level
     try:
       env = {}
+
+
+      if self._config.env_variables:
+        env.update(self._config.env_variables)
       if base_env_dict:
         env.update(base_env_dict)
       cgi_path = self._path_adjuster.AdjustPath(request.path)
@@ -2143,6 +2147,9 @@ class AppServerResponse(object):
     for header in self.headers.headers:
       header = header.rstrip('\n\r')
       header_list.append(header)
+    if not self.headers.getheader('Content-Type'):
+
+      header_list.append('Content-Type: text/html')
 
     return '\r\n'.join(header_list) + '\r\n'
 
