@@ -34,6 +34,7 @@ import datetime
 import re
 import string
 import sys
+import warnings
 
 from google.appengine.datastore import document_pb
 from google.appengine.api import apiproxy_stub_map
@@ -48,6 +49,8 @@ from google.appengine.runtime import apiproxy_errors
 __all__ = [
     'AddDocumentError',
     'AddDocumentResult',
+    'AddError',
+    'AddResult',
     'AtomField',
     'Cursor',
     'DateField',
@@ -62,12 +65,16 @@ __all__ = [
     'InvalidRequest',
     'ListDocumentsResponse',
     'ListIndexesResponse',
+    'ListResponse',
     'MatchScorer',
     'NumberField',
+    'OperationResult',
     'Query',
     'QueryOptions',
     'RemoveDocumentError',
     'RemoveDocumentResult',
+    'RemoveError',
+    'RemoveResult',
     'RescoringMatchScorer',
     'ScoredDocument',
     'SearchResults',
@@ -124,7 +131,7 @@ class InvalidRequest(Error):
 class DocumentOperationResult(object):
   """Represents result of individual operation of a batch index or removal.
 
-  This is an abstract class.
+  This is an abstract class. Deprecated. Use OperationResult.
   """
 
   OK, INVALID_REQUEST, TRANSIENT_ERROR, INTERNAL_ERROR = (
@@ -144,6 +151,9 @@ class DocumentOperationResult(object):
       TypeError: If an unknown attribute is passed.
       ValueError: If an unknown code is passed.
     """
+    warnings.warn('DocumentOperationResult is deprecated. '
+                  'Use OperationResult instead',
+                  DeprecationWarning, stacklevel=2)
     self._message = message
     if self._message is not None and not isinstance(self._message, basestring):
       raise TypeError('message must be a string: %r' % self._message)
@@ -165,7 +175,13 @@ class DocumentOperationResult(object):
 
   @property
   def document_id(self):
-    """Returns the Id of the document the operation was performed on."""
+    """Returns the Id of the document the operation was performed on.
+
+    Deprecated. Use OperationResult.object_id.
+
+    Returns:
+      the Id.
+    """
     return self._document_id
 
   def __repr__(self):
@@ -173,27 +189,68 @@ class DocumentOperationResult(object):
                         ('document_id', self.document_id)])
 
 
+class OperationResult(DocumentOperationResult):
+  """Represents result of individual operation of a batch index or removal.
+
+  This is an abstract class.
+  """
+
+  def __init__(self, code, message=None, object_id=None):
+    """Initializer.
+
+    Args:
+      code: The error or success code of the operation.
+      message: An error message associated with any error.
+      object_id: The id of the object some operation was performed on.
+
+    Raises:
+      TypeError: If an unknown attribute is passed.
+      ValueError: If an unknown code is passed.
+    """
+    super(OperationResult, self).__init__(code, message, object_id)
+
+  @property
+  def object_id(self):
+    """Returns the Id of the object the operation was performed on."""
+    return self.document_id
+
+  def __repr__(self):
+    return _Repr(self, [('code', self.code), ('message', self.message),
+                        ('object_id', self.object_id)])
+
+
 _ERROR_OPERATION_CODE_MAP = {
-    search_service_pb.SearchServiceError.OK: DocumentOperationResult.OK,
+    search_service_pb.SearchServiceError.OK: OperationResult.OK,
     search_service_pb.SearchServiceError.INVALID_REQUEST:
-    DocumentOperationResult.INVALID_REQUEST,
+    OperationResult.INVALID_REQUEST,
     search_service_pb.SearchServiceError.TRANSIENT_ERROR:
-    DocumentOperationResult.TRANSIENT_ERROR,
+    OperationResult.TRANSIENT_ERROR,
     search_service_pb.SearchServiceError.INTERNAL_ERROR:
-    DocumentOperationResult.INTERNAL_ERROR
+    OperationResult.INTERNAL_ERROR
     }
 
 
-class AddDocumentResult(DocumentOperationResult):
-  """The result of indexing a single document."""
+class AddDocumentResult(OperationResult):
+  """The result of indexing a single document. Deprecated. Use AddResult."""
 
 
-class RemoveDocumentResult(DocumentOperationResult):
+class AddResult(AddDocumentResult):
+  """The result of indexing a single object."""
+
+
+class RemoveDocumentResult(OperationResult):
+  """The result of deleting a single document. Deprecated. Use RemoveResult."""
+
+
+class RemoveResult(RemoveDocumentResult):
   """The result of deleting a single document."""
 
 
 class AddDocumentError(Error):
-  """Indicates some error occurred indexing one of the documents requested."""
+  """Indicates some error occurred indexing one of the documents requested.
+
+  Deprecated. Use AddError.
+  """
 
   def __init__(self, message, document_results):
     """Initializer.
@@ -204,13 +261,42 @@ class AddDocumentError(Error):
       document_results: A list of AddDocumentResult corresponding to
         the list of Document requested to be indexed.
     """
+    warnings.warn('AddDocumentError is deprecated. '
+                  'Use AddError instead',
+                  DeprecationWarning, stacklevel=2)
     super(AddDocumentError, self).__init__(message)
     self._document_results = document_results
 
   @property
   def document_results(self):
-    """Returns AddDocumentResult list corresponding to Documents indexed."""
+    """Returns AddDocumentResult list corresponding to Documents indexed.
+
+    Deprecated. Use AddError.results.
+
+    Returns:
+      the AddDocumentResult.
+    """
     return self._document_results
+
+
+class AddError(AddDocumentError):
+  """Indicates some error occurred indexing one of the objects requested."""
+
+  def __init__(self, message, results):
+    """Initializer.
+
+    Args:
+      message: A message detailing the cause of the failure to index some
+        document.
+      results: A list of AddResult corresponding to the list of objects
+        requested to be indexed.
+    """
+    super(AddError, self).__init__(message, results)
+
+  @property
+  def results(self):
+    """Returns AddResult list corresponding to objects indexed."""
+    return self.document_results
 
 
 class RemoveDocumentError(Error):
@@ -230,8 +316,34 @@ class RemoveDocumentError(Error):
 
   @property
   def document_results(self):
-    """Returns RemoveDocumentResult list corresponding to Documents removed."""
+    """Returns RemoveDocumentResult list corresponding to Documents removed.
+
+    Deprecated. Use RemoveError.results.
+
+    Returns:
+      the RemoveDocumentResult.
+    """
     return self._document_results
+
+
+class RemoveError(RemoveDocumentError):
+  """Indicates some error occured deleting one of the objects requested."""
+
+  def __init__(self, message, results):
+    """Initializer.
+
+    Args:
+      message: A message detailing the cause of the failure to remove some
+        document.
+      results: A list of RemoveResult corresponding to the list of Ids of
+        objects requested to be removed.
+    """
+    super(RemoveError, self).__init__(message, results)
+
+  @property
+  def results(self):
+    """Returns RemoveResult list corresponding to Documents removed."""
+    return self.document_results
 
 
 _ERROR_MAP = {
@@ -1423,6 +1535,8 @@ class SearchResults(object):
 class ListDocumentsResponse(object):
   """Represents the result of executing a list documents request.
 
+  Deprecated. Use ListResponse.
+
   For example, the following code shows how a response could be used
   to determine which documents were successfully removed or not.
 
@@ -1442,6 +1556,9 @@ class ListDocumentsResponse(object):
         attribute is passed.
       ValueError: If any of the parameters have an invalid value.
     """
+    warnings.warn('ListDocumentsResponse is deprecated. '
+                  'Use ListResponse instead',
+                  DeprecationWarning, stacklevel=2)
     self._documents = _GetList(documents)
 
   def __iter__(self):
@@ -1450,11 +1567,50 @@ class ListDocumentsResponse(object):
 
   @property
   def documents(self):
-    """Returns a list of documents ordered by Id from the index."""
+    """Returns a list of documents ordered by Id from the index.
+
+    Deprecated. Use ListResponse.results.
+
+    Returns:
+      the list of documents
+    """
     return self._documents
 
   def __repr__(self):
     return _Repr(self, [('documents', self.documents)])
+
+
+class ListResponse(ListDocumentsResponse):
+  """Represents the result of executing a list request on an index.
+
+  For example, the following code shows how a response could be used
+  to determine which documents were successfully removed or not.
+
+  response = index.list_documents()
+  for document in response:
+    print "document ", document
+  """
+
+  def __init__(self, results=None):
+    """Initializer.
+
+    Args:
+      results: The results returned from an index ordered by Id.
+
+    Raises:
+      TypeError: If any of the parameters have an invalid type, or an unknown
+        attribute is passed.
+      ValueError: If any of the parameters have an invalid value.
+    """
+    super(ListResponse, self).__init__(results)
+
+  @property
+  def results(self):
+    """Returns a list of results ordered by Id from the index."""
+    return self.documents
+
+  def __repr__(self):
+    return _Repr(self, [('results', self.results)])
 
 
 class ListIndexesResponse(object):
@@ -1806,7 +1962,7 @@ def _CopyQueryOptionsObjectToProtocolBuffer(query, options, params):
     else:
       cursor_type = search_service_pb.SearchParams.SINGLE
     if isinstance(cursor, Cursor) and cursor.web_safe_string:
-      web_safe_string = cursor.web_safe_string
+      web_safe_string = cursor._internal_cursor
   _CopyQueryOptionsToProtocolBuffer(
       query, offset, options.limit, options.number_found_accuracy,
       web_safe_string, cursor_type, options.ids_only, options.returned_fields,
@@ -2071,16 +2227,16 @@ class Index(object):
                         ('consistency', self.consistency),
                         ('schema', self.schema)])
 
-  def _NewAddDocumentResultFromPb(self, status_pb, doc_id):
-    """Constructs AddDocumentResult from RequestStatus pb and doc_id."""
+  def _NewAddResultFromPb(self, status_pb, doc_id):
+    """Constructs AddResult from RequestStatus pb and doc_id."""
     message = None
     if status_pb.has_error_detail():
       message = status_pb.error_detail()
     code = _ERROR_OPERATION_CODE_MAP[status_pb.code()]
-    return AddDocumentResult(code=code, message=message, document_id=doc_id)
+    return AddResult(code=code, message=message, object_id=doc_id)
 
-  def _NewAddDocumentResultList(self, response):
-    return [self._NewAddDocumentResultFromPb(status, doc_id)
+  def _NewAddResultList(self, response):
+    return [self._NewAddResultFromPb(status, doc_id)
             for status, doc_id in zip(response.status_list(),
                                       response.doc_id_list())]
 
@@ -2095,10 +2251,10 @@ class Index(object):
       documents: A Document or iterable of Documents to index.
 
     Returns:
-      A list of AddDocumentResult, one per Document requested to be indexed.
+      A list of AddResult, one per Document requested to be indexed.
 
     Raises:
-      AddDocumentError: If one or more documents failed to index or
+      AddError: If one or more documents failed to index or
         number indexed did not match requested.
       TypeError: If an unknown attribute is passed.
       ValueError: If documents is not a Document or iterable of Document
@@ -2135,28 +2291,27 @@ class Index(object):
     except apiproxy_errors.ApplicationError, e:
       raise _ToSearchError(e)
 
-    results = self._NewAddDocumentResultList(response)
+    results = self._NewAddResultList(response)
 
     if response.status_size() != len(docs):
-      raise AddDocumentError('did not index requested number of documents',
+      raise AddError('did not index requested number of documents',
                                results)
 
     for status in response.status_list():
       if status.code() != search_service_pb.SearchServiceError.OK:
-        raise AddDocumentError('one or more add document operations failed',
-                               results)
+        raise AddError('one or more add document operations failed', results)
     return results
 
-  def _NewRemoveDocumentResultFromPb(self, status_pb, doc_id):
-    """Constructs RemoveDocumentResult from RequestStatus pb and doc_id."""
+  def _NewRemoveResultFromPb(self, status_pb, doc_id):
+    """Constructs RemoveResult from RequestStatus pb and doc_id."""
     message = None
     if status_pb.has_error_detail():
       message = status_pb.error_detail()
     code = _ERROR_OPERATION_CODE_MAP[status_pb.code()]
-    return RemoveDocumentResult(code=code, message=message, document_id=doc_id)
+    return RemoveResult(code=code, message=message, object_id=doc_id)
 
-  def _NewRemoveDocumentResultList(self, document_ids, response):
-    return [self._NewRemoveDocumentResultFromPb(status, doc_id)
+  def _NewRemoveResultList(self, document_ids, response):
+    return [self._NewRemoveResultFromPb(status, doc_id)
             for status, doc_id in zip(response.status_list(), document_ids)]
 
   def remove(self, document_ids):
@@ -2171,7 +2326,7 @@ class Index(object):
         to remove.
 
     Raises:
-      RemoveDocumentError: If one or more documents failed to remove or
+      RemoveError: If one or more documents failed to remove or
         number removed did not match requested.
       ValueError: If document_ids is not a string or iterable of valid document
         identifiers or number of document ids is larger than
@@ -2199,15 +2354,15 @@ class Index(object):
     except apiproxy_errors.ApplicationError, e:
       raise _ToSearchError(e)
 
-    results = self._NewRemoveDocumentResultList(document_ids, response)
+    results = self._NewRemoveResultList(document_ids, response)
 
     if response.status_size() != len(doc_ids):
-      raise RemoveDocumentError(
+      raise RemoveError(
           'did not remove requested number of documents', results)
 
     for status in response.status_list():
       if status.code() != search_service_pb.SearchServiceError.OK:
-        raise RemoveDocumentError(
+        raise RemoveError(
             'one or more remove document operations failed', results)
 
   def _NewScoredDocumentFromPb(self, doc_pb, sort_scores, expressions, cursor):
@@ -2335,13 +2490,13 @@ class Index(object):
       cursor = query.options.cursor
     return self._NewSearchResults(response, cursor)
 
-  def _NewListDocumentsResponse(self, response):
-    """Returns a ListDocumentsResponse from the list_documents response pb."""
+  def _NewListResponse(self, response):
+    """Returns a ListResponse from the list_documents response pb."""
     documents = []
     for doc_proto in response.document_list():
       documents.append(_NewDocumentFromPb(doc_proto))
 
-    return ListDocumentsResponse(documents=documents)
+    return ListResponse(results=documents)
 
   def list_documents(self, start_doc_id=None, include_start_doc=True,
                      limit=100, ids_only=False, **kwargs):
@@ -2356,7 +2511,7 @@ class Index(object):
       ids_only: If true, the documents returned only contain their keys.
 
     Returns:
-      A ListDocumentsResponse containing a list of Documents, ordered by Id.
+      A ListResponse containing a list of Documents, ordered by Id.
 
     Raises:
       Error: Some subclass of Error is raised if an error occurred processing
@@ -2388,7 +2543,7 @@ class Index(object):
       raise _ToSearchError(e)
 
     _CheckStatus(response.status())
-    return self._NewListDocumentsResponse(response)
+    return self._NewListResponse(response)
 
   def _CheckCursorType(self, cursor_type):
     """Checks the cursor_type is one specified in _CURSOR_TYPES or None."""

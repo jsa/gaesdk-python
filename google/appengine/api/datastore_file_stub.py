@@ -297,7 +297,8 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
                trusted=False,
                consistency_policy=None,
                save_changes=True,
-               root_path=None):
+               root_path=None,
+               use_atexit=True):
     """Constructor.
 
     Initializes and loads the datastore from the backing files, if they exist.
@@ -318,12 +319,8 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
       save_changes: bool, default True. If this stub should modify
         datastore_file when entities are changed.
       root_path: string, the root path of the app.
+      use_atexit: bool, indicates if the stub should save itself atexit.
     """
-    datastore_stub_util.BaseDatastore.__init__(self, require_indexes,
-                                               consistency_policy)
-    apiproxy_stub.APIProxyStub.__init__(self, service_name)
-    datastore_stub_util.DatastoreStub.__init__(self, weakref.proxy(self),
-                                               app_id, trusted, root_path)
 
 
 
@@ -352,6 +349,13 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
     self.__id_lock = threading.Lock()
 
     self.__file_lock = threading.Lock()
+
+    datastore_stub_util.BaseDatastore.__init__(
+        self, require_indexes, consistency_policy,
+        use_atexit and self.__IsSaveable())
+    apiproxy_stub.APIProxyStub.__init__(self, service_name)
+    datastore_stub_util.DatastoreStub.__init__(self, weakref.proxy(self),
+                                               app_id, trusted, root_path)
 
 
     self._RegisterPseudoKind(KindPseudoKind())
@@ -476,17 +480,22 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
           self.__next_id = last_path.id() + 1
 
   def Write(self):
-    """ Writes out the datastore and history files. Be careful! If the files
-    already exist, this method overwrites them!
+    """Writes out the datastore and history files.
+
+    Be careful! If the files already exist, this method overwrites them!
     """
+    super(DatastoreFileStub, self).Write()
     self.__WriteDatastore()
+
+  def __IsSaveable(self):
+    return (self.__datastore_file and self.__datastore_file != '/dev/null' and
+            self.__save_changes)
 
   def __WriteDatastore(self):
     """ Writes out the datastore file. Be careful! If the file already exists,
     this method overwrites it!
     """
-    if (self.__datastore_file and self.__datastore_file != '/dev/null' and
-        self.__save_changes):
+    if self.__IsSaveable():
       encoded = []
       for kind_dict in self.__entities_by_kind.values():
         encoded.extend(entity.encoded_protobuf for entity in kind_dict.values())

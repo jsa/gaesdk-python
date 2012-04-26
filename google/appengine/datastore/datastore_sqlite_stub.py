@@ -442,7 +442,8 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
                service_name='datastore_v3',
                trusted=False,
                consistency_policy=None,
-               root_path=None):
+               root_path=None,
+               use_atexit=True):
     """Constructor.
 
     Initializes the SQLite database if necessary.
@@ -461,9 +462,11 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
         default. Consistency policies can be found in
         datastore_stub_util.*ConsistencyPolicy
       root_path: string, the root path of the app.
+      use_atexit: bool, indicates if the stub should save itself atexit.
     """
     datastore_stub_util.BaseDatastore.__init__(self, require_indexes,
-                                               consistency_policy)
+                                               consistency_policy,
+                                               use_atexit and datastore_file)
     apiproxy_stub.APIProxyStub.__init__(self, service_name)
     datastore_stub_util.DatastoreStub.__init__(self, weakref.proxy(self),
                                                app_id, trusted, root_path)
@@ -541,13 +544,6 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
 
   def Read(self):
     """Reads the datastore from disk.
-
-    Noop for compatibility with file stub.
-    """
-    pass
-
-  def Write(self):
-    """Writes the datastore to disk.
 
     Noop for compatibility with file stub.
     """

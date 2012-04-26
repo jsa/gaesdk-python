@@ -3430,8 +3430,6 @@ def TearDownStubs():
 
 
   if isinstance(datastore_stub, datastore_stub_util.BaseTransactionManager):
-    logging.info('Applying all pending transactions and saving the datastore')
-    datastore_stub.Flush()
     datastore_stub.Write()
 
 
