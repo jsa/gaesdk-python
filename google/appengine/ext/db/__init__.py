@@ -2389,6 +2389,13 @@ class Query(_BaseQuery):
        print story.title
   """
 
+
+  _keys_only = False
+  _projection = None
+  _namespace = None
+  _app = None
+  __ancestor = None
+
   def __init__(self, model_class=None, keys_only=False, cursor=None,
                namespace=None, _app=None, projection=None):
     """Constructs a query over instances of the given Model.
@@ -2404,13 +2411,18 @@ class Query(_BaseQuery):
       namespace: The namespace to use for this query.
     """
     super(Query, self).__init__(model_class)
-    self._keys_only = keys_only
-    self._projection = projection
-    self._namespace = namespace
+
+    if keys_only:
+      self._keys_only = True
+    if projection:
+      self._projection = projection
+    if namespace is not None:
+      self._namespace = namespace
+    if _app is not None:
+      self._app = _app
+
     self.__query_sets = [{}]
     self.__orderings = []
-    self.__ancestor = None
-    self._app = _app
     self.with_cursor(cursor)
 
   def is_keys_only(self):

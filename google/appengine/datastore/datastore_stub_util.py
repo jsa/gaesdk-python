@@ -41,6 +41,7 @@ import struct
 import time
 import threading
 import weakref
+import atexit
 
 from google.appengine.api import api_base_pb
 from google.appengine.api import apiproxy_stub_map
@@ -2074,12 +2075,20 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
 
   _MAX_ACTIONS_PER_TXN = 5
 
-  def __init__(self, require_indexes=False, consistency_policy=None):
+  def __init__(self, require_indexes=False, consistency_policy=None,
+               use_atexit=True):
     BaseTransactionManager.__init__(self, consistency_policy=consistency_policy)
     BaseIndexManager.__init__(self)
 
     self._require_indexes = require_indexes
     self._pseudo_kinds = {}
+
+    if use_atexit:
+
+
+
+
+      atexit.register(self.Write)
 
   def Clear(self):
     """Clears out all stored values."""
@@ -2398,7 +2407,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
 
   def Write(self):
     """Writes the datastore to disk."""
-    raise NotImplementedError
+    logging.info('Applying all pending transactions and saving the datastore')
+    self.Flush()
 
   def _GetQueryCursor(self, query, filters, orders, index_list):
     """Runs the given datastore_pb.Query and returns a QueryCursor for it.

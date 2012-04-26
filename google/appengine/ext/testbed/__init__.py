@@ -207,7 +207,8 @@ class Testbed(object):
 
   def __init__(self):
     self._activated = False
-    self._enabled_stubs = []
+
+    self._enabled_stubs = {}
 
   def activate(self):
     """Activate the testbed.
@@ -243,8 +244,13 @@ class Testbed(object):
     """
     if not self._activated:
       raise NotActivatedError('The testbed is not activated.')
+
+    for service_name, deactivate_callback in self._enabled_stubs.iteritems():
+      if deactivate_callback:
+        deactivate_callback(self._test_stub_map.GetStub(service_name))
+
     apiproxy_stub_map.apiproxy = self._original_stub_map
-    self._enabled_stubs = []
+    self._enabled_stubs = {}
 
 
     os.environ.clear()
@@ -288,22 +294,21 @@ class Testbed(object):
       if overwrite or key not in os.environ:
         os.environ[key] = value
 
-  def _register_stub(self, service_name, stub):
+  def _register_stub(self, service_name, stub, deactivate_callback=None):
     """Register a service stub.
 
     Args:
       service_name: The name of the service the stub represents.
       stub: The stub.
+      deactivate_callback: An optional function to call when deactivating the
+        stub. Must accept the stub as the only argument.
 
     Raises:
       NotActivatedError: The testbed is not activated.
     """
-    if not self._activated:
-      raise NotActivatedError('The testbed is not activated.')
-    if service_name in self._test_stub_map._APIProxyStubMap__stub_map:
-      del self._test_stub_map._APIProxyStubMap__stub_map[service_name]
+    self._disable_stub(service_name)
     self._test_stub_map.RegisterStub(service_name, stub)
-    self._enabled_stubs.append(service_name)
+    self._enabled_stubs[service_name] = deactivate_callback
 
   def _disable_stub(self, service_name):
     """Disable a service stub.
@@ -316,10 +321,11 @@ class Testbed(object):
     """
     if not self._activated:
       raise NotActivatedError('The testbed is not activated.')
+    deactivate_callback = self._enabled_stubs.pop(service_name, None)
+    if deactivate_callback:
+      deactivate_callback(self._test_stub_map.GetStub(service_name))
     if service_name in self._test_stub_map._APIProxyStubMap__stub_map:
       del self._test_stub_map._APIProxyStubMap__stub_map[service_name]
-    if service_name in self._enabled_stubs:
-      self._enabled_stubs.remove(service_name)
 
   def get_stub(self, service_name):
     """Get the stub for a service.
@@ -418,14 +424,20 @@ class Testbed(object):
       stub = datastore_sqlite_stub.DatastoreSqliteStub(
           os.environ['APPLICATION_ID'],
           datastore_file,
+          use_atexit=False,
           **stub_kw_args)
     else:
       stub_kw_args.setdefault('save_changes', False)
       stub = datastore_file_stub.DatastoreFileStub(
           os.environ['APPLICATION_ID'],
           datastore_file,
+          use_atexit=False,
           **stub_kw_args)
-    self._register_stub(DATASTORE_SERVICE_NAME, stub)
+    self._register_stub(DATASTORE_SERVICE_NAME, stub,
+                        self._deactivate_datastore_v3_stub)
+
+  def _deactivate_datastore_v3_stub(self, stub):
+    stub.Write()
 
   def init_images_stub(self, enable=True):
     """Enable the images stub.

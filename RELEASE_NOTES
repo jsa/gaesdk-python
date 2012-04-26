@@ -23,9 +23,16 @@ Version 1.6.5
 - The Datastore Admin now has a page that displays information on the status of
   your Datastore backups and restores.
 - You can now abort your Datastore backup or restore from the Datastore Admin.
+- You can now restore a single Datastore Kind from the Datastore Admin from a
+  Datastore backup.
 - In the Admin Console, you can report production issues with your application
   directly to Google from the application's pages. Simply click the "Report
   Production Issues" link, fill out the requested information, and submit.
+- All user requests have X-AppEngine-Region, X-AppEngine-City, and
+  X-AppEngine-CityLatLong headers which contain location information based on
+  the IP address of the client request. For a full description of these headers,
+  see:
+    https://developers.google.com/appengine/docs/python/runtime#Request_Headers
 - We have added support for concurrent transactions to @db.transactional and
   db.run_in_transaction_options() along with other transaction propagation
   options.
