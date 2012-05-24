@@ -47,12 +47,14 @@ from google.appengine.runtime import apiproxy_errors
 
 
 __all__ = [
+    'AddDocumentError',
     'AddError',
     'AddResult',
     'AtomField',
     'Cursor',
     'DateField',
     'Document',
+    'DocumentOperationResult',
     'Error',
     'Field',
     'FieldExpression',
@@ -67,6 +69,7 @@ __all__ = [
     'OperationResult',
     'Query',
     'QueryOptions',
+    'RemoveDocumentError',
     'RemoveError',
     'RemoveResult',
     'RescoringMatchScorer',
@@ -122,6 +125,15 @@ class InvalidRequest(Error):
   """Indicates an invalid request was made on the search API by the client."""
 
 
+def _ConvertToUnicode(some_string):
+  """Convert UTF-8 encoded string to unicode."""
+  if some_string is None:
+    return None
+  if isinstance(some_string, unicode):
+    return some_string
+  return unicode(some_string, 'utf-8')
+
+
 class OperationResult(object):
   """Represents result of individual operation of a batch index or removal.
 
@@ -133,13 +145,13 @@ class OperationResult(object):
 
   _CODES = frozenset([OK, INVALID_REQUEST, TRANSIENT_ERROR, INTERNAL_ERROR])
 
-  def __init__(self, code, message=None, object_id=None):
+  def __init__(self, code, message=None, id=None):
     """Initializer.
 
     Args:
       code: The error or success code of the operation.
       message: An error message associated with any error.
-      object_id: The id of the object some operation was performed on.
+      id: The id of the object some operation was performed on.
 
     Raises:
       TypeError: If an unknown attribute is passed.
@@ -150,7 +162,7 @@ class OperationResult(object):
     if self._code not in self._CODES:
       raise ValueError('Unknown operation result code %r, must be one of %s'
                        % (self._code, self._CODES))
-    self._object_id = _ConvertToUnicode(object_id)
+    self._id = _ConvertToUnicode(id)
 
   @property
   def code(self):
@@ -163,13 +175,39 @@ class OperationResult(object):
     return self._message
 
   @property
+  def document_id(self):
+    """Returns the Id of the document the operation was performed on.
+
+    Deprecated. Use id instead.
+
+    Returns:
+      the Id.
+    """
+    warnings.warn('document_id is deprecated. Use id instead',
+                  DeprecationWarning, stacklevel=2)
+    return self._id
+
+  @property
   def object_id(self):
+    """Returns the Id of the object the operation was performed on.
+
+    Deprecated. Use id instead.
+
+    Returns:
+      the Id.
+    """
+    warnings.warn('object_id is deprecated. Use id instead',
+                  DeprecationWarning, stacklevel=2)
+    return self._id
+
+  @property
+  def id(self):
     """Returns the Id of the object the operation was performed on."""
-    return self._object_id
+    return self._id
 
   def __repr__(self):
     return _Repr(self, [('code', self.code), ('message', self.message),
-                        ('object_id', self.object_id)])
+                        ('id', self.id)])
 
 
 _ERROR_OPERATION_CODE_MAP = {
@@ -183,6 +221,22 @@ _ERROR_OPERATION_CODE_MAP = {
     }
 
 
+class _DocumentOperationResult(OperationResult):
+  """Represents result of individual operation of a batch index or removal.
+
+  This is an abstract class. Deprecated. Use OperationResult instead.
+  """
+
+  def __getattribute__(self, name):
+    warnings.warn('DocumentOperationResult.%s is deprecated. '
+                  'Use OperationResult.%s instead.' % (name, name))
+    return OperationResult.__getattribute__(self, name)
+
+
+DocumentOperationResult = _DocumentOperationResult(
+    code=OperationResult.OK, message=None)
+
+
 class AddResult(OperationResult):
   """The result of indexing a single object."""
 
@@ -191,8 +245,11 @@ class RemoveResult(OperationResult):
   """The result of deleting a single document."""
 
 
-class AddError(Error):
-  """Indicates some error occurred indexing one of the objects requested."""
+class AddDocumentError(Error):
+  """Indicates some error occurred indexing one of the objects requested.
+
+  Deprecated. Use AddError instead.
+  """
 
   def __init__(self, message, results):
     """Initializer.
@@ -203,8 +260,27 @@ class AddError(Error):
       results: A list of AddResult corresponding to the list of objects
         requested to be indexed.
     """
-    super(AddError, self).__init__(message)
+    super(AddDocumentError, self).__init__(message)
     self._results = results
+
+  @property
+  def document_results(self):
+    """Returns AddResult list corresponding to Documents indexed.
+
+    Deprecated. Use AddError.results.
+
+    Returns:
+      The list of AddResult.
+    """
+    warnings.warn('document_results is deprecated. Use results instead. '
+                  '"except AddDocumentError" is deprecated. Use '
+                  '"except AddError" instead.',
+                  DeprecationWarning, stacklevel=2)
+    return self._results
+
+
+class AddError(AddDocumentError):
+  """Indicates some error occurred indexing one of the objects requested."""
 
   @property
   def results(self):
@@ -212,7 +288,7 @@ class AddError(Error):
     return self._results
 
 
-class RemoveError(Error):
+class RemoveDocumentError(Error):
   """Indicates some error occured deleting one of the objects requested."""
 
   def __init__(self, message, results):
@@ -224,8 +300,27 @@ class RemoveError(Error):
       results: A list of RemoveResult corresponding to the list of Ids of
         objects requested to be removed.
     """
-    super(RemoveError, self).__init__(message)
+    super(RemoveDocumentError, self).__init__(message)
     self._results = results
+
+  @property
+  def document_results(self):
+    """Returns RemoveResult list corresponding to Documents removed.
+
+    Deprecated. Use RemoveError.results.
+
+    Returns:
+      The list of RemoveResult.
+    """
+    warnings.warn('document_results is deprecated. Use results instead. '
+                  '"except RemoveDocumentError" is deprecated. Use '
+                  '"except RemoveError" instead.',
+                  DeprecationWarning, stacklevel=2)
+    return self._results
+
+
+class RemoveError(RemoveDocumentError):
+  """Indicates some error occured deleting one of the objects requested."""
 
   @property
   def results(self):
@@ -1508,6 +1603,20 @@ class ListResponse(object):
       yield result
 
   @property
+  def documents(self):
+    """Returns a list of documents ordered by Id from the index.
+
+    Deprecated. Use ListResponse.results.
+
+    Returns:
+      the list of documents
+    """
+    warnings.warn('documents is deprecated. '
+                  'Use ListResponse.results instead',
+                  DeprecationWarning, stacklevel=2)
+    return self._results
+
+  @property
   def results(self):
     """Returns a list of results ordered by Id from the index."""
     return self._results
@@ -1634,15 +1743,6 @@ class Cursor(object):
 def _ToWebSafeString(per_result, internal_cursor):
   """Returns the web safe string combining per_result with internal cursor."""
   return str(per_result) + ':' + internal_cursor
-
-
-def _ConvertToUnicode(some_string):
-  """Convert UTF-8 encoded string to unicode."""
-  if some_string is None:
-    return None
-  if isinstance(some_string, unicode):
-    return some_string
-  return unicode(some_string, 'utf-8')
 
 
 def _CheckQuery(query):
@@ -2131,7 +2231,7 @@ class Index(object):
     if status_pb.has_error_detail():
       message = _DecodeUTF8(status_pb.error_detail())
     code = _ERROR_OPERATION_CODE_MAP[status_pb.code()]
-    return AddResult(code=code, message=message, object_id=_DecodeUTF8(doc_id))
+    return AddResult(code=code, message=message, id=_DecodeUTF8(doc_id))
 
   def _NewAddResultList(self, response):
     return [self._NewAddResultFromPb(status, doc_id)
@@ -2206,8 +2306,7 @@ class Index(object):
       message = _DecodeUTF8(status_pb.error_detail())
     code = _ERROR_OPERATION_CODE_MAP[status_pb.code()]
 
-    return RemoveResult(code=code, message=message,
-                        object_id=doc_id)
+    return RemoveResult(code=code, message=message, id=doc_id)
 
   def _NewRemoveResultList(self, document_ids, response):
     return [self._NewRemoveResultFromPb(status, doc_id)
