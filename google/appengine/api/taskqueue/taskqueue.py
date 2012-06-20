@@ -53,7 +53,7 @@ __all__ = [
     'TooManyTasksError', 'TransientError', 'UnknownQueueError',
     'InvalidLeaseTimeError', 'InvalidMaxTasksError', 'InvalidDeadlineError',
     'InvalidQueueModeError', 'TransactionalRequestTooLargeError',
-    'TaskLeaseExpiredError', 'QueuePausedError',
+    'TaskLeaseExpiredError', 'QueuePausedError', 'InvalidEtaError',
 
     'MAX_QUEUE_NAME_LENGTH', 'MAX_TASK_NAME_LENGTH', 'MAX_TASK_SIZE_BYTES',
     'MAX_PULL_TASK_SIZE_BYTES', 'MAX_PUSH_TASK_SIZE_BYTES',
@@ -130,6 +130,10 @@ class TombstonedTaskError(InvalidTaskError):
 
 class InvalidUrlError(InvalidTaskError):
   """The task's relative URL is invalid."""
+
+
+class InvalidEtaError(InvalidTaskError):
+  """The task's ETA is invalid."""
 
 
 class BadTaskStateError(Error):
@@ -289,7 +293,7 @@ _ERROR_MAPPING = {
         TaskAlreadyExistsError,
     taskqueue_service_pb.TaskQueueServiceError.TOMBSTONED_TASK:
         TombstonedTaskError,
-    taskqueue_service_pb.TaskQueueServiceError.INVALID_ETA: InvalidTaskError,
+    taskqueue_service_pb.TaskQueueServiceError.INVALID_ETA: InvalidEtaError,
     taskqueue_service_pb.TaskQueueServiceError.INVALID_REQUEST: Error,
     taskqueue_service_pb.TaskQueueServiceError.UNKNOWN_TASK: Error,
     taskqueue_service_pb.TaskQueueServiceError.TOMBSTONED_QUEUE: Error,
