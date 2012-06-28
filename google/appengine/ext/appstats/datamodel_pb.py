@@ -38,8 +38,8 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
   service_call_name_ = ""
   has_total_amount_of_calls_ = 0
   total_amount_of_calls_ = 0
-  has_total_cost_of_calls_micropennies_ = 0
-  total_cost_of_calls_micropennies_ = 0
+  has_total_cost_of_calls_microdollars_ = 0
+  total_cost_of_calls_microdollars_ = 0
 
   def __init__(self, contents=None):
     self.total_billed_ops_ = []
@@ -71,18 +71,18 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
 
   def has_total_amount_of_calls(self): return self.has_total_amount_of_calls_
 
-  def total_cost_of_calls_micropennies(self): return self.total_cost_of_calls_micropennies_
+  def total_cost_of_calls_microdollars(self): return self.total_cost_of_calls_microdollars_
 
-  def set_total_cost_of_calls_micropennies(self, x):
-    self.has_total_cost_of_calls_micropennies_ = 1
-    self.total_cost_of_calls_micropennies_ = x
+  def set_total_cost_of_calls_microdollars(self, x):
+    self.has_total_cost_of_calls_microdollars_ = 1
+    self.total_cost_of_calls_microdollars_ = x
 
-  def clear_total_cost_of_calls_micropennies(self):
-    if self.has_total_cost_of_calls_micropennies_:
-      self.has_total_cost_of_calls_micropennies_ = 0
-      self.total_cost_of_calls_micropennies_ = 0
+  def clear_total_cost_of_calls_microdollars(self):
+    if self.has_total_cost_of_calls_microdollars_:
+      self.has_total_cost_of_calls_microdollars_ = 0
+      self.total_cost_of_calls_microdollars_ = 0
 
-  def has_total_cost_of_calls_micropennies(self): return self.has_total_cost_of_calls_micropennies_
+  def has_total_cost_of_calls_microdollars(self): return self.has_total_cost_of_calls_microdollars_
 
   def total_billed_ops_size(self): return len(self.total_billed_ops_)
   def total_billed_ops_list(self): return self.total_billed_ops_
@@ -105,7 +105,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     if (x.has_service_call_name()): self.set_service_call_name(x.service_call_name())
     if (x.has_total_amount_of_calls()): self.set_total_amount_of_calls(x.total_amount_of_calls())
-    if (x.has_total_cost_of_calls_micropennies()): self.set_total_cost_of_calls_micropennies(x.total_cost_of_calls_micropennies())
+    if (x.has_total_cost_of_calls_microdollars()): self.set_total_cost_of_calls_microdollars(x.total_cost_of_calls_microdollars())
     for i in xrange(x.total_billed_ops_size()): self.add_total_billed_ops().CopyFrom(x.total_billed_ops(i))
 
   def Equals(self, x):
@@ -114,8 +114,8 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     if self.has_service_call_name_ and self.service_call_name_ != x.service_call_name_: return 0
     if self.has_total_amount_of_calls_ != x.has_total_amount_of_calls_: return 0
     if self.has_total_amount_of_calls_ and self.total_amount_of_calls_ != x.total_amount_of_calls_: return 0
-    if self.has_total_cost_of_calls_micropennies_ != x.has_total_cost_of_calls_micropennies_: return 0
-    if self.has_total_cost_of_calls_micropennies_ and self.total_cost_of_calls_micropennies_ != x.total_cost_of_calls_micropennies_: return 0
+    if self.has_total_cost_of_calls_microdollars_ != x.has_total_cost_of_calls_microdollars_: return 0
+    if self.has_total_cost_of_calls_microdollars_ and self.total_cost_of_calls_microdollars_ != x.total_cost_of_calls_microdollars_: return 0
     if len(self.total_billed_ops_) != len(x.total_billed_ops_): return 0
     for e1, e2 in zip(self.total_billed_ops_, x.total_billed_ops_):
       if e1 != e2: return 0
@@ -139,7 +139,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     n = 0
     n += self.lengthString(len(self.service_call_name_))
     n += self.lengthVarInt64(self.total_amount_of_calls_)
-    if (self.has_total_cost_of_calls_micropennies_): n += 1 + self.lengthVarInt64(self.total_cost_of_calls_micropennies_)
+    if (self.has_total_cost_of_calls_microdollars_): n += 1 + self.lengthVarInt64(self.total_cost_of_calls_microdollars_)
     n += 1 * len(self.total_billed_ops_)
     for i in xrange(len(self.total_billed_ops_)): n += self.lengthString(self.total_billed_ops_[i].ByteSize())
     return n + 2
@@ -152,7 +152,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     if (self.has_total_amount_of_calls_):
       n += 1
       n += self.lengthVarInt64(self.total_amount_of_calls_)
-    if (self.has_total_cost_of_calls_micropennies_): n += 1 + self.lengthVarInt64(self.total_cost_of_calls_micropennies_)
+    if (self.has_total_cost_of_calls_microdollars_): n += 1 + self.lengthVarInt64(self.total_cost_of_calls_microdollars_)
     n += 1 * len(self.total_billed_ops_)
     for i in xrange(len(self.total_billed_ops_)): n += self.lengthString(self.total_billed_ops_[i].ByteSizePartial())
     return n
@@ -160,7 +160,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
   def Clear(self):
     self.clear_service_call_name()
     self.clear_total_amount_of_calls()
-    self.clear_total_cost_of_calls_micropennies()
+    self.clear_total_cost_of_calls_microdollars()
     self.clear_total_billed_ops()
 
   def OutputUnchecked(self, out):
@@ -168,9 +168,9 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     out.putPrefixedString(self.service_call_name_)
     out.putVarInt32(24)
     out.putVarInt64(self.total_amount_of_calls_)
-    if (self.has_total_cost_of_calls_micropennies_):
+    if (self.has_total_cost_of_calls_microdollars_):
       out.putVarInt32(32)
-      out.putVarInt64(self.total_cost_of_calls_micropennies_)
+      out.putVarInt64(self.total_cost_of_calls_microdollars_)
     for i in xrange(len(self.total_billed_ops_)):
       out.putVarInt32(42)
       out.putVarInt32(self.total_billed_ops_[i].ByteSize())
@@ -183,9 +183,9 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     if (self.has_total_amount_of_calls_):
       out.putVarInt32(24)
       out.putVarInt64(self.total_amount_of_calls_)
-    if (self.has_total_cost_of_calls_micropennies_):
+    if (self.has_total_cost_of_calls_microdollars_):
       out.putVarInt32(32)
-      out.putVarInt64(self.total_cost_of_calls_micropennies_)
+      out.putVarInt64(self.total_cost_of_calls_microdollars_)
     for i in xrange(len(self.total_billed_ops_)):
       out.putVarInt32(42)
       out.putVarInt32(self.total_billed_ops_[i].ByteSizePartial())
@@ -201,7 +201,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
         self.set_total_amount_of_calls(d.getVarInt64())
         continue
       if tt == 32:
-        self.set_total_cost_of_calls_micropennies(d.getVarInt64())
+        self.set_total_cost_of_calls_microdollars(d.getVarInt64())
         continue
       if tt == 42:
         length = d.getVarInt32()
@@ -219,7 +219,7 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     res=""
     if self.has_service_call_name_: res+=prefix+("service_call_name: %s\n" % self.DebugFormatString(self.service_call_name_))
     if self.has_total_amount_of_calls_: res+=prefix+("total_amount_of_calls: %s\n" % self.DebugFormatInt64(self.total_amount_of_calls_))
-    if self.has_total_cost_of_calls_micropennies_: res+=prefix+("total_cost_of_calls_micropennies: %s\n" % self.DebugFormatInt64(self.total_cost_of_calls_micropennies_))
+    if self.has_total_cost_of_calls_microdollars_: res+=prefix+("total_cost_of_calls_microdollars: %s\n" % self.DebugFormatInt64(self.total_cost_of_calls_microdollars_))
     cnt=0
     for e in self.total_billed_ops_:
       elm=""
@@ -236,14 +236,14 @@ class AggregateRpcStatsProto(ProtocolBuffer.ProtocolMessage):
 
   kservice_call_name = 1
   ktotal_amount_of_calls = 3
-  ktotal_cost_of_calls_micropennies = 4
+  ktotal_cost_of_calls_microdollars = 4
   ktotal_billed_ops = 5
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
     1: "service_call_name",
     3: "total_amount_of_calls",
-    4: "total_cost_of_calls_micropennies",
+    4: "total_cost_of_calls_microdollars",
     5: "total_billed_ops",
   }, 5)
 
@@ -1165,8 +1165,8 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
   was_successful_ = 1
   has_datastore_details_ = 0
   datastore_details_ = None
-  has_call_cost_micropennies_ = 0
-  call_cost_micropennies_ = 0
+  has_call_cost_microdollars_ = 0
+  call_cost_microdollars_ = 0
 
   def __init__(self, contents=None):
     self.call_stack_ = []
@@ -1326,18 +1326,18 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
 
   def has_datastore_details(self): return self.has_datastore_details_
 
-  def call_cost_micropennies(self): return self.call_cost_micropennies_
+  def call_cost_microdollars(self): return self.call_cost_microdollars_
 
-  def set_call_cost_micropennies(self, x):
-    self.has_call_cost_micropennies_ = 1
-    self.call_cost_micropennies_ = x
+  def set_call_cost_microdollars(self, x):
+    self.has_call_cost_microdollars_ = 1
+    self.call_cost_microdollars_ = x
 
-  def clear_call_cost_micropennies(self):
-    if self.has_call_cost_micropennies_:
-      self.has_call_cost_micropennies_ = 0
-      self.call_cost_micropennies_ = 0
+  def clear_call_cost_microdollars(self):
+    if self.has_call_cost_microdollars_:
+      self.has_call_cost_microdollars_ = 0
+      self.call_cost_microdollars_ = 0
 
-  def has_call_cost_micropennies(self): return self.has_call_cost_micropennies_
+  def has_call_cost_microdollars(self): return self.has_call_cost_microdollars_
 
   def billed_ops_size(self): return len(self.billed_ops_)
   def billed_ops_list(self): return self.billed_ops_
@@ -1369,7 +1369,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     if (x.has_was_successful()): self.set_was_successful(x.was_successful())
     for i in xrange(x.call_stack_size()): self.add_call_stack().CopyFrom(x.call_stack(i))
     if (x.has_datastore_details()): self.mutable_datastore_details().MergeFrom(x.datastore_details())
-    if (x.has_call_cost_micropennies()): self.set_call_cost_micropennies(x.call_cost_micropennies())
+    if (x.has_call_cost_microdollars()): self.set_call_cost_microdollars(x.call_cost_microdollars())
     for i in xrange(x.billed_ops_size()): self.add_billed_ops().CopyFrom(x.billed_ops(i))
 
   def Equals(self, x):
@@ -1397,8 +1397,8 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
       if e1 != e2: return 0
     if self.has_datastore_details_ != x.has_datastore_details_: return 0
     if self.has_datastore_details_ and self.datastore_details_ != x.datastore_details_: return 0
-    if self.has_call_cost_micropennies_ != x.has_call_cost_micropennies_: return 0
-    if self.has_call_cost_micropennies_ and self.call_cost_micropennies_ != x.call_cost_micropennies_: return 0
+    if self.has_call_cost_microdollars_ != x.has_call_cost_microdollars_: return 0
+    if self.has_call_cost_microdollars_ and self.call_cost_microdollars_ != x.call_cost_microdollars_: return 0
     if len(self.billed_ops_) != len(x.billed_ops_): return 0
     for e1, e2 in zip(self.billed_ops_, x.billed_ops_):
       if e1 != e2: return 0
@@ -1435,7 +1435,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     n += 1 * len(self.call_stack_)
     for i in xrange(len(self.call_stack_)): n += self.lengthString(self.call_stack_[i].ByteSize())
     if (self.has_datastore_details_): n += 1 + self.lengthString(self.datastore_details_.ByteSize())
-    if (self.has_call_cost_micropennies_): n += 1 + self.lengthVarInt64(self.call_cost_micropennies_)
+    if (self.has_call_cost_microdollars_): n += 1 + self.lengthVarInt64(self.call_cost_microdollars_)
     n += 1 * len(self.billed_ops_)
     for i in xrange(len(self.billed_ops_)): n += self.lengthString(self.billed_ops_[i].ByteSize())
     return n + 2
@@ -1458,7 +1458,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     n += 1 * len(self.call_stack_)
     for i in xrange(len(self.call_stack_)): n += self.lengthString(self.call_stack_[i].ByteSizePartial())
     if (self.has_datastore_details_): n += 1 + self.lengthString(self.datastore_details_.ByteSizePartial())
-    if (self.has_call_cost_micropennies_): n += 1 + self.lengthVarInt64(self.call_cost_micropennies_)
+    if (self.has_call_cost_microdollars_): n += 1 + self.lengthVarInt64(self.call_cost_microdollars_)
     n += 1 * len(self.billed_ops_)
     for i in xrange(len(self.billed_ops_)): n += self.lengthString(self.billed_ops_[i].ByteSizePartial())
     return n
@@ -1475,7 +1475,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     self.clear_was_successful()
     self.clear_call_stack()
     self.clear_datastore_details()
-    self.clear_call_cost_micropennies()
+    self.clear_call_cost_microdollars()
     self.clear_billed_ops()
 
   def OutputUnchecked(self, out):
@@ -1512,9 +1512,9 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(98)
       out.putVarInt32(self.datastore_details_.ByteSize())
       self.datastore_details_.OutputUnchecked(out)
-    if (self.has_call_cost_micropennies_):
+    if (self.has_call_cost_microdollars_):
       out.putVarInt32(104)
-      out.putVarInt64(self.call_cost_micropennies_)
+      out.putVarInt64(self.call_cost_microdollars_)
     for i in xrange(len(self.billed_ops_)):
       out.putVarInt32(114)
       out.putVarInt32(self.billed_ops_[i].ByteSize())
@@ -1556,9 +1556,9 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(98)
       out.putVarInt32(self.datastore_details_.ByteSizePartial())
       self.datastore_details_.OutputPartial(out)
-    if (self.has_call_cost_micropennies_):
+    if (self.has_call_cost_microdollars_):
       out.putVarInt32(104)
-      out.putVarInt64(self.call_cost_micropennies_)
+      out.putVarInt64(self.call_cost_microdollars_)
     for i in xrange(len(self.billed_ops_)):
       out.putVarInt32(114)
       out.putVarInt32(self.billed_ops_[i].ByteSizePartial())
@@ -1607,7 +1607,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
         self.mutable_datastore_details().TryMerge(tmp)
         continue
       if tt == 104:
-        self.set_call_cost_micropennies(d.getVarInt64())
+        self.set_call_cost_microdollars(d.getVarInt64())
         continue
       if tt == 114:
         length = d.getVarInt32()
@@ -1644,7 +1644,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
       res+=prefix+"datastore_details <\n"
       res+=self.datastore_details_.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
-    if self.has_call_cost_micropennies_: res+=prefix+("call_cost_micropennies: %s\n" % self.DebugFormatInt64(self.call_cost_micropennies_))
+    if self.has_call_cost_microdollars_: res+=prefix+("call_cost_microdollars: %s\n" % self.DebugFormatInt64(self.call_cost_microdollars_))
     cnt=0
     for e in self.billed_ops_:
       elm=""
@@ -1670,7 +1670,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
   kwas_successful = 9
   kcall_stack = 10
   kdatastore_details = 12
-  kcall_cost_micropennies = 13
+  kcall_cost_microdollars = 13
   kbilled_ops = 14
 
   _TEXT = _BuildTagLookupTable({
@@ -1686,7 +1686,7 @@ class IndividualRpcStatsProto(ProtocolBuffer.ProtocolMessage):
     10: "call_stack",
     11: "api_milliseconds",
     12: "datastore_details",
-    13: "call_cost_micropennies",
+    13: "call_cost_microdollars",
     14: "billed_ops",
   }, 14)
 

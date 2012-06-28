@@ -5,6 +5,17 @@ App Engine Python SDK - Release Notes
 
 Version 1.7.0
 =============
+- You can now configure your custom domain to serve HTTPS requests with App
+  Engine. You can choose either an SNI, VIP, or SNI and VIP configuration. SNI
+  costs $9/month for 5 certificates. A VIP costs $99/month.
+    https://developers.google.com/appengine/docs/ssl
+- Premier customers now have the option to create applications to be served from
+  datacenters located in the European Union.
+- Developers can configure their HRD app to use Google's PageSpeed Service,
+  which automatically speeds up serving of content for your application. The
+  PageSpeed Service costs $0.39/gigabyte in addition to the normal App Engine
+  bandwidth charges.
+    https://developers.google.com/appengine/docs/adminconsole/performancesettings#pagespeed
 - The Search API now contains support for storing and searching on GeoPoints.
 - The total size of all application versions is now limited to 1 GB. In the
   future, you'll be able to purchase additional storage for your application
@@ -34,15 +45,24 @@ Version 1.7.0
 - NDB has added support for storing protorpc.Message objects.
 - Improved error messaging for multiple repeated=True levels with
   StructuredProperty in NDB.
-- PyAMF is now generally available.
-- Fixed an issue in Full-text search panel where the Admin Console throws an
-  error displaying non- ascii characters.
-- Fixed an issue in SDK admin viewer where a TemplateDoesNotExist error was
-  thrown when clicking on any Full-Text Search index.
+- PyAMF is now fully launched.
+- We've increased various Search API limits. New limits are a maximum of 1000
+  documents returned from search() or list_documents(), a maximum of 1000
+  indexes returned from list_indexes(), and a maximum offset of 1000 for
+  search() or list_indexes()
+- Fixed an issue where the Search API did not enforce limits on NumberFields.
+- Fixed an issue in the SDK where SortExpression did not enforce the
+  presence of a default_value set when required.
 - Fixed an issue where lxml did not support unicode parsing.
     http://code.google.com/p/googleappengine/issues/detail?id=7158
 - Fixed a javascript syntax error in the Admin Console.
     http://code.google.com/p/googleappengine/issues/detail?id=7566
+- Fixed an issue in SDK admin viewer where a TemplateDoesNotExist error was
+  thrown when clicking on any Full-Text Search index.
+    http://code.google.com/p/googleappengine/issues/detail?id=7598
+- Fixed an issue in the Search API tab of the Admin Console where it threw an
+  error displaying non-ascii characters.
+    http://code.google.com/p/googleappengine/issues/detail?id=7601
 
 Version 1.6.6
 ===============================

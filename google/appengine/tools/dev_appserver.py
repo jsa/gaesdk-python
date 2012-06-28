@@ -2729,7 +2729,7 @@ def CreateRequestHandler(root_path,
           try:
             os.remove(request_file_name)
           except OSError, err:
-            if err.errno == os_compat.ERROR_SHARING_VIOLATION:
+            if getattr(err, 'winerror', 0) == os_compat.ERROR_SHARING_VIOLATION:
               logging.warning('Failed removing %s', request_file_name)
             else:
               raise
