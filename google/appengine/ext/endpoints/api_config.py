@@ -35,7 +35,11 @@ the API is returned.
 """
 
 
-import json
+
+try:
+  import json
+except ImportError:
+  import simplejson as json
 import re
 
 from protorpc import message_types
@@ -45,6 +49,7 @@ from protorpc import util
 
 from google.appengine.api import app_identity
 from google.appengine.ext.endpoints import message_parser
+from google.appengine.ext.endpoints import users_id_token
 
 __all__ = [
     'api',
@@ -349,7 +354,7 @@ def method(request_message=message_types.VoidMessage,
       The list of settings, for convenient use in assignment.
     """
     if (settings is None and allow_none or
-        isinstance(settings, list) and
+        (isinstance(settings, tuple) or isinstance(settings, list)) and
         all(isinstance(i, allowed_type) for i in settings)):
       return settings
     raise TypeError('%s is not a list of %s' % (name, allowed_type.__name__))
@@ -361,7 +366,7 @@ def method(request_message=message_types.VoidMessage,
       api_method: Original method being wrapped.
 
     Returns:
-      'remote.invoke_remote_method' function responsible for actual invocation.
+      Function responsible for actual invocation.
       Assigns the following attributes to invocation function:
         remote: Instance of RemoteInfo, contains remote method information.
         remote.request_type: Expected request type for remote method.
@@ -375,12 +380,28 @@ def method(request_message=message_types.VoidMessage,
     """
     remote_decorator = remote.method(request_message, response_message)
     remote_method = remote_decorator(api_method)
-    remote_method.method_info = _MethodInfo(
+
+    def invoke_remote(service_instance, request):
+
+
+      users_id_token._maybe_set_current_user_vars(invoke_remote)
+      return remote_method(service_instance, request)
+
+
+
+
+    local_scopes = scopes
+    if local_scopes is None:
+      local_scopes = ['https://www.googleapis.com/auth/userinfo.email']
+
+    invoke_remote.remote = remote_method.remote
+    invoke_remote.method_info = _MethodInfo(
         name=name or api_method.__name__, path=path or '',
         http_method=http_method or DEFAULT_HTTP_METHOD,
-        cache_control=cache_control, scopes=scopes, audiences=audiences,
+        cache_control=cache_control, scopes=local_scopes, audiences=audiences,
         allowed_client_ids=allowed_client_ids)
-    return remote_method
+    invoke_remote.__name__ = invoke_remote.method_info.name
+    return invoke_remote
 
   check_type(cache_control, CacheControl, 'cache_control')
   check_list_type(scopes, basestring, 'scopes')
@@ -474,12 +495,15 @@ class ApiConfigGenerator(object):
     param_order = []
 
     for field in sorted(message_type.all_fields(), key=lambda f: f.number):
+      descriptor = {}
       if field.required:
         param_order.append(field.name)
+        descriptor['required'] = True
+        descriptor['source'] = 'path'
+      else:
+        descriptor['source'] = 'query'
 
 
-      descriptor = {}
-      descriptor['source'] = field.required and 'path' or 'query'
       param_type = self.__FIELD_TO_PARAM_TYPE_MAP.get(
           type(field), self.__DEFAULT_PARAM_TYPE)
       descriptor['type'] = param_type
@@ -527,12 +551,14 @@ class ApiConfigGenerator(object):
 
     return descriptor
 
-  def __response_message_descriptor(self, message_type, method_id):
+  def __response_message_descriptor(self, message_type, method_id,
+                                    cache_control):
     """Describes the response.
 
     Args:
       message_type: messages.Message class, The message to describe.
       method_id: string, Unique method identifier (e.g. 'myapi.items.method')
+      cache_control: CacheControl, Cache settings for the API method.
 
     Returns:
       Dictionary describing the response.
@@ -547,6 +573,12 @@ class ApiConfigGenerator(object):
       descriptor['bodyName'] = 'resource'
       self.__response_schema[method_id] = self.__parser.ref_for_message_type(
           message_type.__class__)
+
+    if cache_control is not None:
+      descriptor['cacheControl'] = {
+          'type': cache_control.directive,
+          'maxAge': cache_control.max_age_seconds,
+      }
 
     return descriptor
 
@@ -578,7 +610,10 @@ class ApiConfigGenerator(object):
     descriptor['request'] = self.__request_message_descriptor(
         request_kind, request_message_type, method_info.method_id(api_name))
     descriptor['response'] = self.__response_message_descriptor(
-        remote_method.response_type(), method_info.method_id(api_name))
+        remote_method.response_type(), method_info.method_id(api_name),
+        method_info.cache_control)
+    if method_info.scopes:
+      descriptor['scopeCodes'] = method_info.scopes
 
     if remote_method.method.__doc__:
       descriptor['description'] = remote_method.method.__doc__

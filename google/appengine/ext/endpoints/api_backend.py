@@ -19,7 +19,6 @@
 """Interface to the BackendService that serves API configurations."""
 
 
-from protorpc import message_types
 from protorpc import messages
 from protorpc import remote
 
@@ -27,10 +26,16 @@ package = 'google.appengine.endpoints'
 
 
 __all__ = [
+    'GetApiConfigsRequest',
     'ApiConfigList',
     'BackendService',
     'package',
 ]
+
+
+class GetApiConfigsRequest(messages.Message):
+  """Request body for fetching API configs."""
+  appRevision = messages.StringField(1)
 
 
 class ApiConfigList(messages.Message):
@@ -48,12 +53,12 @@ class BackendService(remote.Service):
 
 
 
-  @remote.method(message_types.VoidMessage, ApiConfigList)
-  def getApiConfigs(self, unused_request):
+  @remote.method(GetApiConfigsRequest, ApiConfigList)
+  def getApiConfigs(self, request):
     """Return a list of active APIs and their configuration files.
 
     Args:
-      unused_request: Empty request message, unused
+      request: A request which may contain an app revision
 
     Returns:
       List of ApiConfigMessages

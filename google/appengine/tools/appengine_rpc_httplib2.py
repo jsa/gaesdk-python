@@ -93,7 +93,7 @@ class HttpRpcServerHttpLib2(object):
   def __init__(self, host, auth_function, user_agent, source,
                host_override=None, extra_headers=None, save_cookies=False,
                auth_tries=None, account_type=None, debug_data=True, secure=True,
-               rpc_tries=3):
+               ignore_certs=False, rpc_tries=3):
     """Creates a new HttpRpcServerHttpLib2.
 
     Args:
@@ -110,6 +110,7 @@ class HttpRpcServerHttpLib2(object):
       account_type: Saved but ignored; may be used by subclasses.
       debug_data: Whether debugging output should include data contents.
       secure: If the requests sent using Send should be sent over HTTPS.
+      ignore_certs: If the certificate mismatches should be ignored.
       rpc_tries: The number of rpc retries upon http server error (i.e.
         Response code >= 500 and < 600) before failing.
     """
@@ -124,6 +125,7 @@ class HttpRpcServerHttpLib2(object):
     self.account_type = account_type
     self.debug_data = debug_data
     self.secure = secure
+    self.ignore_certs = ignore_certs
     self.rpc_tries = rpc_tries
     self.scheme = secure and 'https' or 'http'
 
@@ -133,7 +135,8 @@ class HttpRpcServerHttpLib2(object):
     self.certpath = os.path.normpath(os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'lib', 'cacerts',
         'cacerts.txt'))
-    self.cert_file_available = os.path.exists(self.certpath)
+    self.cert_file_available = (not self.ignore_certs
+                                and os.path.exists(self.certpath))
 
     self.memory_cache = MemoryCache()
 
@@ -180,7 +183,9 @@ class HttpRpcServerHttpLib2(object):
 
 
 
-    self.http = httplib2.Http(cache=self.memory_cache, ca_certs=self.certpath)
+    self.http = httplib2.Http(
+        cache=self.memory_cache, ca_certs=self.certpath,
+        disable_ssl_certificate_validation=(not self.cert_file_available))
     self.http.follow_redirects = False
     self.http.timeout = timeout
     url = '%s://%s%s' % (self.scheme, self.host, request_path)
@@ -286,7 +291,7 @@ class HttpRpcServerOauth2(HttpRpcServerHttpLib2):
   def __init__(self, host, refresh_token, user_agent, source,
                host_override=None, extra_headers=None, save_cookies=False,
                auth_tries=None, account_type=None, debug_data=True, secure=True,
-               rpc_tries=3):
+               ignore_certs=False, rpc_tries=3):
     """Creates a new HttpRpcServerOauth2.
 
     Args:
@@ -304,13 +309,15 @@ class HttpRpcServerOauth2(HttpRpcServerHttpLib2):
       account_type: Ignored.
       debug_data: Whether debugging output should include data contents.
       secure: If the requests sent using Send should be sent over HTTPS.
+      ignore_certs: If the certificate mismatches should be ignored.
       rpc_tries: The number of rpc retries upon http server error (i.e.
         Response code >= 500 and < 600) before failing.
     """
     super(HttpRpcServerOauth2, self).__init__(
         host, None, user_agent, None, host_override=host_override,
         extra_headers=extra_headers, auth_tries=auth_tries,
-        debug_data=debug_data, secure=secure, rpc_tries=rpc_tries)
+        debug_data=debug_data, secure=secure, ignore_certs=ignore_certs,
+        rpc_tries=rpc_tries)
 
     if save_cookies:
       self.storage = oauth2client_file.Storage(

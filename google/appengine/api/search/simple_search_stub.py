@@ -32,6 +32,7 @@
 import bisect
 import copy
 import cPickle as pickle
+import datetime
 import logging
 import math
 import os
@@ -417,7 +418,7 @@ class SimpleIndex(object):
     if node.getType() in search_util.TEXT_QUERY_TYPES:
       return set([query_parser.GetQueryNodeText(node).strip('"')])
     elif node.children:
-      if node.getType() is QueryParser.RESTRICTION and len(node.children) > 1:
+      if node.getType() == QueryParser.RESTRICTION and len(node.children) > 1:
         children = node.children[1:]
       else:
         children = node.children
@@ -429,7 +430,7 @@ class SimpleIndex(object):
     return set()
 
   def _CollectFields(self, node):
-    if node.getType() is QueryParser.RESTRICTION and node.children:
+    if node.getType() == QueryParser.RESTRICTION and node.children:
       return set([query_parser.GetQueryNodeText(node.children[0])])
     elif node.children:
       result = set()
@@ -469,9 +470,12 @@ class SimpleIndex(object):
 
     def SortKey(scored_doc):
       """Return the sort key for a document based on the request parameters."""
-      return expression_evaluator.ExpressionEvaluator(
+      val = expression_evaluator.ExpressionEvaluator(
           scored_doc, self._inverted_index).ValueOf(
               sort_spec.sort_expression(), default_value=default_value)
+      if isinstance(val, datetime.datetime):
+        return search_util.EpochTime(val)
+      return val
 
     return sorted(docs, key=SortKey, reverse=sort_spec.sort_descending())
 
@@ -826,7 +830,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
       search_result = response.add_result()
       self._CopyDocument(result.document, search_result.mutable_document(),
                          field_spec, ids_only)
-      if cursor_type is search_service_pb.SearchParams.PER_RESULT:
+      if cursor_type == search_service_pb.SearchParams.PER_RESULT:
         search_result.set_cursor(result.document.id())
       if score:
         search_result.add_score(result.score)
@@ -869,10 +873,10 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
 
     offset = 0
     if params.has_cursor():
-      positions = [i for i in range(len(results)) if results[i].document.id() is
-                   params.cursor()]
-      if positions:
-        offset = positions[0] + 1
+      for i, result in enumerate(results):
+        if result.document.id() == params.cursor():
+          offset = i + 1
+          break
     elif params.has_offset():
       offset = params.offset()
 
@@ -890,7 +894,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
     self._FillSearchResponse(results, position_range, params.cursor_type(),
                              _ScoreRequested(params), response, field_spec,
                              params.keys_only())
-    if (params.cursor_type() is search_service_pb.SearchParams.SINGLE and
+    if (params.cursor_type() == search_service_pb.SearchParams.SINGLE and
         len(position_range)):
       response.set_cursor(
           results[position_range[len(position_range) - 1]].document.id())

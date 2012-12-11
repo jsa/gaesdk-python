@@ -461,7 +461,11 @@ class GoApp:
         '-dynamic',
         '-goroot', self.goroot,
         '-unsafe',
-        '-work_dir', GAB_WORK_DIR] + go_files
+        '-work_dir', GAB_WORK_DIR,
+    ]
+    if 'GOPATH' in os.environ:
+      gab_argv.extend(['-gopath', os.environ['GOPATH']])
+    gab_argv.extend(go_files)
     try:
       p = subprocess.Popen(gab_argv, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE, env={})

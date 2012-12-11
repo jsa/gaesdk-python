@@ -27,6 +27,7 @@ http://www.python.org/dev/peps/pep-0249/
 import collections
 import datetime
 import exceptions
+import sys
 import time
 import types
 
@@ -228,22 +229,32 @@ def _ConvertArgsDictToList(statement, args):
 
 class Cursor(object):
 
-  def __init__(self, conn, use_dict_cursor=False):
+  def __init__(self, conn, use_dict_cursor=False, fetch_size=None):
     """Initializer.
 
     Args:
       conn: A Connection object.
       use_dict_cursor: Optional boolean to convert each row of results into a
           dictionary. Defaults to False.
+      fetch_size: An integer, batch size to fetch the result set from server if
+      streaming. Defaults to None.
     """
     self._conn = conn
-    self._description = None
-    self._rowcount = -1
-    self.arraysize = 1
     self._open = True
-    self.lastrowid = None
     self._use_dict_cursor = use_dict_cursor
+    self._fetch_size = fetch_size
+    self.arraysize = 1
+    self._executed = None
+    self.lastrowid = None
+    self._Reset()
+
+  def _Reset(self):
+
+    self._description = None
+    self._rows = collections.deque()
+    self._rowcount = -1
     self._statement_id = -1
+    self._more_rows = None
     self._more_results = None
 
   @property
@@ -252,6 +263,8 @@ class Cursor(object):
 
   @property
   def rowcount(self):
+    if self._more_rows:
+      return -1
     return self._rowcount
 
   def close(self):
@@ -357,8 +370,27 @@ class Cursor(object):
       DatabaseError: A SQL exception occurred.
       OperationalError: RPC problem.
     """
+    if self._fetch_size:
+      request.options.fetch_size = self._fetch_size
     response = self._conn.MakeRequest('Exec', request)
     return self._HandleResult(response.result)
+
+  def _GetDescription(self, result):
+    """Returns a list of tuples describing the columns in the result set.
+
+    Args:
+      result: The client_pb2.ResultProto to process.
+
+    Returns:
+      A sequence of sequences describing the columns in the result set. Returns
+      None if column description is not present in the result proto.
+    """
+    if not result.rows.columns:
+
+      return None
+    return [(column.label, column.type, column.display_size, None,
+             column.precision, column.scale, column.nullable)
+            for column in result.rows.columns]
 
   def _HandleResult(self, result):
     """Handle the ResultProto from an Exec/ExecOp call.
@@ -376,38 +408,22 @@ class Cursor(object):
       raise DatabaseError('%d: %s' % (result.sql_exception.code,
                                       result.sql_exception.message))
 
-    self._rows = collections.deque()
-    if result.rows.columns:
-      self._description = []
-      for column in result.rows.columns:
-        self._description.append(
-            (column.label, column.type, column.display_size, None,
-             column.precision, column.scale, column.nullable))
-    else:
-      self._description = None
+    if result.HasField('rows'):
+      description = self._GetDescription(result)
+      if description:
+        self._description = description
+      if not self._rows:
 
-    if result.rows.tuples:
-      assert self._description, 'Column descriptions do not exist.'
-      column_names = [col[0] for col in self._description]
-      self._rowcount = len(result.rows.tuples)
-      for tuple_proto in result.rows.tuples:
-        row = []
-        nulls = set(tuple_proto.nulls)
-        value_index = 0
-        for i, column_descr in enumerate(self._description):
-          if i in nulls:
-            row.append(None)
-          else:
-            row.append(self._DecodeVariable(column_descr[1],
-                                            tuple_proto.values[value_index]))
-            value_index += 1
-        if self._use_dict_cursor:
-          assert len(column_names) == len(row)
-          row = dict(zip(column_names, row))
+
+        self._rows = collections.deque()
+      new_rows = self._GetRows(result)
+      if new_rows is not None:
+        if self._rowcount == -1:
+          self._rowcount = len(new_rows)
         else:
-          row = tuple(row)
-        self._rows.append(row)
-    else:
+          self._rowcount += len(new_rows)
+        self._rows.extend(new_rows)
+    elif result.HasField('rows_updated'):
       self._rowcount = result.rows_updated
 
     if result.generated_keys:
@@ -416,9 +432,44 @@ class Cursor(object):
     if result.HasField('statement_id'):
       self._statement_id = result.statement_id
 
+    self._more_rows = result.more_rows
     self._more_results = result.more_results
-
     return result
+
+  def _GetRows(self, result):
+    """Returns a sequence of sequences containing the result set.
+
+    Args:
+      result: The client_pb2.ResultProto to process.
+
+    Returns:
+      A sequence of sequences, or an empty sequence when result set is empty.
+      Returns None if result set is not present.
+    """
+    if not result.rows.tuples:
+
+      return None
+    assert self._description, 'Column descriptions do not exist.'
+    column_names = [col[0] for col in self._description]
+    rows = []
+    for tuple_proto in result.rows.tuples:
+      row = []
+      nulls = set(tuple_proto.nulls)
+      value_index = 0
+      for i, column_descr in enumerate(self._description):
+        if i in nulls:
+          row.append(None)
+        else:
+          row.append(self._DecodeVariable(column_descr[1],
+                                          tuple_proto.values[value_index]))
+          value_index += 1
+      if self._use_dict_cursor:
+        assert len(column_names) == len(row)
+        row = dict(zip(column_names, row))
+      else:
+        row = tuple(row)
+      rows.append(row)
+    return rows
 
   def execute(self, statement, args=None):
     """Prepares and executes a database operation (query or command).
@@ -434,6 +485,7 @@ class Cursor(object):
       OperationalError: RPC problem.
     """
     self._CheckOpen()
+    self._Reset()
 
     request = sql_pb2.ExecRequest()
     request.options.include_generated_keys = True
@@ -445,6 +497,7 @@ class Cursor(object):
           statement, args, request.bind_variable.add)
     request.statement = _ConvertFormatToQmark(statement, args)
     self._DoExec(request)
+    self._executed = request.statement
 
   def executemany(self, statement, seq_of_args):
     """Prepares and executes a database operation for given parameter sequences.
@@ -460,6 +513,7 @@ class Cursor(object):
       OperationalError: RPC problem.
     """
     self._CheckOpen()
+    self._Reset()
 
     request = sql_pb2.ExecRequest()
     request.options.include_generated_keys = True
@@ -474,7 +528,14 @@ class Cursor(object):
           statement, args, bbv.bind_variable.add)
     request.statement = _ConvertFormatToQmark(statement, args)
     result = self._DoExec(request)
+    self._executed = request.statement
     self._rowcount = sum(result.batch_rows_updated)
+
+  def _FetchMoreRows(self):
+    """Fetches more rows from the server for a previously executed statement."""
+    request = sql_pb2.ExecRequest()
+    request.statement_id = self._statement_id
+    self._DoExec(request)
 
   def callproc(self, procname, args=()):
     """Calls a stored database procedure with the given name.
@@ -495,6 +556,8 @@ class Cursor(object):
       OperationalError: RPC problem.
     """
     self._CheckOpen()
+    self._Reset()
+
     request = sql_pb2.ExecRequest()
     request.statement_type = sql_pb2.ExecRequest.CALLABLE_STATEMENT
     request.statement = 'CALL %s(%s)' % (procname, ','.join('?' * len(args)))
@@ -506,6 +569,7 @@ class Cursor(object):
         request.statement, args, request.bind_variable.add,
         direction=client_pb2.BindVariableProto.INOUT)
     result = self._DoExec(request)
+    self._executed = request.statement
 
 
     return_args = list(args[:])
@@ -526,8 +590,12 @@ class Cursor(object):
       OperationalError: RPC problem.
     """
     self._CheckOpen()
-    if self._more_results is None:
-      raise InternalError('nextset() called before execute')
+    self._CheckExecuted('nextset() called before execute')
+
+
+
+    self._rows = collections.deque()
+    self._rowcount = -1
     if not self._more_results:
       return None
 
@@ -548,8 +616,9 @@ class Cursor(object):
         executed yet.
     """
     self._CheckOpen()
-    if self._rowcount == -1:
-      raise InternalError('fetchone() called before execute')
+    self._CheckExecuted('fetchone() called before execute')
+    if not self._rows and self._more_rows:
+      self._FetchMoreRows()
     try:
       return self._rows.popleft()
     except IndexError:
@@ -570,12 +639,16 @@ class Cursor(object):
         executed yet.
     """
     self._CheckOpen()
-    if self._rowcount == -1:
-      raise InternalError('fetchmany() called before execute')
+    self._CheckExecuted('fetchmany() called before execute')
     if size is None:
       size = self.arraysize
+    while self._more_rows and size > len(self._rows):
+      self._FetchMoreRows()
+
     if size >= len(self._rows):
-      return self.fetchall()
+      rows = self._rows
+      self._rows = collections.deque()
+      return tuple(rows)
     else:
       result = []
       for _ in xrange(size):
@@ -594,8 +667,9 @@ class Cursor(object):
         executed yet.
     """
     self._CheckOpen()
-    if self._rowcount == -1:
-      raise InternalError('fetchall() called before execute')
+    self._CheckExecuted('fetchall() called before execute')
+    while self._more_rows:
+      self._FetchMoreRows()
     rows = self._rows
     self._rows = collections.deque()
     return tuple(rows)
@@ -612,6 +686,10 @@ class Cursor(object):
     self._conn.CheckOpen()
     if not self._open:
       raise InternalError('cursor has been closed')
+
+  def _CheckExecuted(self, msg):
+    if not self._executed:
+      raise InternalError(msg)
 
   def __iter__(self):
     return iter(self.fetchone, None)

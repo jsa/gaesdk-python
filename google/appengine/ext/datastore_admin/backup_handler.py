@@ -70,6 +70,7 @@ from google.appengine.ext.mapreduce import input_readers
 from google.appengine.ext.mapreduce import model
 from google.appengine.ext.mapreduce import operation as op
 from google.appengine.ext.mapreduce import output_writers
+from google.appengine.runtime import apiproxy_errors
 
 
 XSRF_ACTION = 'backup'
@@ -457,19 +458,18 @@ def _perform_backup(kinds,
           mapper_params, mapreduce_params, queue)]
     else:
       retry_options = taskqueue.TaskRetryOptions(task_retry_limit=1)
-      deferred_task = deferred.defer(_run_map_jobs, job_operation.key(),
+      deferred_task = deferred.defer(_run_map_jobs_deferred,
+                                     backup, job_operation.key(),
                                      backup_info.key(), kinds, job_name,
-                                      BACKUP_HANDLER, INPUT_READER,
-                                      OUTPUT_WRITER,
-                                      mapper_params,
-                                      mapreduce_params,
-                                      queue, _queue=queue,
-                                      _url=utils.ConfigDefaults.DEFERRED_PATH,
-                                      _retry_options=retry_options)
+                                     BACKUP_HANDLER, INPUT_READER,
+                                     OUTPUT_WRITER, mapper_params,
+                                     mapreduce_params, queue, _queue=queue,
+                                     _url=utils.ConfigDefaults.DEFERRED_PATH,
+                                     _retry_options=retry_options)
       return [('task', deferred_task.name)]
   except Exception:
     logging.exception('Failed to start a datastore backup job[s] for "%s".',
-                      job_name)
+                      backup)
     if backup_info:
       delete_backup_info(backup_info)
     if job_operation:
@@ -568,6 +568,25 @@ class DoBackupHandler(BaseDoHandler):
       return backup_result
     except BackupValidationException, e:
       return [('error', e.message)]
+
+
+def _run_map_jobs_deferred(backup_name, job_operation_key, backup_info_key,
+                           kinds, job_name, backup_handler, input_reader,
+                           output_writer, mapper_params, mapreduce_params,
+                           queue):
+  backup_info = BackupInformation.get(backup_info_key)
+  if backup_info:
+    try:
+      _run_map_jobs(job_operation_key, backup_info_key, kinds, job_name,
+                    backup_handler, input_reader, output_writer, mapper_params,
+                    mapreduce_params, queue)
+    except BaseException:
+      logging.exception('Failed to start a datastore backup job[s] for "%s".',
+                        backup_name)
+      delete_backup_info(backup_info)
+  else:
+    logging.info('Missing backup info, can not start backup jobs for "%s"',
+                 backup_name)
 
 
 def _run_map_jobs(job_operation_key, backup_info_key, kinds, job_name,
@@ -1065,6 +1084,8 @@ class BackupInfoWriter(object):
     entity_type_info = EntityTypeInfo(kind=kind)
     for sharded_aggregation in SchemaAggregationResult.load(
         backup_info.key(), kind):
+      if sharded_aggregation.is_partial:
+        kind_info.is_partial = True
       if sharded_aggregation.entity_type_info:
         entity_type_info.merge(sharded_aggregation.entity_type_info)
     entity_type_info.populate_entity_schema(kind_info.entity_schema)
@@ -1340,6 +1361,7 @@ class SchemaAggregationResult(db.Model):
 
   entity_type_info = model.JsonProperty(
       EntityTypeInfo, default=EntityTypeInfo(), indexed=False)
+  is_partial = db.BooleanProperty(default=False)
 
   def merge(self, other):
     """Merge a SchemaAggregationResult or an EntityTypeInfo with this instance.
@@ -1350,6 +1372,8 @@ class SchemaAggregationResult(db.Model):
     Returns:
       True if anything was changed. False otherwise.
     """
+    if self.is_partial:
+      return False
     if isinstance(other, SchemaAggregationResult):
       other = other.entity_type_info
     return self.entity_type_info.merge(other)
@@ -1431,7 +1455,7 @@ class SchemaAggregationPool(object):
     """Save aggregated type information to the datastore if changed."""
     if self.__needs_save:
 
-      def tx():
+      def update_aggregation_tx():
         aggregation = SchemaAggregationResult.load(
             self.__backup_id, self.__kind, self.__shard_id)
         if aggregation:
@@ -1440,7 +1464,21 @@ class SchemaAggregationPool(object):
           self.__aggregation = aggregation
         else:
           self.__aggregation.put(force_writes=True)
-      db.run_in_transaction(tx)
+
+      def mark_aggregation_as_partial_tx():
+        aggregation = SchemaAggregationResult.load(
+            self.__backup_id, self.__kind, self.__shard_id)
+        if aggregation is None:
+          aggregation = SchemaAggregationResult.create(
+              self.__backup_id, self.__kind, self.__shard_id)
+        aggregation.is_partial = True
+        aggregation.put(force_writes=True)
+        self.__aggregation = aggregation
+
+      try:
+        db.run_in_transaction(update_aggregation_tx)
+      except apiproxy_errors.RequestTooLargeError:
+        db.run_in_transaction(mark_aggregation_as_partial_tx)
       self.__needs_save = False
 
 

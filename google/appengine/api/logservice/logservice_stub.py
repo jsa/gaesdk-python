@@ -404,7 +404,7 @@ class LogServiceStub(apiproxy_stub.APIProxyStub):
     response.clear_offset()
 
 
-    if request.version_id_size() != 1:
+    if request.version_id_size() < 1:
       raise apiproxy_errors.ApplicationError(
           log_service_pb.LogServiceError.INVALID_REQUEST)
 

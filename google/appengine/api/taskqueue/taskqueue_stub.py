@@ -408,7 +408,7 @@ class _Group(object):
 
   def _ConstructQueue(self, queue_name, *args, **kwargs):
     if '_testing_validate_state' in kwargs:
-      raise TypeError, (
+      raise TypeError(
           '_testing_validate_state should not be passed to _ConstructQueue')
     kwargs['_testing_validate_state'] = self._testing_validate_state
     self._queues[queue_name] = _Queue(queue_name, *args, **kwargs)
@@ -974,6 +974,7 @@ class _Queue(object):
   This class contains all of the properties of a queue and a sorted list of
   tasks.
   """
+
   def __init__(self, queue_name, bucket_refill_per_second=DEFAULT_RATE_FLOAT,
                bucket_capacity=DEFAULT_BUCKET_SIZE,
                user_specified_rate=DEFAULT_RATE, retry_parameters=None,
@@ -1069,6 +1070,7 @@ class _Queue(object):
     Returns:
       The result of f.
     """
+
     def _Inner(self, *args, **kwargs):
       with self._lock:
         ret = f(self, *args, **kwargs)
@@ -1200,7 +1202,7 @@ class _Queue(object):
         response.add_result(self._DeleteNoAcquireLock(taskname))
 
   def _QueryAndOwnTasksGetTaskList(self, max_rows, group_by_tag, now_eta_usec,
-                                    tag=None):
+                                   tag=None):
     assert self._lock.locked()
     if group_by_tag and tag:
 
@@ -1268,7 +1270,7 @@ class _Queue(object):
       if not retry.CanRetry(task.retry_count() + 1, 0):
         logging.warning(
             'Task %s in queue %s cannot be leased again after %d leases.',
-             task.task_name(), self.queue_name, task.retry_count())
+            task.task_name(), self.queue_name, task.retry_count())
         tasks_to_delete.append(task)
         continue
 
@@ -1745,6 +1747,7 @@ class _Queue(object):
     Args:
       num_tasks: the number of tasks to insert.
     """
+
     def RandomTask():
       """Creates a new task and randomly populates values."""
       assert self._lock.locked()
@@ -2072,6 +2075,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     self._task_scheduler = _BackgroundTaskScheduler(
         self._queues[None], _TaskExecutor(default_http_server),
         retry_seconds=task_retry_seconds)
+    self._yaml_last_modified = None
 
   def StartBackgroundExecution(self):
     """Start automatic task execution."""
@@ -2103,11 +2107,17 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
       return None
     for queueyaml in ('queue.yaml', 'queue.yml'):
       try:
-        fh = open(os.path.join(self._root_path, queueyaml), 'r')
-      except IOError:
+        path = os.path.join(self._root_path, queueyaml)
+        modified = os.stat(path).st_mtime
+        if self._yaml_last_modified and self._yaml_last_modified == modified:
+          return self._last_queue_info
+        fh = open(path, 'r')
+      except (IOError, OSError):
         continue
       try:
         queue_info = queueinfo.LoadSingleQueue(fh)
+        self._last_queue_info = queue_info
+        self._yaml_last_modified = modified
         return queue_info
       finally:
         fh.close()
@@ -2357,7 +2367,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     """
     if _GetAppId(request) is None:
       raise apiproxy_errors.ApplicationError(
-         taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
+          taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
 
 
     if random.random() <= 0.05:
@@ -2383,7 +2393,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     app_id = _GetAppId(request)
     if app_id is None:
       raise apiproxy_errors.ApplicationError(
-         taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
+          taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
     self._GetGroup(app_id).DeleteQueue_Rpc(request, response)
 
   def _Dynamic_PauseQueue(self, request, response):
@@ -2399,7 +2409,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     app_id = _GetAppId(request)
     if app_id is None:
       raise apiproxy_errors.ApplicationError(
-         taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
+          taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
     self._GetGroup(app_id).PauseQueue_Rpc(request, response)
 
   def _Dynamic_PurgeQueue(self, request, response):
@@ -2428,7 +2438,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     app_id = _GetAppId(request)
     if app_id is None:
       raise apiproxy_errors.ApplicationError(
-         taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
+          taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
 
     if app_id in self._queues:
       del self._queues[app_id]
@@ -2449,7 +2459,7 @@ class TaskQueueServiceStub(apiproxy_stub.APIProxyStub):
     """
     if _GetAppId(request) is None:
       raise apiproxy_errors.ApplicationError(
-         taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
+          taskqueue_service_pb.TaskQueueServiceError.PERMISSION_DENIED)
 
     if request.limit() < 0 or request.limit() > 1000 * (1024 ** 4):
       raise apiproxy_errors.ApplicationError(

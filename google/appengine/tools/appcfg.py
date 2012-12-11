@@ -43,6 +43,7 @@ import optparse
 import os
 import random
 import re
+import subprocess
 import sys
 import tempfile
 import time
@@ -2494,7 +2495,12 @@ class AppCfgApp(object):
     if len(self.args) < 1:
       self._PrintHelpAndExit()
 
-    if not self.options.allow_any_runtime:
+    if self.options.allow_any_runtime:
+
+
+
+      appinfo.AppInfoExternal._skip_runtime_checks = True
+    else:
       if self.options.runtime:
         if self.options.runtime not in SUPPORTED_RUNTIMES:
           _PrintErrorAndExit(self.error_fh,
@@ -2665,8 +2671,11 @@ class AppCfgApp(object):
                       metavar='SERVER', help='The App Engine server.')
     parser.add_option('--secure', action='store_true', dest='secure',
                       default=True, help=optparse.SUPPRESS_HELP)
+    parser.add_option('--ignore-bad-cert', action='store_true',
+                      dest='ignore_certs', default=False,
+                      help=optparse.SUPPRESS_HELP)
     parser.add_option('--insecure', action='store_false', dest='secure',
-                      help='Use HTTP when communicating with the server.')
+                      help=optparse.SUPPRESS_HELP)
     parser.add_option('-e', '--email', action='store', dest='email',
                       metavar='EMAIL', default=None,
                       help='The username to use. Will prompt if omitted.')
@@ -2818,7 +2827,8 @@ class AppCfgApp(object):
                                  save_cookies=self.options.save_cookies,
                                  auth_tries=auth_tries,
                                  account_type='HOSTED_OR_GOOGLE',
-                                 secure=self.options.secure)
+                                 secure=self.options.secure,
+                                 ignore_certs=self.options.ignore_certs)
 
   def _FindYaml(self, basepath, file_name):
     """Find yaml files in application directory.
@@ -3041,10 +3051,50 @@ class AppCfgApp(object):
       if appinfo.PYTHON_PRECOMPILED not in appyaml.derived_file_type:
         appyaml.derived_file_type.append(appinfo.PYTHON_PRECOMPILED)
 
+    paths = self.file_iterator(basepath, appyaml.skip_files, appyaml.runtime)
+    openfunc = lambda path: self.opener(os.path.join(basepath, path), 'rb')
+
+    if appyaml.runtime == 'go':
+
+
+      goroot = os.path.join(os.path.dirname(google.appengine.__file__),
+                            '../../goroot')
+      gopath = os.environ.get('GOPATH')
+      if os.path.isdir(goroot) and gopath:
+        app_paths = list(paths)
+        go_files = [f for f in app_paths if f.endswith('.go')]
+        gab_argv = [
+            os.path.join(goroot, 'bin', 'go-app-builder'),
+            '-app_base', self.basepath,
+            '-arch', '6',
+            '-gopath', gopath,
+            '-goroot', goroot,
+            '-print_extras',
+        ] + go_files
+        try:
+          p = subprocess.Popen(gab_argv, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, env={})
+          rc = p.wait()
+        except Exception, e:
+          raise Exception('failed running go-app-builder', e)
+        if rc != 0:
+          raise Exception(p.stderr.read())
+
+
+
+
+        overlay = dict([l.split('|') for l in p.stdout.read().split('\n') if l])
+        logging.info('GOPATH overlay: %s', overlay)
+
+        def ofunc(path):
+          if path in overlay:
+            return self.opener(overlay[path], 'rb')
+          return self.opener(os.path.join(basepath, path), 'rb')
+        paths = app_paths + overlay.keys()
+        openfunc = ofunc
+
     appversion = AppVersionUpload(rpcserver, appyaml, backend, self.error_fh)
-    return appversion.DoUpload(
-        self.file_iterator(basepath, appyaml.skip_files, appyaml.runtime),
-        lambda path: self.opener(os.path.join(basepath, path), 'rb'))
+    return appversion.DoUpload(paths, openfunc)
 
   def Update(self):
     """Updates and deploys a new appversion and global app configs."""
@@ -3402,6 +3452,11 @@ class AppCfgApp(object):
     app_id = None
     last_yaml_path = None
     for yaml_path in yaml_paths:
+      if not os.path.isfile(yaml_path):
+        _PrintErrorAndExit(
+            self.error_fh,
+            ("Error: The given path '%s' is not to a YAML configuration "
+             "file.\n") % yaml_path)
       file_name = os.path.basename(yaml_path)
       base_path = os.path.dirname(yaml_path)
       if not base_path:

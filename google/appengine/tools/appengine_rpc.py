@@ -116,7 +116,7 @@ class AbstractRpcServer(object):
   def __init__(self, host, auth_function, user_agent, source,
                host_override=None, extra_headers=None, save_cookies=False,
                auth_tries=3, account_type=None, debug_data=True, secure=True,
-               rpc_tries=3):
+               ignore_certs=False, rpc_tries=3):
     """Creates a new HttpRpcServer.
 
     Args:
@@ -137,6 +137,7 @@ class AbstractRpcServer(object):
       account_type: One of GOOGLE, HOSTED_OR_GOOGLE, or None for automatic.
       debug_data: Whether debugging output should include data contents.
       secure: If the requests sent using Send should be sent over HTTPS.
+      ignore_certs: If the certificate mismatches should be ignored.
       rpc_tries: The number of rpc retries upon http server error (i.e.
         Response code >= 500 and < 600) before failing.
     """
@@ -144,6 +145,7 @@ class AbstractRpcServer(object):
       self.scheme = "https"
     else:
       self.scheme = "http"
+    self.ignore_certs = ignore_certs
     self.host = host
     self.host_override = host_override
     self.auth_function = auth_function
@@ -509,7 +511,8 @@ class HttpRpcServer(AbstractRpcServer):
     self.certpath = os.path.normpath(os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'lib', 'cacerts',
         'cacerts.txt'))
-    self.cert_file_available = os.path.exists(self.certpath)
+    self.cert_file_available = ((not kwargs.get("ignore_certs", False))
+                                and os.path.exists(self.certpath))
     super(HttpRpcServer, self).__init__(*args, **kwargs)
 
   def _CreateRequest(self, url, data=None):

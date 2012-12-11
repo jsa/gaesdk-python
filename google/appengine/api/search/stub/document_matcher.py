@@ -26,6 +26,8 @@ matching.
 
 
 
+import logging
+
 from google.appengine.datastore import document_pb
 
 from google.appengine._internal.antlr3 import tree
@@ -130,18 +132,18 @@ class DocumentMatcher(object):
               field.name(), token_text)]
       return document.id() in matching_docids
 
-    if match.getType() is QueryParser.PHRASE:
+    if match.getType() == QueryParser.PHRASE:
       return self._MatchPhrase(field, match, document)
 
-    if match.getType() is QueryParser.CONJUNCTION:
+    if match.getType() == QueryParser.CONJUNCTION:
       return all(self._MatchTextField(field, child, document)
                  for child in match.children)
 
-    if match.getType() is QueryParser.DISJUNCTION:
+    if match.getType() == QueryParser.DISJUNCTION:
       return any(self._MatchTextField(field, child, document)
                  for child in match.children)
 
-    if match.getType() is QueryParser.NEGATION:
+    if match.getType() == QueryParser.NEGATION:
       return not self._MatchTextField(field, match.children[0], document)
 
 
@@ -204,17 +206,17 @@ class DocumentMatcher(object):
     else:
       return False
 
-    if op is QueryParser.EQ:
+    if op == QueryParser.EQ:
       return field_val == match_val
-    if op is QueryParser.NE:
+    if op == QueryParser.NE:
       return field_val != match_val
-    if op is QueryParser.GT:
+    if op == QueryParser.GT:
       return field_val > match_val
-    if op is QueryParser.GE:
+    if op == QueryParser.GE:
       return field_val >= match_val
-    if op is QueryParser.LT:
+    if op == QueryParser.LT:
       return field_val < match_val
-    if op is QueryParser.LE:
+    if op == QueryParser.LE:
       return field_val <= match_val
     raise search_util.UnsupportedOnDevError(
         'Operator %s not supported for numerical fields on development server.'
@@ -245,36 +247,48 @@ class DocumentMatcher(object):
     if field.value().type() == document_pb.FieldValue.DATE:
       return self._MatchDateField(field, match, document)
 
+    type_name = document_pb.FieldValue.ContentType_Name(
+        field.value().type()).lower()
     raise search_util.UnsupportedOnDevError(
-        'Matching to field type of field "%s" (type=%d) is unsupported on '
-        'dev server' % (field.name(), field.value().type()))
+        'Matching fields of type %s is unsupported on dev server (searched for '
+        'field %s)' % (type_name, field.name()))
 
   def _MatchGlobal(self, match, document):
     for field in document.field_list():
-      if self._MatchField(field.name(), match, document):
-        return True
+      try:
+        if self._MatchField(field.name(), match, document):
+          return True
+      except search_util.UnsupportedOnDevError:
+
+
+
+        pass
     return False
 
   def _CheckMatch(self, node, document):
     """Check if a document matches a query tree."""
 
-    if node.getType() is QueryParser.CONJUNCTION:
+    if node.getType() == QueryParser.CONJUNCTION:
       return all(self._CheckMatch(child, document) for child in node.children)
 
-    if node.getType() is QueryParser.DISJUNCTION:
+    if node.getType() == QueryParser.DISJUNCTION:
       return any(self._CheckMatch(child, document) for child in node.children)
 
-    if node.getType() is QueryParser.NEGATION:
+    if node.getType() == QueryParser.NEGATION:
       return not self._CheckMatch(node.children[0], document)
 
-    if node.getType() is QueryParser.RESTRICTION:
+    if node.getType() == QueryParser.RESTRICTION:
       field, match = node.children
       return self._MatchField(field, match, document)
 
     return self._MatchGlobal(node, document)
 
   def Matches(self, document):
-    return self._CheckMatch(self._query, document)
+    try:
+      return self._CheckMatch(self._query, document)
+    except search_util.UnsupportedOnDevError, e:
+      logging.warning(str(e))
+      return False
 
   def FilterDocuments(self, documents):
     return (doc for doc in documents if self.Matches(doc))

@@ -544,8 +544,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
   strong_ = 0
   has_distinct_ = 0
   distinct_ = 0
-  has_safe_time_microseconds_ = 0
-  safe_time_microseconds_ = 0
+  has_min_safe_time_microseconds_ = 0
+  min_safe_time_microseconds_ = 0
 
   def __init__(self, contents=None):
     self.filter_ = []
@@ -893,18 +893,18 @@ class Query(ProtocolBuffer.ProtocolMessage):
 
   def has_distinct(self): return self.has_distinct_
 
-  def safe_time_microseconds(self): return self.safe_time_microseconds_
+  def min_safe_time_microseconds(self): return self.min_safe_time_microseconds_
 
-  def set_safe_time_microseconds(self, x):
-    self.has_safe_time_microseconds_ = 1
-    self.safe_time_microseconds_ = x
+  def set_min_safe_time_microseconds(self, x):
+    self.has_min_safe_time_microseconds_ = 1
+    self.min_safe_time_microseconds_ = x
 
-  def clear_safe_time_microseconds(self):
-    if self.has_safe_time_microseconds_:
-      self.has_safe_time_microseconds_ = 0
-      self.safe_time_microseconds_ = 0
+  def clear_min_safe_time_microseconds(self):
+    if self.has_min_safe_time_microseconds_:
+      self.has_min_safe_time_microseconds_ = 0
+      self.min_safe_time_microseconds_ = 0
 
-  def has_safe_time_microseconds(self): return self.has_safe_time_microseconds_
+  def has_min_safe_time_microseconds(self): return self.has_min_safe_time_microseconds_
 
   def safe_replica_name_size(self): return len(self.safe_replica_name_)
   def safe_replica_name_list(self): return self.safe_replica_name_
@@ -947,7 +947,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     for i in xrange(x.property_name_size()): self.add_property_name(x.property_name(i))
     for i in xrange(x.group_by_property_name_size()): self.add_group_by_property_name(x.group_by_property_name(i))
     if (x.has_distinct()): self.set_distinct(x.distinct())
-    if (x.has_safe_time_microseconds()): self.set_safe_time_microseconds(x.safe_time_microseconds())
+    if (x.has_min_safe_time_microseconds()): self.set_min_safe_time_microseconds(x.min_safe_time_microseconds())
     for i in xrange(x.safe_replica_name_size()): self.add_safe_replica_name(x.safe_replica_name(i))
 
   def Equals(self, x):
@@ -1003,8 +1003,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
       if e1 != e2: return 0
     if self.has_distinct_ != x.has_distinct_: return 0
     if self.has_distinct_ and self.distinct_ != x.distinct_: return 0
-    if self.has_safe_time_microseconds_ != x.has_safe_time_microseconds_: return 0
-    if self.has_safe_time_microseconds_ and self.safe_time_microseconds_ != x.safe_time_microseconds_: return 0
+    if self.has_min_safe_time_microseconds_ != x.has_min_safe_time_microseconds_: return 0
+    if self.has_min_safe_time_microseconds_ and self.min_safe_time_microseconds_ != x.min_safe_time_microseconds_: return 0
     if len(self.safe_replica_name_) != len(x.safe_replica_name_): return 0
     for e1, e2 in zip(self.safe_replica_name_, x.safe_replica_name_):
       if e1 != e2: return 0
@@ -1058,7 +1058,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     n += 2 * len(self.group_by_property_name_)
     for i in xrange(len(self.group_by_property_name_)): n += self.lengthString(len(self.group_by_property_name_[i]))
     if (self.has_distinct_): n += 3
-    if (self.has_safe_time_microseconds_): n += 2 + self.lengthVarInt64(self.safe_time_microseconds_)
+    if (self.has_min_safe_time_microseconds_): n += 2 + self.lengthVarInt64(self.min_safe_time_microseconds_)
     n += 2 * len(self.safe_replica_name_)
     for i in xrange(len(self.safe_replica_name_)): n += self.lengthString(len(self.safe_replica_name_[i]))
     return n + 1
@@ -1095,7 +1095,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     n += 2 * len(self.group_by_property_name_)
     for i in xrange(len(self.group_by_property_name_)): n += self.lengthString(len(self.group_by_property_name_[i]))
     if (self.has_distinct_): n += 3
-    if (self.has_safe_time_microseconds_): n += 2 + self.lengthVarInt64(self.safe_time_microseconds_)
+    if (self.has_min_safe_time_microseconds_): n += 2 + self.lengthVarInt64(self.min_safe_time_microseconds_)
     n += 2 * len(self.safe_replica_name_)
     for i in xrange(len(self.safe_replica_name_)): n += self.lengthString(len(self.safe_replica_name_[i]))
     return n
@@ -1124,7 +1124,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     self.clear_property_name()
     self.clear_group_by_property_name()
     self.clear_distinct()
-    self.clear_safe_time_microseconds()
+    self.clear_min_safe_time_microseconds()
     self.clear_safe_replica_name()
 
   def OutputUnchecked(self, out):
@@ -1203,9 +1203,9 @@ class Query(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.group_by_property_name_)):
       out.putVarInt32(274)
       out.putPrefixedString(self.group_by_property_name_[i])
-    if (self.has_safe_time_microseconds_):
+    if (self.has_min_safe_time_microseconds_):
       out.putVarInt32(280)
-      out.putVarInt64(self.safe_time_microseconds_)
+      out.putVarInt64(self.min_safe_time_microseconds_)
     for i in xrange(len(self.safe_replica_name_)):
       out.putVarInt32(290)
       out.putPrefixedString(self.safe_replica_name_[i])
@@ -1287,9 +1287,9 @@ class Query(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.group_by_property_name_)):
       out.putVarInt32(274)
       out.putPrefixedString(self.group_by_property_name_[i])
-    if (self.has_safe_time_microseconds_):
+    if (self.has_min_safe_time_microseconds_):
       out.putVarInt32(280)
-      out.putVarInt64(self.safe_time_microseconds_)
+      out.putVarInt64(self.min_safe_time_microseconds_)
     for i in xrange(len(self.safe_replica_name_)):
       out.putVarInt32(290)
       out.putPrefixedString(self.safe_replica_name_[i])
@@ -1382,7 +1382,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
         self.add_group_by_property_name(d.getPrefixedString())
         continue
       if tt == 280:
-        self.set_safe_time_microseconds(d.getVarInt64())
+        self.set_min_safe_time_microseconds(d.getVarInt64())
         continue
       if tt == 290:
         self.add_safe_replica_name(d.getPrefixedString())
@@ -1461,7 +1461,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
       res+=prefix+("group_by_property_name%s: %s\n" % (elm, self.DebugFormatString(e)))
       cnt+=1
     if self.has_distinct_: res+=prefix+("distinct: %s\n" % self.DebugFormatBool(self.distinct_))
-    if self.has_safe_time_microseconds_: res+=prefix+("safe_time_microseconds: %s\n" % self.DebugFormatInt64(self.safe_time_microseconds_))
+    if self.has_min_safe_time_microseconds_: res+=prefix+("min_safe_time_microseconds: %s\n" % self.DebugFormatInt64(self.min_safe_time_microseconds_))
     cnt=0
     for e in self.safe_replica_name_:
       elm=""
@@ -1501,7 +1501,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
   kproperty_name = 33
   kgroup_by_property_name = 34
   kdistinct = 24
-  ksafe_time_microseconds = 35
+  kmin_safe_time_microseconds = 35
   ksafe_replica_name = 36
 
   _TEXT = _BuildTagLookupTable({
@@ -1533,7 +1533,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     32: "strong",
     33: "property_name",
     34: "group_by_property_name",
-    35: "safe_time_microseconds",
+    35: "min_safe_time_microseconds",
     36: "safe_replica_name",
   }, 36)
 
@@ -3287,6 +3287,7 @@ class Error(ProtocolBuffer.ProtocolMessage):
   COMMITTED_BUT_STILL_APPLYING =    8
   CAPABILITY_DISABLED =    9
   TRY_ALTERNATE_BACKEND =   10
+  SAFE_TIME_TOO_OLD =   11
 
   _ErrorCode_NAMES = {
     1: "BAD_REQUEST",
@@ -3299,6 +3300,7 @@ class Error(ProtocolBuffer.ProtocolMessage):
     8: "COMMITTED_BUT_STILL_APPLYING",
     9: "CAPABILITY_DISABLED",
     10: "TRY_ALTERNATE_BACKEND",
+    11: "SAFE_TIME_TOO_OLD",
   }
 
   def ErrorCode_Name(cls, x): return cls._ErrorCode_NAMES.get(x, "")
@@ -5931,6 +5933,8 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
   keys_only_ = 0
   has_index_only_ = 0
   index_only_ = 0
+  has_small_ops_ = 0
+  small_ops_ = 0
   has_compiled_query_ = 0
   compiled_query_ = None
   has_compiled_cursor_ = 0
@@ -6029,6 +6033,19 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
 
   def has_index_only(self): return self.has_index_only_
 
+  def small_ops(self): return self.small_ops_
+
+  def set_small_ops(self, x):
+    self.has_small_ops_ = 1
+    self.small_ops_ = x
+
+  def clear_small_ops(self):
+    if self.has_small_ops_:
+      self.has_small_ops_ = 0
+      self.small_ops_ = 0
+
+  def has_small_ops(self): return self.has_small_ops_
+
   def compiled_query(self):
     if self.compiled_query_ is None:
       self.lazy_init_lock_.acquire()
@@ -6092,6 +6109,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if (x.has_more_results()): self.set_more_results(x.more_results())
     if (x.has_keys_only()): self.set_keys_only(x.keys_only())
     if (x.has_index_only()): self.set_index_only(x.index_only())
+    if (x.has_small_ops()): self.set_small_ops(x.small_ops())
     if (x.has_compiled_query()): self.mutable_compiled_query().MergeFrom(x.compiled_query())
     if (x.has_compiled_cursor()): self.mutable_compiled_cursor().MergeFrom(x.compiled_cursor())
     for i in xrange(x.index_size()): self.add_index().CopyFrom(x.index(i))
@@ -6111,6 +6129,8 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if self.has_keys_only_ and self.keys_only_ != x.keys_only_: return 0
     if self.has_index_only_ != x.has_index_only_: return 0
     if self.has_index_only_ and self.index_only_ != x.index_only_: return 0
+    if self.has_small_ops_ != x.has_small_ops_: return 0
+    if self.has_small_ops_ and self.small_ops_ != x.small_ops_: return 0
     if self.has_compiled_query_ != x.has_compiled_query_: return 0
     if self.has_compiled_query_ and self.compiled_query_ != x.compiled_query_: return 0
     if self.has_compiled_cursor_ != x.has_compiled_cursor_: return 0
@@ -6143,6 +6163,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if (self.has_skipped_results_): n += 1 + self.lengthVarInt64(self.skipped_results_)
     if (self.has_keys_only_): n += 2
     if (self.has_index_only_): n += 2
+    if (self.has_small_ops_): n += 2
     if (self.has_compiled_query_): n += 1 + self.lengthString(self.compiled_query_.ByteSize())
     if (self.has_compiled_cursor_): n += 1 + self.lengthString(self.compiled_cursor_.ByteSize())
     n += 1 * len(self.index_)
@@ -6159,6 +6180,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
       n += 2
     if (self.has_keys_only_): n += 2
     if (self.has_index_only_): n += 2
+    if (self.has_small_ops_): n += 2
     if (self.has_compiled_query_): n += 1 + self.lengthString(self.compiled_query_.ByteSizePartial())
     if (self.has_compiled_cursor_): n += 1 + self.lengthString(self.compiled_cursor_.ByteSizePartial())
     n += 1 * len(self.index_)
@@ -6172,6 +6194,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     self.clear_more_results()
     self.clear_keys_only()
     self.clear_index_only()
+    self.clear_small_ops()
     self.clear_compiled_query()
     self.clear_compiled_cursor()
     self.clear_index()
@@ -6208,6 +6231,9 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if (self.has_index_only_):
       out.putVarInt32(72)
       out.putBoolean(self.index_only_)
+    if (self.has_small_ops_):
+      out.putVarInt32(80)
+      out.putBoolean(self.small_ops_)
 
   def OutputPartial(self, out):
     if (self.has_cursor_):
@@ -6242,6 +6268,9 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if (self.has_index_only_):
       out.putVarInt32(72)
       out.putBoolean(self.index_only_)
+    if (self.has_small_ops_):
+      out.putVarInt32(80)
+      out.putBoolean(self.small_ops_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -6288,6 +6317,9 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
       if tt == 72:
         self.set_index_only(d.getBoolean())
         continue
+      if tt == 80:
+        self.set_small_ops(d.getBoolean())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
@@ -6312,6 +6344,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     if self.has_more_results_: res+=prefix+("more_results: %s\n" % self.DebugFormatBool(self.more_results_))
     if self.has_keys_only_: res+=prefix+("keys_only: %s\n" % self.DebugFormatBool(self.keys_only_))
     if self.has_index_only_: res+=prefix+("index_only: %s\n" % self.DebugFormatBool(self.index_only_))
+    if self.has_small_ops_: res+=prefix+("small_ops: %s\n" % self.DebugFormatBool(self.small_ops_))
     if self.has_compiled_query_:
       res+=prefix+"compiled_query <\n"
       res+=self.compiled_query_.__str__(prefix + "  ", printElemNumber)
@@ -6340,6 +6373,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
   kmore_results = 3
   kkeys_only = 4
   kindex_only = 9
+  ksmall_ops = 10
   kcompiled_query = 5
   kcompiled_cursor = 6
   kindex = 8
@@ -6355,7 +6389,8 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     7: "skipped_results",
     8: "index",
     9: "index_only",
-  }, 9)
+    10: "small_ops",
+  }, 10)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -6368,7 +6403,8 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     7: ProtocolBuffer.Encoder.NUMERIC,
     8: ProtocolBuffer.Encoder.STRING,
     9: ProtocolBuffer.Encoder.NUMERIC,
-  }, 9, ProtocolBuffer.Encoder.MAX_TYPE)
+    10: ProtocolBuffer.Encoder.NUMERIC,
+  }, 10, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

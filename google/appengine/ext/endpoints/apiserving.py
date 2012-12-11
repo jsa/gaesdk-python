@@ -65,6 +65,7 @@ import cgi
 import cStringIO
 import httplib
 import logging
+import os
 
 from protorpc import messages
 from protorpc import protojson
@@ -171,6 +172,22 @@ class EndpointsErrorMessage(messages.Message):
   error_message = messages.StringField(2)
 
 
+
+def _get_app_revision(environ=os.environ):
+  """Gets the app revision (minor app version) of the current app.
+
+  Args:
+    environ: A dictionary with a key CURRENT_VERSION_ID that maps to a version
+      string of the format <major>.<minor>.
+
+  Returns:
+    The app revision (minor version) of the current app, or None if one couldn't
+    be found.
+  """
+  if 'CURRENT_VERSION_ID' in environ:
+    return environ['CURRENT_VERSION_ID'].split('.')[1]
+
+
 class _ApiServer(object):
   """ProtoRPC wrapper, registers APIs and formats errors for Google API Server.
 
@@ -243,7 +260,7 @@ class _ApiServer(object):
 
 
     backend_service = api_backend_service.BackendServiceImpl.new_factory(
-        self.api_config_registry)
+        self.api_config_registry, _get_app_revision())
     protorpc_services.insert(0, (self.__BACKEND_SERVICE_ROOT, backend_service))
 
     if 'protocols' in kwargs:
@@ -388,10 +405,9 @@ class _ApiServer(object):
       if api_path.startswith(self.__SPI_PREFIX):
         protorpc_method_name = self.api_config_registry.lookup_api_method(
             api_path[len(self.__SPI_PREFIX):])
-        if protorpc_method_name is None:
-          logging.warning('API method not found for: %s',
+        if protorpc_method_name is not None:
+          logging.warning('API method rerouted (old protocol) for: %s',
                           api_path[len(self.__SPI_PREFIX):])
-        else:
           environ['PATH_INFO'] = self.__SPI_PREFIX + protorpc_method_name
       body_iter = self.service_app(environ, StartResponse)
       status = call_context['status']

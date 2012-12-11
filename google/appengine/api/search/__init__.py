@@ -20,8 +20,6 @@
 
 """Search API module."""
 
-from search import AddError
-from search import AddResult
 from search import AtomField
 from search import Cursor
 from search import DateField
@@ -40,12 +38,8 @@ from search import HtmlField
 from search import Index
 from search import InternalError
 from search import InvalidRequest
-from search import list_indexes
-from search import ListIndexesResponse
-from search import ListResponse
 from search import MatchScorer
 from search import MAXIMUM_DOCUMENT_ID_LENGTH
-from search import MAXIMUM_DOCUMENTS_PER_ADD_REQUEST
 from search import MAXIMUM_DOCUMENTS_PER_PUT_REQUEST
 from search import MAXIMUM_DOCUMENTS_RETURNED_PER_SEARCH
 from search import MAXIMUM_EXPRESSION_LENGTH
@@ -56,8 +50,6 @@ from search import MAXIMUM_FIELDS_RETURNED_PER_SEARCH
 from search import MAXIMUM_GET_INDEXES_OFFSET
 from search import MAXIMUM_INDEX_NAME_LENGTH
 from search import MAXIMUM_INDEXES_RETURNED_PER_GET_REQUEST
-from search import MAXIMUM_INDEXES_RETURNED_PER_LIST_REQUEST
-from search import MAXIMUM_LIST_INDEXES_OFFSET
 from search import MAXIMUM_NUMBER_FOUND_ACCURACY
 from search import MAXIMUM_QUERY_LENGTH
 from search import MAXIMUM_SEARCH_OFFSET
@@ -69,8 +61,6 @@ from search import PutResult
 from search import Query
 from search import QueryError
 from search import QueryOptions
-from search import RemoveError
-from search import RemoveResult
 from search import RescoringMatchScorer
 from search import ScoredDocument
 from search import SearchResults

@@ -239,6 +239,13 @@ class DatabaseWrapper(base.DatabaseWrapper):
 
       self.ops = DatabaseOperations(self)
 
+  def _valid_connection(self):
+    """Disable ping on every operation."""
+    if self.connection is not None:
+      return True
+    else:
+      return False
+
   def _cursor(self):
     if not self._valid_connection():
       kwargs = {'conv': base.django_conversions, 'dsn': None}

@@ -417,6 +417,7 @@ class DatastoreAdminOperation(db.Model):
   completed_jobs = db.IntegerProperty(default=0)
   last_updated = db.DateTimeProperty(default=DEFAULT_LAST_UPDATED_VALUE,
                                      auto_now=True)
+  status_info = db.StringProperty(default='', indexed=False)
 
   @classmethod
   def kind(cls):
@@ -554,9 +555,10 @@ def RunMapForKinds(operation_key,
                            queue_name=queue_name, shard_count=shard_count))
     return jobs
 
-  except BaseException:
+  except BaseException, ex:
     AbortAdminOperation(operation_key,
-                        _status=DatastoreAdminOperation.STATUS_FAILED)
+                        _status=DatastoreAdminOperation.STATUS_FAILED,
+                        _status_info='%s: %s' % (ex.__class__.__name__, ex))
     raise
 
 
@@ -571,10 +573,12 @@ def GetShardCount(kind):
 
 
 def AbortAdminOperation(operation_key,
-                        _status=DatastoreAdminOperation.STATUS_ABORTED):
+                        _status=DatastoreAdminOperation.STATUS_ABORTED,
+                        _status_info=''):
   """Aborts active jobs."""
   operation = DatastoreAdminOperation.get(operation_key)
   operation.status = _status
+  operation.status_info = _status_info
   operation.put(config=_CreateDatastoreConfig())
   for job in operation.active_job_ids:
     logging.info('Aborting Job %s', job)

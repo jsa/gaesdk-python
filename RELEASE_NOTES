@@ -3,11 +3,33 @@ All rights reserved.
 
 App Engine Python SDK - Release Notes
 
+Version 1.7.4
+===============================
+- Mail API Quotas have been updated. For more information please see:
+    https://developers.google.com/appengine/docs/quotas.html
+- Background threads are now a GA feature.
+- Traffic Splitting is now a GA feature.
+- Task Queue Statistics is now a GA feature.
+- Logs API now has the ability to fetch requests based on a list of
+  request_ids. Currently, this only works in Production and is not supported
+  in dev_appserver.
+- Python Interpreter has been upgraded to 2.7.3.
+- WebOb 1.2.3 is now available for Python 2.7.
+- DISTINCT for Datastore queries is now available as an experimental feature.
+- Matplotlib v1.1.1 is now available as an experimental feature.
+- The decommissioned Conversion API has been removed.
+- Channel API now supports channels being used across multiple application
+  versions and backends. You can also limit channel usage to a specific
+  application version by adding it to the client id when creating a channel.
+    http://code.google.com/p/googleappengine/issues/detail?id=5123
+- Mail API now sends notifications for emails that bounce.
+    http://code.google.com/p/googleappengine/issues/detail?id=7451
+
 Version 1.7.3
 ===============================
 - Django 1.4 is now supported in Python 2.7
 - The file-based implementation of the Datastore stub will be deprecated soon.
-  A warning message informing users that SQLLite stub will be the default
+- A warning message informing users that SQLLite stub will be the default
   stub soon is now displayed.
 - Datastore Index stats now report type instead of representation-type.
 - Rich sort expressions beyond single field names are now supported in the

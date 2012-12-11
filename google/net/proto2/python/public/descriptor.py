@@ -414,6 +414,12 @@ class FieldDescriptor(DescriptorBase):
   LABEL_REPEATED      = 3
   MAX_LABEL           = 3
 
+
+
+  MAX_FIELD_NUMBER = (1 << 29) - 1
+  FIRST_RESERVED_FIELD_NUMBER = 19000
+  LAST_RESERVED_FIELD_NUMBER = 19999
+
   def __init__(self, name, full_name, index, number, type, cpp_type, label,
                default_value, message_type, enum_type, containing_type,
                is_extension, extension_scope, options=None,

@@ -30,60 +30,15 @@ from __future__ import with_statement
 
 
 
-import os
 import random
 import threading
-import urllib
 
 from google.appengine.api import apiproxy_rpc
+from google.appengine.api import request_info
 from google.appengine.runtime import apiproxy_errors
 
 
 MAX_REQUEST_SIZE = 1 << 20
-
-
-class RequestData(object):
-  """Allows stubs to lookup state linked to the request making the API call."""
-
-  def get_request_url(self, request_id):
-    """Returns the URL the request e.g. 'http://localhost:8080/foo?bar=baz'.
-
-    Args:
-      request_id: The string id of the request making the API call.
-
-    Returns:
-      The URL of the request as a string.
-    """
-    raise NotImplementedError()
-
-
-class _LocalRequestData(RequestData):
-  """Lookup information about a request using environment variables."""
-
-  def get_request_url(self, request_id):
-    """Returns the URL the request e.g. 'http://localhost:8080/foo?bar=baz'.
-
-    Args:
-      request_id: The string id of the request making the API call.
-
-    Returns:
-      The URL of the request as a string.
-    """
-    try:
-      host = os.environ['HTTP_HOST']
-    except KeyError:
-      host = os.environ['SERVER_NAME']
-      port = os.environ['SERVER_PORT']
-      if port != '80':
-        host += ':' + port
-    url = 'http://' + host
-    url += urllib.quote(os.environ.get('PATH_INFO', '/'))
-    if os.environ.get('QUERY_STRING'):
-      url += '?' + os.environ['QUERY_STRING']
-    return url
-
-
-_local_request_data = _LocalRequestData()
 
 
 class APIProxyStub(object):
@@ -108,12 +63,12 @@ class APIProxyStub(object):
       max_request_size: int, maximum allowable size of the incoming request.  A
         apiproxy_errors.RequestTooLargeError will be raised if the inbound
         request exceeds this size.  Default is 1 MB.
-      request_data: A RequestData instance used to look up state associated with
-          the request that generated an API call.
+      request_data: A request_info.RequestInfo instance used to look up state
+        associated with the request that generated an API call.
     """
     self.__service_name = service_name
     self.__max_request_size = max_request_size
-    self.request_data = request_data or _local_request_data
+    self.request_data = request_data or request_info._local_request_info
 
 
 

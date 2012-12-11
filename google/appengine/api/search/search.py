@@ -135,7 +135,11 @@ MAXIMUM_GET_INDEXES_OFFSET = 1000
 
 MAXIMUM_LIST_INDEXES_OFFSET = 1000
 
-_LANGUAGE_LENGTH = 2
+
+
+
+_LANGUAGE_RE = re.compile('^(.{2}|.{2}_.{2})$')
+
 _MAXIMUM_STRING_LENGTH = 500
 _MAXIMUM_CURSOR_LENGTH = 10000
 
@@ -333,7 +337,9 @@ class PutError(Error):
 
 
 class RemoveError(Error):
-  """Deprecated.Indicates some error occured deleting some object requested."""
+  """Indicates some error occured deleting some object requested.
+
+  Deprecated: from 1.7.4 onwards, use DeleteError."""
 
   def __init__(self, message, results):
     """Initializer.
@@ -649,15 +655,15 @@ def _CheckDate(date):
 
 
 def _CheckLanguage(language):
-  """Checks language is None or a string of _LANGUAGE_LENGTH."""
+  """Checks language is None or a string that matches _LANGUAGE_RE."""
   if language is None:
     return None
   if not isinstance(language, basestring):
     raise TypeError('language must be a basestring, got %s' %
                     language.__class__.__name__)
-  if len(language) != _LANGUAGE_LENGTH:
-    raise ValueError('language should have a length of %d, got %s'
-                     % (_LANGUAGE_LENGTH, len(language)))
+  if not re.match(_LANGUAGE_RE, language):
+    raise ValueError('invalid language %s. Languages should be two letters.'
+                     % language)
   return language
 
 
@@ -714,6 +720,8 @@ def list_indexes(namespace='', offset=None, limit=20,
                  start_index_name=None, include_start_index=True,
                  index_name_prefix=None, fetch_schema=False, **kwargs):
   """Returns a list of available indexes.
+
+  Deprecated: From 1.7.3, use get_indexes.
 
   Args:
     namespace: The namespace of indexes to be returned. If not set
@@ -1236,8 +1244,7 @@ class Document(object):
   """
   _FIRST_JAN_2011 = datetime.datetime(2011, 1, 1)
 
-  def __init__(self, doc_id=None, fields=None, language='en', order_id=None,
-               rank=None):
+  def __init__(self, doc_id=None, fields=None, language='en', rank=None):
     """Initializer.
 
     Args:
@@ -1247,7 +1254,6 @@ class Document(object):
       fields: An iterable of Field instances representing the content of the
         document.
       language: The code of the language used in the field values.
-      order_id: Same as rank, deprecated.
       rank: The rank of this document used to specify the order in which
         documents are returned by search. Rank must be a non-negative integer.
         If not specified, the number of seconds since 1st Jan 2011 is used.
@@ -1270,15 +1276,7 @@ class Document(object):
     self._field_map = None
 
     doc_rank = None
-    if not order_id is None:
-
-      warnings.warn('order_id is deprecated; use rank instead',
-                    DeprecationWarning, stacklevel=2)
-      doc_rank = order_id
     if not rank is None:
-      if not doc_rank is None:
-        warnings.warn('Both order_id and rank are set; use just rank',
-                      DeprecationWarning, stacklevel=2)
       doc_rank = rank
     if doc_rank is None:
       doc_rank = self._GetDefaultRank()
@@ -1300,13 +1298,6 @@ class Document(object):
   def language(self):
     """Returns the code of the language the document fields are written in."""
     return self._language
-
-  @property
-  def order_id(self):
-    """Returns the id used to return documents in a defined order."""
-    warnings.warn('order_id is deprecated; use rank instead',
-                  DeprecationWarning, stacklevel=2)
-    return self._rank
 
   @property
   def rank(self):
@@ -1758,7 +1749,7 @@ class SortExpression(object):
 class ScoredDocument(Document):
   """Represents a scored document returned from a search."""
 
-  def __init__(self, doc_id=None, fields=None, language='en', order_id=None,
+  def __init__(self, doc_id=None, fields=None, language='en',
                sort_scores=None, expressions=None, cursor=None, rank=None):
     """Initializer.
 
@@ -1769,7 +1760,6 @@ class ScoredDocument(Document):
       fields: An iterable of Field instances representing the content of the
         document.
       language: The code of the language used in the field values.
-      order_id: Same as rank, deprecated.
       rank: The rank of this document. A rank must be a non-negative integer
         less than sys.maxint. If not specified, the number of seconds since
         1st Jan 2011 is used. Documents are returned in descending order of
@@ -1787,8 +1777,7 @@ class ScoredDocument(Document):
       ValueError: If any of the parameters have invalid values.
     """
     super(ScoredDocument, self).__init__(doc_id=doc_id, fields=fields,
-                                         language=language, order_id=order_id,
-                                         rank=rank)
+                                         language=language, rank=rank)
     self._sort_scores = self._CheckSortScores(_GetList(sort_scores))
     self._expressions = _GetList(expressions)
     if cursor is not None and not isinstance(cursor, Cursor):
@@ -1925,6 +1914,8 @@ class ListResponse(object):
   For example, the following code shows how a response could be used
   to determine which documents were successfully removed or not.
 
+  Deprecated: from 1.7.3, use GetResponse.
+
   response = index.list_documents()
   for document in response:
     print "document ", document
@@ -2016,6 +2007,8 @@ class ListIndexesResponse(object):
   for index in search.list_indexes(fetch_schema=True):
     print "index ", index.name
     print index.schema
+
+  Deprecated: From 1.7.4, use GetIndexesResponse.
   """
 
   def __init__(self, indexes=None):
@@ -2605,7 +2598,9 @@ class Index(object):
 
   @property
   def consistency(self):
-    """Returns the consistency mode of the index."""
+    """Returns the consistency mode of the index.
+
+    Deprecated: from 1.7.3, consistency is no longer available."""
     warnings.warn(
         'consistency is deprecated. '
         'GLOBALLY_CONSISTENT is no longer supported.',
@@ -2628,9 +2623,11 @@ class Index(object):
     return hash((self._name, self._consistency, self._namespace))
 
   def __repr__(self):
+
+
     return _Repr(self, [('name', self.name), ('namespace', self.namespace),
                         ('source', self.source),
-                        ('consistency', self.consistency),
+                        ('consistency', self._consistency),
                         ('schema', self.schema)])
 
   def _NewAddResultFromPb(self, status_pb, doc_id):
@@ -2682,7 +2679,6 @@ class Index(object):
     """
     warnings.warn('add is deprecated. Use put instead',
                   DeprecationWarning, stacklevel=2)
-
 
     if isinstance(documents, basestring):
       raise TypeError('documents must be a Document or sequence of '
@@ -2821,6 +2817,8 @@ class Index(object):
     identifier is ignored. If any document remove fails, then no documents
     will be removed.
 
+    Deprecated: from 1.7.4, use Index.delete.
+
     Args:
       document_ids: A single identifier or list of identifiers of documents
         to remove.
@@ -2921,6 +2919,44 @@ class Index(object):
             _ConcatenateErrorMessages(
                 'one or more delete document operations failed', status),
             results)
+
+  def delete_schema(self):
+    """Deprecated in 1.7.4. Delete the schema from the index.
+
+    We are deprecating this method and replacing with more general schema
+    and index managment.
+
+    A possible use may be remove typed fields which are no longer used. After
+    you delete the schema, you need to index one or more documents to rebuild
+    the schema. Until you re-index some documents, searches may fail, especially
+    searches using field restricts.
+
+    Raises:
+      DeleteError: If the schema failed to be deleted.
+    """
+    warnings.warn('delete_schema is deprecated in 1.7.4.',
+                  DeprecationWarning, stacklevel=2)
+    request = search_service_pb.DeleteSchemaRequest()
+    response = search_service_pb.DeleteSchemaResponse()
+    params = request.mutable_params()
+    _CopyMetadataToProtocolBuffer(self, params.add_index_spec())
+
+    try:
+      apiproxy_stub_map.MakeSyncCall('search', 'DeleteSchema', request,
+                                     response)
+    except apiproxy_errors.ApplicationError, e:
+      raise _ToSearchError(e)
+
+    results = self._NewDeleteResultList([self.name], response)
+
+    if response.status_size() != 1:
+      raise DeleteError('did not delete exactly one schema', results)
+
+    status = response.status_list()[0]
+    if status.code() != search_service_pb.SearchServiceError.OK:
+      raise DeleteError(
+          _ConcatenateErrorMessages('delete schema operation failed', status),
+          results)
 
   def _NewScoredDocumentFromPb(self, doc_pb, sort_scores, expressions, cursor):
     """Constructs a Document from a document_pb.Document protocol buffer."""
@@ -3202,7 +3238,11 @@ def _CopyMetadataToProtocolBuffer(index, spec_pb):
   """Copies Index specification to a search_service_pb.IndexSpec."""
   spec_pb.set_name(index.name.encode('utf-8'))
   spec_pb.set_namespace(index.namespace.encode('utf-8'))
-  spec_pb.set_consistency(_CONSISTENCY_MODES_TO_PB_MAP.get(index.consistency))
+
+
+
+  spec_pb.set_consistency(_CONSISTENCY_MODES_TO_PB_MAP.get(index._consistency))
+
   if index.source != Index.SEARCH:
     spec_pb.set_source(_SOURCES_TO_PB_MAP.get(index.source))
 
@@ -3234,6 +3274,13 @@ def _NewSchemaFromPb(field_type_pb_list):
 def _NewIndexFromIndexSpecPb(index_spec_pb):
   """Creates an Index from a search_service_pb.IndexSpec."""
   consistency = _CONSISTENCY_PB_TO_MODES_MAP.get(index_spec_pb.consistency())
+
+
+
+
+  if consistency == Index.PER_DOCUMENT_CONSISTENT:
+    consistency = None
+
   source = _SOURCE_PB_TO_SOURCES_MAP.get(index_spec_pb.source())
   index = None
   if index_spec_pb.has_namespace():
@@ -3252,4 +3299,3 @@ def _NewIndexFromPb(index_metadata_pb):
   if index_metadata_pb.field_list():
     index._schema = _NewSchemaFromPb(index_metadata_pb.field_list())
   return index
-

@@ -113,9 +113,9 @@ def GetFieldValue(field):
 
   if value_type in TEXT_DOCUMENT_FIELD_TYPES:
     return value
-  if value_type is document_pb.FieldValue.DATE:
+  if value_type == document_pb.FieldValue.DATE:
     return DeserializeDate(value)
-  if value_type is document_pb.FieldValue.NUMBER:
+  if value_type == document_pb.FieldValue.NUMBER:
     return float(value)
   raise TypeError('No conversion defined for type %s' % value_type)
 

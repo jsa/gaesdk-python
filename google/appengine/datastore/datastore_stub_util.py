@@ -187,6 +187,21 @@ def _PrepareSpecialProperties(entity_proto, is_load):
         entity_proto.property_list().append(special_property)
 
 
+def _GetPropertyTuple(entity, property_names):
+  """Computes a unique tuple for an entity on the given names of properties.
+
+  Args:
+    entity: The entity_pb.EntityProto to extract values from.
+    property_names: The names of the properties from which to extract values.
+
+  Returns:
+    A tuple containing the desired properties.
+  """
+  return tuple(prop.SerializePartialToString()
+               for prop in entity.property_list()
+               if prop.name() in property_names)
+
+
 def PrepareSpecialPropertiesForStore(entity_proto):
   """Computes special properties for storing.
   Strips other special properties."""
@@ -492,6 +507,17 @@ def CheckQuery(query, filters, orders, max_query_components):
     Check(query.name_space() == ancestor.name_space(),
           'query namespace is %s but ancestor namespace is %s' %
               (query.name_space(), ancestor.name_space()))
+
+
+  if query.group_by_property_name_size():
+    group_by_set = set(query.group_by_property_name_list())
+    for order in orders:
+      if not group_by_set:
+        break
+      Check(order.property() in group_by_set,
+            'items in the group by clause must be specified first '
+            'in the ordering')
+      group_by_set.remove(order.property())
 
 
 
@@ -891,13 +917,18 @@ class BaseCursor(object):
 
     self.keys_only = query.keys_only()
     self.property_names = set(query.property_name_list())
+    self.group_by = set(query.group_by_property_name_list())
     self.app = query.app()
     self.cursor = self._AcquireCursorID()
 
     self.__order_compare_entities = dsquery._order.cmp_for_filter(
         dsquery._filter_predicate)
-    self.__order_property_names = set(
-        order.property() for order in orders if order.property() != '__key__')
+    if self.group_by:
+      self.__cursor_properties = self.group_by
+    else:
+      self.__cursor_properties = set(order.property() for order in orders)
+      self.__cursor_properties.add('__key__')
+      self.__cursor_properties = frozenset(self.__cursor_properties)
     self.__index_list = index_list
 
   def _PopulateResultMetadata(self, query_result, compile,
@@ -931,7 +962,13 @@ class BaseCursor(object):
       entity: a entity_pb.EntityProto entity.
       cursor: a compiled cursor as returned by _DecodeCompiledCursor.
     """
-    x = self.__order_compare_entities(entity, cursor[0])
+    comparison_entity = entity_pb.EntityProto()
+    for prop in entity.property_list():
+      if prop.name() in self.__cursor_properties:
+        comparison_entity.add_property().MergeFrom(prop)
+    if cursor[0].has_key():
+      comparison_entity.mutable_key().MergeFrom(entity.key())
+    x = self.__order_compare_entities(comparison_entity, cursor[0])
     if cursor[1]:
       return x < 0
     else:
@@ -954,9 +991,12 @@ class BaseCursor(object):
 
 
 
-    remaining_properties = self.__order_property_names.copy()
+    remaining_properties = set(self.__cursor_properties)
+
     cursor_entity = entity_pb.EntityProto()
-    cursor_entity.mutable_key().CopyFrom(position.key())
+    if position.has_key():
+      cursor_entity.mutable_key().CopyFrom(position.key())
+      remaining_properties.remove('__key__')
     for indexvalue in position.indexvalue_list():
       property = cursor_entity.add_property()
       property.set_name(indexvalue.property())
@@ -980,9 +1020,12 @@ class BaseCursor(object):
 
 
       position = compiled_cursor.add_position()
-      position.mutable_key().MergeFrom(last_result.key())
+
+
+      if '__key__' in self.__cursor_properties:
+        position.mutable_key().MergeFrom(last_result.key())
       for prop in last_result.property_list():
-        if prop.name() in self.__order_property_names:
+        if prop.name() in self.__cursor_properties:
           indexvalue = position.add_indexvalue()
           indexvalue.set_property(prop.name())
           indexvalue.mutable_value().CopyFrom(prop.value())
@@ -1007,6 +1050,7 @@ class IteratorCursor(BaseCursor):
     self.__last_result = None
     self.__next_result = None
     self.__results = results
+    self.__distincts = set()
     self.__done = False
 
 
@@ -1049,7 +1093,14 @@ class IteratorCursor(BaseCursor):
     if self.__done:
       raise StopIteration
     try:
-      self.__next_result = self.__results.next()
+      while True:
+        self.__next_result = self.__results.next()
+        if not self.group_by:
+          break
+        next_group = _GetPropertyTuple(self.__next_result, self.group_by)
+        if next_group not in self.__distincts:
+          self.__distincts.add(next_group)
+          break
     except StopIteration:
       self._Done()
     if (self.__end_cursor and
@@ -1132,6 +1183,17 @@ class ListCursor(BaseCursor):
       results: list of entity_pb.EntityProto
     """
     super(ListCursor, self).__init__(query, dsquery, orders, index_list)
+
+
+    if self.group_by:
+      distincts = set()
+      new_results = []
+      for result in results:
+        properties = _GetPropertyTuple(result, self.group_by)
+        if properties not in distincts:
+          distincts.add(properties)
+          new_results.append(result)
+      results = new_results
 
     if query.has_compiled_cursor() and query.compiled_cursor().position_list():
       start_cursor = self._DecodeCompiledCursor(query.compiled_cursor())

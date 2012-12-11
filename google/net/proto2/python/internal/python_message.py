@@ -44,10 +44,12 @@ try:
 except ImportError:
   from StringIO import StringIO
 import copy_reg
+import logging
 import struct
 import weakref
 
 
+from google.net.proto2.python.internal import api_implementation
 from google.net.proto2.python.internal import containers
 from google.net.proto2.python.internal import decoder
 from google.net.proto2.python.internal import encoder
@@ -262,10 +264,17 @@ def _DefaultValueConstructorForField(field):
       return MakeRepeatedMessageDefault
     else:
       type_checker = type_checkers.GetTypeChecker(field.cpp_type, field.type)
-      def MakeRepeatedScalarDefault(message):
-        return containers.RepeatedScalarFieldContainer(
-            message._listener_for_children, type_checker)
-      return MakeRepeatedScalarDefault
+      if (field.type == _FieldDescriptor.TYPE_STRING and
+          api_implementation.AlwaysReturnUnicode()):
+        def MakeRepeatedStringDefault(message):
+          return containers.RepeatedStringFieldContainer(
+              message._listener_for_children, type_checker, field)
+        return MakeRepeatedStringDefault
+      else:
+        def MakeRepeatedScalarDefault(message):
+          return containers.RepeatedScalarFieldContainer(
+              message._listener_for_children, type_checker)
+        return MakeRepeatedScalarDefault
 
   if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
 
@@ -452,7 +461,22 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
 
 
   doc = 'Magic attribute generated for "%s" proto field.' % proto_field_name
-  setattr(cls, property_name, property(getter, setter, doc=doc))
+
+  if (field.type == _FieldDescriptor.TYPE_STRING and
+      api_implementation.AlwaysReturnUnicode()):
+
+    def string_getter(self):
+      val = self._fields.get(field, default_value)
+      if isinstance(val, str):
+        logging.warning('string field %s value converted from byte string '
+                        '(see http://goto/pyprotounicode)',
+                        field.full_name)
+        return unicode(val, 'ascii')
+      return val
+
+    setattr(cls, property_name, property(string_getter, setter, doc=doc))
+  else:
+    setattr(cls, property_name, property(getter, setter, doc=doc))
 
 
 def _AddPropertiesForNonRepeatedCompositeField(field, cls):

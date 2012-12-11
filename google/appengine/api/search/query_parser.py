@@ -94,20 +94,20 @@ def _SimplifyNode(node):
   """Simplifies the node removing singleton conjunctions and others."""
   if not node.getType():
     return _SimplifyNode(node.children[0])
-  elif node.getType() is QueryParser.CONJUNCTION and node.getChildCount() is 1:
+  elif node.getType() == QueryParser.CONJUNCTION and node.getChildCount() == 1:
     return _SimplifyNode(node.children[0])
-  elif node.getType() is QueryParser.DISJUNCTION and node.getChildCount() is 1:
+  elif node.getType() == QueryParser.DISJUNCTION and node.getChildCount() == 1:
     return _SimplifyNode(node.children[0])
-  elif (node.getType() is QueryParser.RESTRICTION and node.getChildCount() is 2
-        and node.children[0].getType() is QueryParser.GLOBAL):
+  elif (node.getType() == QueryParser.RESTRICTION and node.getChildCount() == 2
+        and node.children[0].getType() == QueryParser.GLOBAL):
     return _SimplifyNode(node.children[1])
-  elif (node.getType() is QueryParser.VALUE and node.getChildCount() is 2 and
-        (node.children[0].getType() is QueryParser.WORD or
-         node.children[0].getType() is QueryParser.STRING or
-         node.children[0].getType() is QueryParser.NUMBER)):
+  elif (node.getType() == QueryParser.VALUE and node.getChildCount() == 2 and
+        (node.children[0].getType() == QueryParser.WORD or
+         node.children[0].getType() == QueryParser.STRING or
+         node.children[0].getType() == QueryParser.NUMBER)):
     return _SimplifyNode(node.children[1])
-  elif ((node.getType() is QueryParser.EQ or node.getType() is QueryParser.HAS)
-        and node.getChildCount() is 1):
+  elif ((node.getType() == QueryParser.EQ or node.getType() == QueryParser.HAS)
+        and node.getChildCount() == 1):
     return _SimplifyNode(node.children[0])
   for i, child in enumerate(node.children):
     node.setChild(i, _SimplifyNode(child))
