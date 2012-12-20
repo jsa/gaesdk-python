@@ -5,25 +5,51 @@ App Engine Python SDK - Release Notes
 
 Version 1.7.4
 ===============================
-- Mail API Quotas have been updated. For more information please see:
-    https://developers.google.com/appengine/docs/quotas.html
-- Background threads are now a GA feature.
+- Background threads is now a GA feature.
 - Traffic Splitting is now a GA feature.
 - Task Queue Statistics is now a GA feature.
 - Logs API now has the ability to fetch requests based on a list of
-  request_ids. Currently, this only works in Production and is not supported
+  request_ids. Currently, this only works in production and is not supported
   in dev_appserver.
 - Python Interpreter has been upgraded to 2.7.3.
-- WebOb 1.2.3 is now available for Python 2.7.
+- WebOb 1.2.3 is now available for Python 2.7. Users using the undocumented
+  1.2.2 should update their app, since that version will be removed in the
+  next release.
 - DISTINCT for Datastore queries is now available as an experimental feature.
 - Matplotlib v1.1.1 is now available as an experimental feature.
 - The decommissioned Conversion API has been removed.
-- Channel API now supports channels being used across multiple application
-  versions and backends. You can also limit channel usage to a specific
-  application version by adding it to the client id when creating a channel.
-    http://code.google.com/p/googleappengine/issues/detail?id=5123
-- Mail API now sends notifications for emails that bounce.
-    http://code.google.com/p/googleappengine/issues/detail?id=7451
+- Added a warning that the interactive console will be disabled if a user runs
+  dev_appserver with the --address flag.
+- JSON properties are now restrictable to list or dictionaries in NDB.
+    http://code.google.com/p/appengine-ndb-experiment/issues/detail?id=223
+- Users can now set how many columns can be viewed in the Datastore Viewer via
+  a drop-down menu which customizes the number of columns displayed.
+    http://code.google.com/p/googleappengine/issues/detail?id=8158
+- Fixed an issue with expandos throwing an error when containing nested
+  expandos in NDB.
+    http://code.google.com/p/appengine-ndb-experiment/issues/detail?id=216
+- Fixed an issue with properties not being added to structured properties in
+  NDB.
+    http://code.google.com/p/appengine-ndb-experiment/issues/detail?id=220
+- Fixed an issue with PyCrypto raising an ImportError when installing
+  globally into site-packages.
+    http://code.google.com/p/googleappengine/issues/detail?id=1627
+- Fixed an issue with PyCrypto not working with OSX 10.8 or Ubuntu Precise.
+    http://code.google.com/p/googleappengine/issues/detail?id=7925
+- Fixed an issue with backends.get_instance returning thread ID instead of
+  integer instance ID in production.
+    http://code.google.com/p/googleappengine/issues/detail?id=8338
+- Fixed an issue with Datastore Backup failing when a schema has a very large
+  number of properties.
+    http://code.google.com/p/googleappengine/issues/detail?id=8363
+- Fixed an issue with dev_appserver not reloading changed code.
+    http://code.google.com/p/googleappengine/issues/detail?id=8383
+- Fixed an issue with custom ordered queries not working using sqlite on the
+  dev_appserver.
+    http://code.google.com/p/googleappengine/issues/detail?id=8390
+- Fixed an issue with users being unable to change Authentication Type after
+  app creation in the Admin Console.
+    http://code.google.com/p/googleappengine/issues/detail?id=8394
 
 Version 1.7.3
 ===============================
