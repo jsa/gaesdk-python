@@ -8,7 +8,8 @@ Version 1.7.5
 - New instance classes F4_1G and B4_1G are now available.  These instances have
   compute capacity equal to F4/B4 but with a maximum of 1G RAM instead
   of 512MB.
-- The Logs API stub now has sqlite as the default in the dev_appserver.
+- The Logs API stub now uses sqlite in the dev_appserver.  Please note that the
+  --persist_logs flag is still needed in order for logs to be saved.
 - The deprecated classes and functions AddError, AddResult,
   ListIndexesResponse, ListResponse, RemoveError, RemoveResult, and
   list_indexes were removed from the Search API in the SDK.  If your app
@@ -39,6 +40,13 @@ Version 1.7.5
 - The Blobstore service now returns the created filename instead of the blobKey
   when using Cloud Storage
     http://code.google.com/p/googleappengine/issues/detail?id=8337
+- Fixed an issue with os.urandom throwing an exception in dev_appserver2 when
+  using OS X.
+    http://code.google.com/p/appengine-devappserver2-experiment/issues/
+    detail?id=23
+- Fixed an issue with time.tzset not existing in dev_appserver2 for Windows.
+    https://code.google.com/p/appengine-devappserver2-experiment/issues/
+    detail?id=26
 
 Version 1.7.4
 ===============================
