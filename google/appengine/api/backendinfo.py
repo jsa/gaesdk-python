@@ -230,6 +230,9 @@ def LoadBackendInfo(backend_info, open_fn=None):
     raise BadConfig("Only one 'backends' clause is allowed.")
 
   info = backend_info[0]
+  if not info.backends:
+    return BackendInfoExternal(backends=[])
+
   for backend in info.backends:
     backend.Init()
   return info

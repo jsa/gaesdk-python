@@ -64,7 +64,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.environ = {}
     self.request_data.set_request_instance(self.request_id, inst)
     self.proxy.handle(self.environ,
@@ -102,7 +101,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.environ = {}
     self.request_data.set_request_instance(self.request_id, inst)
     self.proxy.handle(self.environ,
@@ -147,7 +145,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.environ = {}
     self.request_data.set_request_instance(self.request_id, inst)
     self.proxy.handle(self.environ,
@@ -184,7 +181,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify_all')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.environ = {}
     self.request_data.set_request_instance(self.request_id, inst)
     self.proxy.handle(self.environ,
@@ -226,7 +222,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify_all')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.environ = {}
     self.request_data.set_request_instance(self.request_id, inst)
     self.proxy.handle(self.environ,
@@ -281,7 +276,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify_all')
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.proxy.quit()
     inst._condition.notify_all()
 
@@ -306,7 +300,6 @@ class TestInstance(unittest.TestCase):
     inst._num_outstanding_requests = 1
 
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.mox.ReplayAll()
     inst.start()
     inst.quit(allow_async=True)
@@ -327,7 +320,6 @@ class TestInstance(unittest.TestCase):
     self.mox.StubOutWithMock(inst._condition, 'notify')
     inst._num_outstanding_requests = 1
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.assertRaises(instance.CannotAcceptRequests,
                       inst.handle,
                       self.environ,
@@ -401,13 +393,12 @@ class TestInstance(unittest.TestCase):
   def test_reserve_background_thread_not_ready(self):
     inst = instance.Instance(self.request_data, 'name', self.proxy,
                              max_concurrent_requests=5,
-                             max_background_threads=1,
+                             max_background_threads=2,
                              expect_ready_request=True)
     inst._started = True
     self.mox.ReplayAll()
-    self.assertEqual(1, inst.remaining_background_thread_capacity)
-    self.assertRaises(instance.CannotAcceptRequests,
-                      inst.reserve_background_thread)
+    self.assertEqual(2, inst.remaining_background_thread_capacity)
+    inst.reserve_background_thread()
     self.mox.VerifyAll()
     self.assertEqual(1, inst.remaining_background_thread_capacity)
 
@@ -451,6 +442,19 @@ class TestInstance(unittest.TestCase):
     self.assertFalse(inst.wait(0))
     self.mox.VerifyAll()
 
+  def test_wait_quit_while_starting(self):
+    inst = instance.Instance(self.request_data, 'name', self.proxy,
+                             max_concurrent_requests=5)
+    self.mox.StubOutWithMock(inst._condition, 'notify_all')
+    self.proxy.start().WithSideEffects(inst.quit)
+
+    self.proxy.quit()
+
+    self.mox.ReplayAll()
+    inst.start()
+    self.mox.VerifyAll()
+    self.assertFalse(inst.can_accept_requests)
+
   def test_wait_quit_while_waiting(self):
     self.mox.stubs.Set(time, 'time', lambda: 0)
     inst = instance.Instance(self.request_data, 'name', self.proxy,
@@ -466,7 +470,6 @@ class TestInstance(unittest.TestCase):
                              max_concurrent_requests=5)
     self.mox.StubOutWithMock(inst._condition, 'notify_all')
     self.proxy.start()
-    self.proxy.wait_until_serving()
 
     self.proxy.quit()
     inst._condition.notify_all()
@@ -483,7 +486,6 @@ class TestInstance(unittest.TestCase):
                              max_concurrent_requests=5)
     self.mox.StubOutWithMock(inst._condition, 'notify_all')
     self.proxy.start()
-    self.proxy.wait_until_serving()
 
     self.mox.ReplayAll()
     inst.start()
@@ -499,7 +501,6 @@ class TestInstance(unittest.TestCase):
 
     inst._num_outstanding_requests = 1
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.proxy.quit()
     inst._condition.notify_all()
 
@@ -515,7 +516,6 @@ class TestInstance(unittest.TestCase):
 
     inst._num_outstanding_requests = 1
     self.proxy.start()
-    self.proxy.wait_until_serving()
     self.proxy.quit()
     inst._condition.notify_all()
 
@@ -531,7 +531,6 @@ class TestInstance(unittest.TestCase):
 
     inst._num_outstanding_requests = 1
     self.proxy.start()
-    self.proxy.wait_until_serving()
 
     self.mox.ReplayAll()
     inst.start()
@@ -546,7 +545,6 @@ class TestInstance(unittest.TestCase):
 
     inst._num_outstanding_requests = 1
     self.proxy.start()
-    self.proxy.wait_until_serving()
 
     self.mox.ReplayAll()
     inst.start()

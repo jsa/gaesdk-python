@@ -139,7 +139,6 @@ class TestAuthorization(wsgi_test_utils.WSGITestCase):
 
     self.assertResponse(expected_status, expected_headers, '',
                         h.handle_authorization, self.environ)
-    self.assertNotIn(constants.FAKE_IS_ADMIN_HEADER, self.environ)
 
   def test_admin_no_login_fake_logged_in(self):
     """Tests page with login: admin, no cookie with fake login header."""
@@ -159,7 +158,6 @@ class TestAuthorization(wsgi_test_utils.WSGITestCase):
 
     self.assertResponse(expected_status, expected_headers, expected_content,
                         h.handle_authorization, self.environ)
-    self.assertNotIn(constants.FAKE_LOGGED_IN_HEADER, self.environ)
 
   def test_required_succeed_fake_is_admin(self):
     """Test with login: required, and a valid cookie, with fake-is-admin."""
@@ -314,7 +312,6 @@ class TestAuthorization(wsgi_test_utils.WSGITestCase):
       self.fail('start_response was called')
 
     r = h.handle_authorization(self.environ, start_response)
-    self.assertNotIn(constants.FAKE_IS_ADMIN_HEADER, self.environ)
     self.assertEqual(None, r)
 
   def test_login_required_no_login_fake_logged_in_header(self):
@@ -332,7 +329,6 @@ class TestAuthorization(wsgi_test_utils.WSGITestCase):
       self.fail('start_response was called')
 
     r = h.handle_authorization(self.environ, start_response)
-    self.assertNotIn(constants.FAKE_LOGGED_IN_HEADER, self.environ)
     self.assertEqual(None, r)
 
 if __name__ == '__main__':

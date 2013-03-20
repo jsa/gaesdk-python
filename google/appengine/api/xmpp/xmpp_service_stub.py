@@ -216,7 +216,8 @@ class XmppServiceStub(apiproxy_stub.APIProxyStub):
     log_message.append('    Client ID:')
     log_message.append('       ' + request.application_key())
     if request.duration_minutes():
-      log_message.append('    Duration minutes: ' + request.duration_minutes())
+      log_message.append('    Duration minutes: ' +
+                         str(request.duration_minutes()))
     self.log('\n'.join(log_message))
 
   def _Dynamic_SendChannelMessage(self, request, response):
@@ -231,5 +232,5 @@ class XmppServiceStub(apiproxy_stub.APIProxyStub):
     log_message.append('    Client ID:')
     log_message.append('       ' + request.application_key())
     log_message.append('    Message:')
-    log_message.append('       ' + request.duration_minutes())
+    log_message.append('       ' + str(request.duration_minutes()))
     self.log('\n'.join(log_message))

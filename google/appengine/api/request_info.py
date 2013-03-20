@@ -508,6 +508,10 @@ class RequestInfo(object):
     """
     raise NotImplementedError()
 
+  def get_request_environ(self, request_id):
+    """Returns a dict containing the WSGI environ for the request."""
+    raise NotImplementedError()
+
   def get_server(self, request_id):
     """Returns the name of the server serving this request.
 
@@ -575,6 +579,10 @@ class _LocalRequestInfo(RequestInfo):
     if os.environ.get('QUERY_STRING'):
       url += '?' + os.environ['QUERY_STRING']
     return url
+
+  def get_request_environ(self, request_id):
+    """Returns a dict containing the WSGI environ for the request."""
+    return os.environ
 
   def get_server(self, request_id):
     """Returns the name of the server serving this request.

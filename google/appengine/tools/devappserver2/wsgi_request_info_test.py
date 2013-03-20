@@ -61,6 +61,14 @@ class TestWSGIRequestInfo(unittest.TestCase):
       self.assertEqual('https://machine:8080/foo?bar=baz',
                        self.request_info.get_request_url(request_id))
 
+  def test_get_request_environ(self):
+    environ = object()
+    with self.request_info.request(
+        environ,
+        self._create_server_configuration('default', '1')) as request_id:
+      self._assert_request_id(request_id)
+      self.assertIs(environ, self.request_info.get_request_environ(request_id))
+
   def test_get_dispatcher(self):
     with self.request_info.request(
         self._create_environ('https', 'machine:8080',

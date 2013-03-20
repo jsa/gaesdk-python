@@ -943,6 +943,12 @@ class BlobReader(object):
     """Returns True if this file is closed, False otherwise."""
     return self.__blob_key is None
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    self.close()
+
 
 class BlobMigrationRecord(db.Model):
   """A model that records the result of a blob migration."""

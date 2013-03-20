@@ -66,7 +66,9 @@
     </tbody>
   </table>
 {% elif not cron_error %}
-  This application doesn't define any cron jobs. See the documentation for more.
+  <p>
+    This application doesn't define any cron jobs. See <a href="https://developers.google.com/appengine/docs/">the documentation</a> to learn how to configure cron jobs.
+  </p>
 {% endif %}
   <script>
 $('.ae-cron-run').click(function() {

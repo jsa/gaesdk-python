@@ -74,10 +74,15 @@ class TypeChecker(object):
     self._acceptable_types = acceptable_types
 
   def CheckValue(self, proposed_value):
+    """Type check the provided value and return it.
+
+    The returned value might have been normalized to another type.
+    """
     if not isinstance(proposed_value, self._acceptable_types):
       message = ('%.1024r has type %s, but expected one of: %s' %
                  (proposed_value, type(proposed_value), self._acceptable_types))
       raise TypeError(message)
+    return proposed_value
 
 
 
@@ -93,11 +98,15 @@ class IntValueChecker(object):
       raise TypeError(message)
     if not self._MIN <= proposed_value <= self._MAX:
       raise ValueError('Value out of range: %d' % proposed_value)
+    return proposed_value
 
 
 class UnicodeValueChecker(object):
 
-  """Checker used for string fields."""
+  """Checker used for string fields.
+
+  Always returns a unicode value, even if the input is of type str.
+  """
 
   def CheckValue(self, proposed_value):
     if not isinstance(proposed_value, (str, unicode)):
@@ -109,12 +118,13 @@ class UnicodeValueChecker(object):
 
     if isinstance(proposed_value, str):
       try:
-        unicode(proposed_value, 'ascii')
+        proposed_value = unicode(proposed_value, 'ascii')
       except UnicodeDecodeError:
         raise ValueError('%.1024r has type str, but isn\'t in 7-bit ASCII '
                          'encoding. Non-ASCII strings must be converted to '
                          'unicode objects before being added.' %
                          (proposed_value))
+    return proposed_value
 
 
 class Int32ValueChecker(IntValueChecker):

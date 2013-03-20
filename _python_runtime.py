@@ -32,7 +32,7 @@ if version_tuple < (2, 7):
   sys.exit(1)
 
 
-def get_dir_path(sibling):
+def _get_dir_path(sibling):
   """Get a path to the directory of this script.
 
   By default, the canonical path (symlinks resolved) will be returned. In some
@@ -70,66 +70,110 @@ def get_dir_path(sibling):
 
 
 
-DIR_PATH = get_dir_path(os.path.join('lib', 'ipaddr'))
-SCRIPT_DIR = os.path.join(DIR_PATH, 'google', 'appengine', 'tools')
-DEVAPPSERVER2_DIR = os.path.join(
-    DIR_PATH, 'google', 'appengine', 'tools', 'devappserver2')
+_DIR_PATH = _get_dir_path(os.path.join('lib', 'ipaddr'))
+_SCRIPT_DIR = os.path.join(_DIR_PATH, 'google', 'appengine', 'tools')
+_DEVAPPSERVER2_DIR = os.path.join(
+    _DIR_PATH, 'google', 'appengine', 'tools', 'devappserver2')
 
 
 
 
-PYTHON_RUNTIME_DIR = os.path.join(
-    DIR_PATH, 'google', 'appengine', 'tools', 'devappserver2', 'python')
+_PYTHON_RUNTIME_DIR = os.path.join(
+    _DIR_PATH, 'google', 'appengine', 'tools', 'devappserver2', 'python')
 
-EXTRA_PATHS = [
-    DIR_PATH,
-    os.path.join(DIR_PATH, 'lib', 'concurrent'),
-    os.path.join(DIR_PATH, 'lib', 'cherrypy'),
-    os.path.join(DIR_PATH, 'lib', 'fancy_urllib'),
-    os.path.join(DIR_PATH, 'lib', 'yaml-3.10'),
+_STUB_DEPENDENCIES = [
+    os.path.join(_DIR_PATH, 'lib', 'antlr3'),
+    os.path.join(_DIR_PATH, 'lib', 'fancy_urllib'),
+    os.path.join(_DIR_PATH, 'lib', 'ipaddr'),
+    os.path.join(_DIR_PATH, 'lib', 'yaml-3.10'),
     ]
 
-DEVAPPSERVER2_PATHS = [
-    os.path.join(DIR_PATH, 'lib', 'antlr3'),
-    os.path.join(DIR_PATH, 'lib', 'argparse'),
-    os.path.join(DIR_PATH, 'lib', 'ipaddr'),
-    os.path.join(DIR_PATH, 'lib', 'jinja2-2.6'),
-    os.path.join(DIR_PATH, 'lib', 'webob-1.2.3'),
-    os.path.join(DIR_PATH, 'lib', 'webapp2-2.5.1'),
+
+
+
+
+EXTRA_PATHS = _STUB_DEPENDENCIES + [
+    _DIR_PATH,
+
+    os.path.join(_DIR_PATH, 'lib', 'simplejson'),
+    os.path.join(_DIR_PATH, 'lib', 'google.appengine._internal.graphy'),
+
+
+    os.path.join(_DIR_PATH, 'lib', 'django-1.4'),
+    os.path.join(_DIR_PATH, 'lib', 'jinja2-2.6'),
+    os.path.join(_DIR_PATH, 'lib', 'protorpc'),
+    os.path.join(_DIR_PATH, 'lib', 'PyAMF-0.6.1'),
+    os.path.join(_DIR_PATH, 'lib', 'markupsafe-0.15'),
+    os.path.join(_DIR_PATH, 'lib', 'webob-1.2.3'),
+    os.path.join(_DIR_PATH, 'lib', 'webapp2-2.5.2'),
     ]
 
-SCRIPT_EXCEPTIONS = {
+_DEVAPPSERVER2_PATHS = _STUB_DEPENDENCIES + [
+    _DIR_PATH,
+
+    os.path.join(_DIR_PATH, 'lib', 'concurrent'),
+    os.path.join(_DIR_PATH, 'lib', 'cherrypy'),
+    os.path.join(_DIR_PATH, 'lib', 'jinja2-2.6'),
+    os.path.join(_DIR_PATH, 'lib', 'webob-1.2.3'),
+    os.path.join(_DIR_PATH, 'lib', 'webapp2-2.5.1'),
+    ]
+
+
+
+
+
+
+
+
+_PYTHON_RUNTIME_PATHS = [
+    _DIR_PATH,
+
+    os.path.join(_DIR_PATH, 'lib', 'concurrent'),
+    os.path.join(_DIR_PATH, 'lib', 'cherrypy'),
+    os.path.join(_DIR_PATH, 'lib', 'fancy_urllib'),
+    os.path.join(_DIR_PATH, 'lib', 'protorpc'),
+    os.path.join(_DIR_PATH, 'lib', 'yaml-3.10'),
+    ]
+
+
+_BOOTSTAP_NAME_TO_REAL_NAME = {
+    'dev_appserver.py': 'devappserver2.py',
 
 
 
     '_python_runtime.py': 'runtime.py',
     }
 
-SCRIPT_DIR_EXCEPTIONS = {
-    'devappserver2.py': DEVAPPSERVER2_DIR,
+_SCRIPT_TO_DIR = {
+    'dev_appserver.py': _DEVAPPSERVER2_DIR,
 
 
 
-    '_python_runtime.py': PYTHON_RUNTIME_DIR,
+    '_python_runtime.py': _PYTHON_RUNTIME_DIR,
     }
 
-PATH_EXCEPTIONS = {
-    'devappserver2.py': DEVAPPSERVER2_PATHS
+_SYS_PATH_ADDITIONS = {
+    'dev_appserver.py': _DEVAPPSERVER2_PATHS,
+
+
+
+    '_python_runtime.py': _PYTHON_RUNTIME_PATHS,
     }
 
 
 def fix_sys_path(extra_extra_paths=()):
-  """Fix the sys.path to include our extra paths."""
-  extra_paths = EXTRA_PATHS[:]
-  extra_paths.extend(extra_extra_paths)
-  sys.path = extra_paths + sys.path
+  """Fix the sys.path to include our extra paths.
+
+  fix_sys_path should be called before running testbed-based unit tests so that
+  third-party modules are correctly added to sys.path.
+  """
+  sys.path[1:1] = EXTRA_PATHS
 
 
-def run_file(file_path, globals_, script_dir=SCRIPT_DIR):
+def _run_file(file_path, globals_, script_dir=_SCRIPT_DIR):
   """Execute the file at the specified path with the passed-in globals."""
   script_name = os.path.basename(file_path)
-  extra_extra_paths = PATH_EXCEPTIONS.get(script_name, [])
-  fix_sys_path(extra_extra_paths)
+  sys.path = _SYS_PATH_ADDITIONS[script_name] + sys.path
 
 
 
@@ -140,11 +184,11 @@ def run_file(file_path, globals_, script_dir=SCRIPT_DIR):
   if 'google' in sys.modules:
     del sys.modules['google']
 
-  script_dir = SCRIPT_DIR_EXCEPTIONS.get(script_name, script_dir)
-  script_name = SCRIPT_EXCEPTIONS.get(script_name, script_name)
+  script_dir = _SCRIPT_TO_DIR.get(script_name, script_dir)
+  script_name = _BOOTSTAP_NAME_TO_REAL_NAME.get(script_name, script_name)
   script_path = os.path.join(script_dir, script_name)
   execfile(script_path, globals_)
 
 
 if __name__ == '__main__':
-  run_file(__file__, globals())
+  _run_file(__file__, globals())

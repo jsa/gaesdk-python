@@ -68,7 +68,6 @@ __all__ = [
     'InvalidRequest',
     'MatchScorer',
     'MAXIMUM_DOCUMENT_ID_LENGTH',
-    'MAXIMUM_DOCUMENTS_PER_ADD_REQUEST',
     'MAXIMUM_DOCUMENTS_PER_PUT_REQUEST',
     'MAXIMUM_DOCUMENTS_RETURNED_PER_SEARCH',
     'MAXIMUM_EXPRESSION_LENGTH',
@@ -79,8 +78,6 @@ __all__ = [
     'MAXIMUM_GET_INDEXES_OFFSET',
     'MAXIMUM_INDEX_NAME_LENGTH',
     'MAXIMUM_INDEXES_RETURNED_PER_GET_REQUEST',
-    'MAXIMUM_INDEXES_RETURNED_PER_LIST_REQUEST',
-    'MAXIMUM_LIST_INDEXES_OFFSET',
     'MAXIMUM_NUMBER_FOUND_ACCURACY',
     'MAXIMUM_QUERY_LENGTH',
     'MAXIMUM_SEARCH_OFFSET',
@@ -111,8 +108,6 @@ MAXIMUM_FIELD_ATOM_LENGTH = 500
 MAXIMUM_FIELD_NAME_LENGTH = 500
 MAXIMUM_DOCUMENT_ID_LENGTH = 500
 MAXIMUM_DOCUMENTS_PER_PUT_REQUEST = 200
-
-MAXIMUM_DOCUMENTS_PER_ADD_REQUEST = 200
 MAXIMUM_EXPRESSION_LENGTH = 5000
 MAXIMUM_QUERY_LENGTH = 2000
 MAXIMUM_DOCUMENTS_RETURNED_PER_SEARCH = 1000
@@ -122,11 +117,7 @@ MAXIMUM_SORTED_DOCUMENTS = 10000
 MAXIMUM_NUMBER_FOUND_ACCURACY = 10000
 MAXIMUM_FIELDS_RETURNED_PER_SEARCH = 100
 MAXIMUM_INDEXES_RETURNED_PER_GET_REQUEST = 1000
-
-MAXIMUM_INDEXES_RETURNED_PER_LIST_REQUEST = 1000
 MAXIMUM_GET_INDEXES_OFFSET = 1000
-
-MAXIMUM_LIST_INDEXES_OFFSET = 1000
 
 
 
@@ -2307,11 +2298,6 @@ class Index(object):
   changes to any document stored in an index are applied in the correct order.
   """
 
-  GLOBALLY_CONSISTENT, PER_DOCUMENT_CONSISTENT = ('GLOBALLY_CONSISTENT',
-                                                  'PER_DOCUMENT_CONSISTENT')
-
-  _CONSISTENCY_MODES = [GLOBALLY_CONSISTENT, PER_DOCUMENT_CONSISTENT]
-
 
 
   RESPONSE_CURSOR, RESULT_CURSOR = ('RESPONSE_CURSOR', 'RESULT_CURSOR')
@@ -2322,8 +2308,7 @@ class Index(object):
 
   _SOURCES = frozenset([SEARCH, DATASTORE, CLOUD_STORAGE])
 
-  def __init__(self, name, namespace=None,
-               consistency=None, source=SEARCH):
+  def __init__(self, name, namespace=None, source=SEARCH):
     """Initializer.
 
     Args:
@@ -2331,10 +2316,7 @@ class Index(object):
         ASCII string not starting with '!'. Whitespace characters are excluded.
       namespace: The namespace of the index name. If not set, then the current
         namespace is used.
-      consistency: Deprecated. The consistency mode of the index,
-        either GLOBALLY_CONSISTENT or PER_DOCUMENT_CONSISTENT.
-        GLOBALLY_CONSISTENT mode will no longer be supported.
-      source: This feature is only available to Trusted Testers. The source of
+      source: Deprecated as of 1.7.6. The source of
         the index:
           SEARCH - The Index was created by adding documents throught this
             search API.
@@ -2344,10 +2326,12 @@ class Index(object):
             objects into a Cloud Storage bucket.
     Raises:
       TypeError: If an unknown attribute is passed.
-      ValueError: If an unknown consistency mode, or invalid namespace is given.
+      ValueError: If invalid namespace is given.
     """
     if source not in self._SOURCES:
       raise ValueError('source must be one of %s' % self._SOURCES)
+    if source is not self.SEARCH:
+      warnings.warn('source is deprecated.', DeprecationWarning, stacklevel=2)
     self._source = source
     self._name = _CheckIndexName(_ConvertToUnicode(name))
     self._namespace = _ConvertToUnicode(namespace)
@@ -2356,17 +2340,6 @@ class Index(object):
     if self._namespace is None:
       self._namespace = u''
     namespace_manager.validate_namespace(self._namespace, exception=ValueError)
-    if consistency is not None:
-      warnings.warn(
-          'consistency is deprecated. '
-          'GLOBALLY_CONSISTENT is no longer supported.',
-          DeprecationWarning, stacklevel=2)
-    else:
-      consistency = self.PER_DOCUMENT_CONSISTENT
-    self._consistency = consistency
-    if self._consistency not in self._CONSISTENCY_MODES:
-      raise ValueError('consistency must be one of %s' %
-                       self._CONSISTENCY_MODES)
     self._schema = None
 
   @property
@@ -2387,19 +2360,11 @@ class Index(object):
     return self._namespace
 
   @property
-  def consistency(self):
-    """Returns the consistency mode of the index.
-
-    Deprecated: from 1.7.3, consistency is no longer available."""
-    warnings.warn(
-        'consistency is deprecated. '
-        'GLOBALLY_CONSISTENT is no longer supported.',
-        DeprecationWarning, stacklevel=2)
-    return self._consistency
-
-  @property
   def source(self):
-    """Returns the source of the index."""
+    """Returns the source of the index.
+
+    Deprecated: from 1.7.6, source is no longer available."""
+    warnings.warn('source is deprecated.', DeprecationWarning, stacklevel=2)
     return self._source
 
   def __eq__(self, other):
@@ -2410,14 +2375,12 @@ class Index(object):
     return not self.__eq__(other)
 
   def __hash__(self):
-    return hash((self._name, self._consistency, self._namespace))
+    return hash((self._name, self._namespace))
 
   def __repr__(self):
 
-
     return _Repr(self, [('name', self.name), ('namespace', self.namespace),
-                        ('source', self.source),
-                        ('consistency', self._consistency),
+                        ('source', self._source),
                         ('schema', self.schema)])
 
   def _NewPutResultFromPb(self, status_pb, doc_id):
@@ -2474,7 +2437,18 @@ class Index(object):
 
     params = request.mutable_params()
     _CopyMetadataToProtocolBuffer(self, params.mutable_index_spec())
+
+    seen_docs = {}
     for document in docs:
+      doc_id = document.doc_id
+      if doc_id in seen_docs:
+        if document != seen_docs[doc_id]:
+          raise ValueError('Different documents with the same ID found in the '
+                           'same call to Index.put()')
+
+
+        continue
+      seen_docs[doc_id] = document
       doc_pb = params.add_document()
       _CopyDocumentToProtocolBuffer(document, doc_pb)
 
@@ -2486,7 +2460,7 @@ class Index(object):
 
     results = self._NewPutResultList(response)
 
-    if response.status_size() != len(docs):
+    if response.status_size() != len(seen_docs):
       raise PutError('did not index requested number of documents', results)
 
     for status in response.status_list():
@@ -2525,7 +2499,7 @@ class Index(object):
         number removed did not match requested.
       ValueError: If document_ids is not a string or iterable of valid document
         identifiers or number of document ids is larger than
-        MAXIMUM_DOCUMENTS_PER_ADD_REQUEST.
+        MAXIMUM_DOCUMENTS_PER_PUT_REQUEST.
     """
     doc_ids = _ConvertToList(document_ids)
 
@@ -2814,23 +2788,11 @@ _CURSOR_TYPE_PB_MAP = {
 
 
 
-
-_CONSISTENCY_MODES_TO_PB_MAP = {
-    Index.GLOBALLY_CONSISTENT: search_service_pb.IndexSpec.GLOBAL,
-    Index.PER_DOCUMENT_CONSISTENT: search_service_pb.IndexSpec.PER_DOCUMENT}
-
-
-
 _SOURCES_TO_PB_MAP = {
     Index.SEARCH: search_service_pb.IndexSpec.SEARCH,
     Index.DATASTORE: search_service_pb.IndexSpec.DATASTORE,
     Index.CLOUD_STORAGE: search_service_pb.IndexSpec.CLOUD_STORAGE}
 
-
-
-_CONSISTENCY_PB_TO_MODES_MAP = {
-    search_service_pb.IndexSpec.GLOBAL: Index.GLOBALLY_CONSISTENT,
-    search_service_pb.IndexSpec.PER_DOCUMENT: Index.PER_DOCUMENT_CONSISTENT}
 
 
 _SOURCE_PB_TO_SOURCES_MAP = {
@@ -2845,11 +2807,8 @@ def _CopyMetadataToProtocolBuffer(index, spec_pb):
   spec_pb.set_namespace(index.namespace.encode('utf-8'))
 
 
-
-  spec_pb.set_consistency(_CONSISTENCY_MODES_TO_PB_MAP.get(index._consistency))
-
-  if index.source != Index.SEARCH:
-    spec_pb.set_source(_SOURCES_TO_PB_MAP.get(index.source))
+  if index._source != Index.SEARCH:
+    spec_pb.set_source(_SOURCES_TO_PB_MAP.get(index._source))
 
 
 _FIELD_TYPE_MAP = {
@@ -2878,23 +2837,14 @@ def _NewSchemaFromPb(field_type_pb_list):
 
 def _NewIndexFromIndexSpecPb(index_spec_pb):
   """Creates an Index from a search_service_pb.IndexSpec."""
-  consistency = _CONSISTENCY_PB_TO_MODES_MAP.get(index_spec_pb.consistency())
-
-
-
-
-  if consistency == Index.PER_DOCUMENT_CONSISTENT:
-    consistency = None
-
   source = _SOURCE_PB_TO_SOURCES_MAP.get(index_spec_pb.source())
   index = None
   if index_spec_pb.has_namespace():
     index = Index(name=index_spec_pb.name(),
                   namespace=index_spec_pb.namespace(),
-                  consistency=consistency, source=source)
-  else:
-    index = Index(name=index_spec_pb.name(), consistency=consistency,
                   source=source)
+  else:
+    index = Index(name=index_spec_pb.name(), source=source)
   return index
 
 

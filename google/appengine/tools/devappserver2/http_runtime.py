@@ -25,20 +25,19 @@ import os
 import socket
 import subprocess
 import threading
-import time
 import urllib
 import wsgiref.headers
 
-from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import http_runtime_constants
 from google.appengine.tools.devappserver2 import instance
 from google.appengine.tools.devappserver2 import login
+from google.appengine.tools.devappserver2 import safe_subprocess
+from google.appengine.tools.devappserver2 import shutdown
+from google.appengine.tools.devappserver2 import util
 
 
 class HttpRuntimeProxy(instance.RuntimeProxy):
   """Manages a runtime subprocess used to handle dynamic content."""
-
-  _popen_lock = threading.Lock()
 
   def __init__(self, args, runtime_config_getter, server_configuration,
                env=None):
@@ -58,6 +57,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
     self._host = 'localhost'
     self._port = None
     self._process = None
+    self._process_lock = threading.Lock()  # Lock to guard self._process.
     self._runtime_config_getter = runtime_config_getter
     self._args = args
     self._server_configuration = server_configuration
@@ -102,13 +102,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
         if value is not None:
           environ[
               http_runtime_constants.INTERNAL_ENVIRON_PREFIX + name] = value
-    headers = wsgiref.headers.Headers([])
-    for header, value in environ.iteritems():
-      if header.startswith('HTTP_'):
-        headers[header[5:].replace('_', '-')] = value
-    # Content-Type is special; it does not start with 'HTTP_'.
-    if 'CONTENT_TYPE' in environ:
-      headers['CONTENT-TYPE'] = environ['CONTENT_TYPE']
+    headers = util.get_headers_from_environ(environ)
     if environ.get('QUERY_STRING'):
       url = '%s?%s' % (urllib.quote(environ['PATH_INFO']),
                        environ['QUERY_STRING'])
@@ -128,8 +122,6 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       nickname = ''
       organization = ''
     headers[http_runtime_constants.REQUEST_ID_HEADER] = request_id
-    headers[
-        http_runtime_constants.INTERNAL_HEADER_PREFIX + 'Datacenter'] = 'us1'
     headers[http_runtime_constants.INTERNAL_HEADER_PREFIX + 'User-Id'] = (
         user_id)
     headers[http_runtime_constants.INTERNAL_HEADER_PREFIX + 'User-Email'] = (
@@ -146,56 +138,90 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
     headers['X-AppEngine-Country'] = 'ZZ'
     connection = httplib.HTTPConnection(self._host, self._port)
     with contextlib.closing(connection):
-      connection.connect()
-      connection.request(environ.get('REQUEST_METHOD', 'GET'),
-                         url,
-                         data,
-                         dict(headers.items()))
-      response = connection.getresponse()
-      response_headers = wsgiref.headers.Headers(response.getheaders())
+      try:
+        connection.connect()
+        connection.request(environ.get('REQUEST_METHOD', 'GET'),
+                           url,
+                           data,
+                           dict(headers.items()))
+        response = connection.getresponse()
 
-      error_file = self._get_error_file()
-      if (error_file and
-          http_runtime_constants.ERROR_CODE_HEADER in response_headers):
-        try:
-          with open(error_file) as f:
-            content = f.read()
-        except IOError:
-          content = 'Failed to load error handler'
-          logging.exception('failed to load error file: %s', error_file)
-        start_response('500 Internal Server Error',
-                       [('Content-Type', 'text/html'),
-                        ('Content-Length', str(len(content)))])
-        yield content
-        return
-      del response_headers[http_runtime_constants.ERROR_CODE_HEADER]
-      start_response('%s %s' % (response.status, response.reason),
-                     response_headers.items())
+        # Ensures that we avoid merging repeat headers into a single header,
+        # allowing use of multiple Set-Cookie headers.
+        headers = []
+        for name in response.msg:
+          for value in response.msg.getheaders(name):
+            headers.append((name, value))
 
-      # Yield the response body in small blocks.
-      block = response.read(512)
-      while block:
-        yield block
+        response_headers = wsgiref.headers.Headers(headers)
+
+        error_file = self._get_error_file()
+        if (error_file and
+            http_runtime_constants.ERROR_CODE_HEADER in response_headers):
+          try:
+            with open(error_file) as f:
+              content = f.read()
+          except IOError:
+            content = 'Failed to load error handler'
+            logging.exception('failed to load error file: %s', error_file)
+          start_response('500 Internal Server Error',
+                         [('Content-Type', 'text/html'),
+                          ('Content-Length', str(len(content)))])
+          yield content
+          return
+        del response_headers[http_runtime_constants.ERROR_CODE_HEADER]
+        start_response('%s %s' % (response.status, response.reason),
+                       response_headers.items())
+
+        # Yield the response body in small blocks.
         block = response.read(512)
+        while block:
+          yield block
+          block = response.read(512)
+      except Exception:
+        with self._process_lock:
+          if self._process and self._process.poll() is not None:
+            # The development server is in a bad state. Log and return an error
+            # message and quit.
+            message = ('the runtime process for the instance running on port '
+                       '%d has unexpectedly quit; exiting the development '
+                       'server' % (
+                           self._port))
+            logging.error(message)
+            start_response('500 Internal Server Error',
+                           [('Content-Type', 'text/plain'),
+                            ('Content-Length', str(len(message)))])
+            shutdown.async_quit()
+            yield message
+          else:
+            raise
 
   def start(self):
-    """Starts the runtime process."""
+    """Starts the runtime process and waits until it is ready to serve."""
+    runtime_config = self._runtime_config_getter()
+    serialized_config = base64.b64encode(runtime_config.SerializeToString())
     # TODO: Use a different process group to isolate the child process
     # from signals sent to the parent. Only available in subprocess in
     # Python 2.7.
-    assert not self._process, 'start() can only be called once'
-    # Subprocess creation is not threadsafe in Python. See
-    # http://bugs.python.org/issue1731717.
-    with self._popen_lock:
-      self._process = subprocess.Popen(self._args, stdin=subprocess.PIPE,
-                                       stdout=subprocess.PIPE,
-                                       env=self._env)
-    runtime_config = self._runtime_config_getter()
-
-    self._process.stdin.write(base64.b64encode(
-        runtime_config.SerializeToString()))
-    self._process.stdin.close()
-    self._port = int(self._process.stdout.readline())
+    with self._process_lock:
+      assert not self._process, 'start() can only be called once'
+      self._process = safe_subprocess.start_process(
+          self._args,
+          serialized_config,
+          stdout=subprocess.PIPE,
+          env=self._env,
+          cwd=self._server_configuration.application_root)
+    line = self._process.stdout.readline()
+    try:
+      self._port = int(line)
+    except ValueError:
+      # The development server is in a bad state. Log an error message and quit.
+      logging.error('unexpected port response from runtime [%r]; '
+                    'exiting the development server',
+                    line)
+      shutdown.async_quit()
+    else:
+      self._check_serving()
 
   def _can_connect(self):
     connection = httplib.HTTPConnection(self._host, self._port)
@@ -207,28 +233,23 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       else:
         return True
 
-  def wait_until_serving(self, timeout=30.0):
-    """Waits until the runtime is ready to handle requests.
+  def _check_serving(self):
+    """Checks if the runtime can serve requests.
 
-    Args:
-      timeout: The maximum number of seconds to wait for the server to be ready.
-
-    Raises:
-      Error: if the server process exits or is not ready in "timeout" seconds.
+    Quits the development server if the runtime cannot serve.
     """
-    assert self._process, 'server was not started'
-    finish_time = time.time() + timeout
-    while time.time() < finish_time:
-      if self._process.poll() is not None:
-        raise errors.Error('server has already exited with return: %r',
-                           self._process.returncode)
-      if self._can_connect():
-        return
-      time.sleep(0.2)
-    raise errors.Error('server did not start after %f seconds', timeout)
+    if not self._can_connect():
+      logging.error('cannot connect to runtime running on port %r; '
+                    'exiting the development server',
+                    self._port)
+      shutdown.async_quit()
 
   def quit(self):
     """Causes the runtime process to exit."""
-    assert self._process, 'server was not running'
-    self._process.kill()
-    self._process = None
+    with self._process_lock:
+      assert self._process, 'server was not running'
+      try:
+        self._process.kill()
+      except OSError:
+        pass
+      self._process = None

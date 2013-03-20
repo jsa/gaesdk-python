@@ -19,6 +19,8 @@
 
 import httplib
 import logging
+import os
+import re
 import time
 import unittest
 
@@ -84,13 +86,17 @@ class ServerFacade(server.Server):
                request_data=None,
                instance_factory=None,
                ready=True):
-    super(ServerFacade, self).__init__(server_configuration,
-                                       host,
-                                       balanced_port,
-                                       api_port,
+    super(ServerFacade, self).__init__(
+        server_configuration,
+        host='fakehost',
+        balanced_port=0,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-                                       cloud_sql_config=None,
-                                       request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
     if instance_factory is not None:
       self._instance_factory = instance_factory
     self._ready = ready
@@ -113,14 +119,19 @@ class AutoScalingServerFacade(server.AutoScalingServer):
 
                request_data=None,
                instance_factory=None,
+               max_instances=None,
                ready=True):
-    super(AutoScalingServerFacade, self).__init__(server_configuration,
-                                                  host,
-                                                  balanced_port,
-                                                  api_port,
+    super(AutoScalingServerFacade, self).__init__(
+        server_configuration,
+        host='fakehost',
+        balanced_port=balanced_port,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-                                                  cloud_sql_config=None,
-                                                  request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
     if instance_factory is not None:
       self._instance_factory = instance_factory
     self._ready = ready
@@ -144,13 +155,17 @@ class ManualScalingServerFacade(server.ManualScalingServer):
                request_data=None,
                instance_factory=None,
                ready=True):
-    super(ManualScalingServerFacade, self).__init__(server_configuration,
-                                                    host,
-                                                    balanced_port,
-                                                    api_port,
+    super(ManualScalingServerFacade, self).__init__(
+        server_configuration,
+        host='fakehost',
+        balanced_port=balanced_port,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-                                                    cloud_sql_config=None,
-                                                    request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
     if instance_factory is not None:
       self._instance_factory = instance_factory
     self._ready = ready
@@ -174,13 +189,17 @@ class BasicScalingServerFacade(server.BasicScalingServer):
                request_data=None,
                instance_factory=None,
                ready=True):
-    super(BasicScalingServerFacade, self).__init__(server_configuration,
-                                                   host,
-                                                   balanced_port,
-                                                   api_port,
+    super(BasicScalingServerFacade, self).__init__(
+        server_configuration,
+        host,
+        balanced_port=balanced_port,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-                                                   cloud_sql_config=None,
-                                                   request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
     if instance_factory is not None:
       self._instance_factory = instance_factory
     self._ready = ready
@@ -298,27 +317,27 @@ class TestServerCreateUrlHandlers(unittest.TestCase):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'.*',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(5, len(handlers))
+    self.assertEqual(6, len(handlers))
 
   def test_match_start_only(self):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/_ah/start',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(6, len(handlers))
+    self.assertEqual(7, len(handlers))
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
 
   def test_match_warmup_only(self):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/_ah/warmup',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(6, len(handlers))
+    self.assertEqual(7, len(handlers))
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
   def test_match_neither_warmup_nor_start(self):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(7, len(handlers))
+    self.assertEqual(8, len(handlers))
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[1].url_map)
 
@@ -327,7 +346,7 @@ class TestServerCreateUrlHandlers(unittest.TestCase):
         appinfo.URLMap(url=r'/_ah/start', static_dir='foo'),
         appinfo.URLMap(url=r'/_ah/warmup', static_files='foo', upload='foo')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(8, len(handlers))
+    self.assertEqual(9, len(handlers))
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[1].url_map)
 
@@ -336,14 +355,14 @@ class TestServerCreateUrlHandlers(unittest.TestCase):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/_ah/start',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(5, len(handlers))
+    self.assertEqual(6, len(handlers))
 
   def test_match_warmup_only_no_inbound_warmup(self):
     self.server_configuration.inbound_services = None
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/_ah/warmup',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(6, len(handlers))
+    self.assertEqual(7, len(handlers))
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
   def test_match_neither_warmup_nor_start_no_inbound_warmup(self):
@@ -351,7 +370,7 @@ class TestServerCreateUrlHandlers(unittest.TestCase):
     self.server_configuration.handlers = [appinfo.URLMap(url=r'/',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(6, len(handlers))
+    self.assertEqual(7, len(handlers))
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
 
@@ -378,7 +397,8 @@ class TestServerGetRuntimeConfig(unittest.TestCase):
                        application_readable=True),
         ]
     config = self.servr._get_runtime_config()
-    self.assertEqual(r'^(static\/.*)|(static_images/*.png)$',
+    self.assertEqual(r'^(static%s.*)|(static_images/*.png)$' %
+                     re.escape(os.path.sep),
                      config.static_files)
 
 
@@ -476,7 +496,7 @@ class TestAutoScalingServerAddInstance(unittest.TestCase):
     inst = self.mox.CreateMock(instance.Instance)
     self.factory.new_instance(mox.Regex('[a-f0-9]{36}'),
                               expect_ready_request=True).AndReturn(inst)
-    inst.start()
+    inst.start().AndReturn(True)
     s._async_warmup(inst)
 
     self.mox.ReplayAll()
@@ -492,7 +512,7 @@ class TestAutoScalingServerAddInstance(unittest.TestCase):
     inst = self.mox.CreateMock(instance.Instance)
     self.factory.new_instance(mox.Regex('[a-f0-9]{36}'),
                               expect_ready_request=False).AndReturn(inst)
-    inst.start()
+    inst.start().AndReturn(True)
     s._condition.notify(10)
 
     self.mox.ReplayAll()
@@ -500,6 +520,22 @@ class TestAutoScalingServerAddInstance(unittest.TestCase):
     self.mox.VerifyAll()
 
     self.assertIn(inst, s._instances)
+
+  def test_failed_to_start(self):
+    s = AutoScalingServerFacade(instance_factory=self.factory)
+    self.mox.StubOutWithMock(s, '_async_warmup')
+    self.mox.StubOutWithMock(s._condition, 'notify')
+
+    inst = self.mox.CreateMock(instance.Instance)
+    self.factory.new_instance(mox.Regex('[a-f0-9]{36}'),
+                              expect_ready_request=True).AndReturn(inst)
+    inst.start().AndReturn(False)
+
+    self.mox.ReplayAll()
+    self.assertEqual(inst, s._add_instance(permit_warmup=True))
+    self.mox.VerifyAll()
+
+    self.assertEqual(1, len(s._instances))
 
 
 class TestAutoScalingInstancePoolHandleScriptRequest(unittest.TestCase):
@@ -900,9 +936,12 @@ class TestAutoScalingInstancePoolHandleChanges(unittest.TestCase):
     api_server.test_setup_stubs()
 
     self.mox = mox.Mox()
+    self.instance_factory = instance.InstanceFactory(object(), 10)
     self.servr = AutoScalingServerFacade(
-        instance_factory=instance.InstanceFactory(object(), 10))
-    self.mox.StubOutWithMock(self.servr, '_restart_instances')
+        instance_factory=self.instance_factory)
+    self.mox.StubOutWithMock(self.instance_factory, 'files_changed')
+    self.mox.StubOutWithMock(self.instance_factory, 'configuration_changed')
+    self.mox.StubOutWithMock(self.servr, '_maybe_restart_instances')
     self.mox.StubOutWithMock(self.servr, '_create_url_handlers')
     self.mox.StubOutWithMock(self.servr._server_configuration,
                              'check_for_updates')
@@ -914,7 +953,8 @@ class TestAutoScalingInstancePoolHandleChanges(unittest.TestCase):
   def test_no_changes(self):
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(False)
-
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=False)
     self.mox.ReplayAll()
     self.servr._handle_changes()
     self.mox.VerifyAll()
@@ -922,27 +962,31 @@ class TestAutoScalingInstancePoolHandleChanges(unittest.TestCase):
   def test_irrelevant_config_change(self):
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(False)
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=False)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
     self.mox.VerifyAll()
 
   def test_restart_config_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.ENV_VARIABLES_CHANGED]))
+    conf_change = frozenset([application_configuration.ENV_VARIABLES_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
-    self.servr._restart_instances(restart_clean=True)
+    self.instance_factory.configuration_changed(conf_change)
+    self.servr._maybe_restart_instances(config_changed=True, file_changed=False)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
     self.mox.VerifyAll()
 
   def test_handler_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.HANDLERS_CHANGED]))
+    conf_change = frozenset([application_configuration.HANDLERS_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
     self.servr._create_url_handlers()
-    self.servr._restart_instances(restart_clean=True)
+    self.instance_factory.configuration_changed(conf_change)
+    self.servr._maybe_restart_instances(config_changed=True, file_changed=False)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
@@ -951,62 +995,87 @@ class TestAutoScalingInstancePoolHandleChanges(unittest.TestCase):
   def test_file_change(self):
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(True)
-    self.servr._restart_instances(restart_clean=False)
+    self.instance_factory.files_changed()
+    self.servr._maybe_restart_instances(config_changed=False, file_changed=True)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
     self.mox.VerifyAll()
 
 
-class TestAutoScalingInstancePoolRestartInstances(unittest.TestCase):
-  """Tests for server.AutoScalingServer._restart_instances."""
+class TestAutoScalingInstancePoolMaybeRestartInstances(unittest.TestCase):
+  """Tests for server.AutoScalingServer._maybe_restart_instances."""
 
   def setUp(self):
     api_server.test_setup_stubs()
 
     self.mox = mox.Mox()
-    self.servr = AutoScalingServerFacade(
-        instance_factory=instance.InstanceFactory(object(), 10))
+    self.instance_factory = instance.InstanceFactory(object(), 10)
+    self.instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY = instance.ALWAYS
+    self.servr = AutoScalingServerFacade(instance_factory=self.instance_factory)
+
+    self.inst1 = self.mox.CreateMock(instance.Instance)
+    self.inst2 = self.mox.CreateMock(instance.Instance)
+    self.inst3 = self.mox.CreateMock(instance.Instance)
+    self.inst1.total_requests = 2
+    self.inst2.total_requests = 0
+    self.inst3.total_requests = 4
+    self.servr._instances.add(self.inst1)
+    self.servr._instances.add(self.inst2)
+    self.servr._instances.add(self.inst3)
 
   def tearDown(self):
     self.mox.UnsetStubs()
 
-  def test_restart_instances_including_clean(self):
-    inst1 = self.mox.CreateMock(instance.Instance)
-    inst2 = self.mox.CreateMock(instance.Instance)
-    inst3 = self.mox.CreateMock(instance.Instance)
-    self.servr._instances.add(inst1)
-    self.servr._instances.add(inst2)
-    self.servr._instances.add(inst3)
+  def test_no_changes(self):
+    self.mox.ReplayAll()
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=False)
+    self.mox.VerifyAll()
 
-    inst1.quit(allow_async=True).InAnyOrder()
-    inst2.quit(allow_async=True).InAnyOrder()
-    inst3.quit(allow_async=True).InAnyOrder()
+  def test_config_change(self):
+    self.inst1.quit(allow_async=True).InAnyOrder()
+    self.inst2.quit(allow_async=True).InAnyOrder()
+    self.inst3.quit(allow_async=True).InAnyOrder()
 
     self.mox.ReplayAll()
-    self.servr._restart_instances(restart_clean=True)
+    self.servr._maybe_restart_instances(config_changed=True,
+                                        file_changed=False)
+    self.mox.VerifyAll()
+
+  def test_file_change_restart_always(self):
+    self.instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY = instance.ALWAYS
+    self.inst1.quit(allow_async=True).InAnyOrder()
+    self.inst2.quit(allow_async=True).InAnyOrder()
+    self.inst3.quit(allow_async=True).InAnyOrder()
+
+    self.mox.ReplayAll()
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=True)
     self.mox.VerifyAll()
     self.assertSequenceEqual(set(), self.servr._instances)
 
-  def test_restart_instances_excluding_clean(self):
-    inst1 = self.mox.CreateMock(instance.Instance)
-    inst2 = self.mox.CreateMock(instance.Instance)
-    inst3 = self.mox.CreateMock(instance.Instance)
-    self.servr._instances.add(inst1)
-    self.servr._instances.add(inst2)
-    self.servr._instances.add(inst3)
-
-    inst1.total_requests = 2
-    inst2.total_requests = 0
-    inst3.total_requests = 4
-
-    inst1.quit(allow_async=True).InAnyOrder()
-    inst3.quit(allow_async=True).InAnyOrder()
+  def test_file_change_restart_after_first_request(self):
+    self.instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY = (
+        instance.AFTER_FIRST_REQUEST)
+    self.inst1.quit(allow_async=True).InAnyOrder()
+    self.inst3.quit(allow_async=True).InAnyOrder()
 
     self.mox.ReplayAll()
-    self.servr._restart_instances(restart_clean=False)
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=True)
     self.mox.VerifyAll()
-    self.assertSequenceEqual(set([inst2]), self.servr._instances)
+    self.assertSequenceEqual(set([self.inst2]), self.servr._instances)
+
+  def test_file_change_restart_never(self):
+    self.instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY = instance.NEVER
+
+    self.mox.ReplayAll()
+    self.servr._maybe_restart_instances(config_changed=False,
+                                        file_changed=True)
+    self.mox.VerifyAll()
+    self.assertSequenceEqual(set([self.inst1, self.inst2, self.inst3]),
+                             self.servr._instances)
 
 
 class TestAutoScalingInstancePoolLoopAdjustingInstances(unittest.TestCase):
@@ -1493,8 +1562,11 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
     api_server.test_setup_stubs()
 
     self.mox = mox.Mox()
+    self.instance_factory = instance.InstanceFactory(object(), 10)
     self.servr = ManualScalingServerFacade(
-        instance_factory=instance.InstanceFactory(object(), 10))
+        instance_factory=self.instance_factory)
+    self.mox.StubOutWithMock(self.instance_factory, 'files_changed')
+    self.mox.StubOutWithMock(self.instance_factory, 'configuration_changed')
     self.mox.StubOutWithMock(self.servr, 'restart')
     self.mox.StubOutWithMock(self.servr, '_create_url_handlers')
     self.mox.StubOutWithMock(self.servr._server_configuration,
@@ -1521,9 +1593,10 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_restart_config_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.ENV_VARIABLES_CHANGED]))
+    conf_change = frozenset([application_configuration.ENV_VARIABLES_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
+    self.instance_factory.configuration_changed(conf_change)
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -1531,10 +1604,12 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_handler_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.HANDLERS_CHANGED]))
+    conf_change = frozenset([application_configuration.HANDLERS_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
     self.servr._create_url_handlers()
+    self.instance_factory.configuration_changed(conf_change)
+
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -1544,6 +1619,7 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
   def test_file_change(self):
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(True)
+    self.instance_factory.files_changed()
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -1552,9 +1628,10 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
 
   def test_restart_config_change_suspended(self):
     self.servr._suspended = True
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.ENV_VARIABLES_CHANGED]))
+    conf_change = frozenset([application_configuration.ENV_VARIABLES_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
+    self.instance_factory.configuration_changed(conf_change)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
@@ -1562,10 +1639,11 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
 
   def test_handler_change_suspended(self):
     self.servr._suspended = True
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.HANDLERS_CHANGED]))
+    conf_change = frozenset([application_configuration.HANDLERS_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
     self.servr._create_url_handlers()
+    self.instance_factory.configuration_changed(conf_change)
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
@@ -1575,6 +1653,7 @@ class TestManualScalingInstancePoolHandleChanges(unittest.TestCase):
     self.servr._suspended = True
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(True)
+    self.instance_factory.files_changed()
 
     self.mox.ReplayAll()
     self.servr._handle_changes()
@@ -1996,8 +2075,11 @@ class TestBasicScalingInstancePoolHandleChanges(unittest.TestCase):
     api_server.test_setup_stubs()
 
     self.mox = mox.Mox()
+    self.instance_factory = instance.InstanceFactory(object(), 10)
     self.servr = BasicScalingServerFacade(
-        instance_factory=instance.InstanceFactory(object(), 10))
+        instance_factory=self.instance_factory)
+    self.mox.StubOutWithMock(self.instance_factory, 'files_changed')
+    self.mox.StubOutWithMock(self.instance_factory, 'configuration_changed')
     self.mox.StubOutWithMock(self.servr, 'restart')
     self.mox.StubOutWithMock(self.servr, '_create_url_handlers')
     self.mox.StubOutWithMock(self.servr._server_configuration,
@@ -2024,9 +2106,10 @@ class TestBasicScalingInstancePoolHandleChanges(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_restart_config_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.ENV_VARIABLES_CHANGED]))
+    conf_change = frozenset([application_configuration.ENV_VARIABLES_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
+    self.instance_factory.configuration_changed(conf_change)
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -2034,10 +2117,11 @@ class TestBasicScalingInstancePoolHandleChanges(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_handler_change(self):
-    self.servr._server_configuration.check_for_updates().AndReturn(
-        frozenset([application_configuration.HANDLERS_CHANGED]))
+    conf_change = frozenset([application_configuration.HANDLERS_CHANGED])
+    self.servr._server_configuration.check_for_updates().AndReturn(conf_change)
     self.servr._watcher.has_changes().AndReturn(False)
     self.servr._create_url_handlers()
+    self.instance_factory.configuration_changed(conf_change)
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -2047,6 +2131,7 @@ class TestBasicScalingInstancePoolHandleChanges(unittest.TestCase):
   def test_file_change(self):
     self.servr._server_configuration.check_for_updates().AndReturn(frozenset())
     self.servr._watcher.has_changes().AndReturn(True)
+    self.instance_factory.files_changed().AndReturn(True)
     self.servr.restart()
 
     self.mox.ReplayAll()
@@ -2073,15 +2158,18 @@ class TestInteractiveCommandServer(unittest.TestCase):
         'fakehost',
         balanced_port=8000,
         api_port=9000,
+        runtime_stderr_loglevel=1,
 
         cloud_sql_config=None,
-        request_data=None)
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
     self.mox.StubOutWithMock(self.servr._instance_factory, 'new_instance')
     self.mox.StubOutWithMock(self.servr, '_handle_request')
     self.mox.StubOutWithMock(self.servr, 'build_request_environ')
 
   def test_send_interactive_command(self):
-    def good_response(environ, start_response, request_type):
+    def good_response(unused_environ, start_response, request_type):
       start_response('200 OK', [])
       return ['10\n']
 
@@ -2115,7 +2203,7 @@ class TestInteractiveCommandServer(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_send_interactive_command_handle_request_failure(self):
-    def good_response(environ, start_response, request_type):
+    def good_response(unused_environ, start_response, request_type):
       start_response('503 Service Unavailable', [])
       return ['Instance was restarted while executing command']
 

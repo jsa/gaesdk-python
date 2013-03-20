@@ -110,6 +110,11 @@ class WSGIRequestInfo(request_info.RequestInfo):
       environ = self._request_wsgi_environ[request_id]
       return wsgiref.util.request_uri(environ)
 
+  def get_request_environ(self, request_id):
+    """Returns a dict containing the WSGI environ for the request."""
+    with self._lock:
+      return self._request_wsgi_environ[request_id]
+
   def get_dispatcher(self):
     """Returns the Dispatcher.
 

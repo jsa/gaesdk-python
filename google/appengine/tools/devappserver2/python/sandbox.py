@@ -27,13 +27,14 @@ import types
 
 import google
 
+import protorpc
+
 from google.appengine import dist
 from google.appengine.api import app_logging
 from google.appengine.api.logservice import logservice
 from google.appengine import dist27 as dist27
 from google.appengine.ext.remote_api import remote_api_stub
 from google.appengine.runtime import request_environment
-from google.appengine.runtime import runtime
 from google.appengine.tools.devappserver2.python import request_state
 from google.appengine.tools.devappserver2.python import stubs
 
@@ -110,7 +111,7 @@ def enable_sandbox(config):
     config: The runtime_config_pb2.Config to use to configure the sandbox.
   """
 
-  modules = [os, traceback, google]
+  modules = [os, traceback, google, protorpc]
   c_module = _find_shared_object_c_module()
   if c_module:
     modules.append(c_module)
@@ -147,6 +148,7 @@ def enable_sandbox(config):
           [NAME_TO_CMODULE_WHITELIST_REGEX[lib.name] for lib in config.libraries
            if lib.name in NAME_TO_CMODULE_WHITELIST_REGEX]),
       path_override_hook,
+      PyCryptoRandomImportHook,
       PathRestrictingImportHook()
       ]
   sys.path_importer_cache = {}
@@ -157,8 +159,11 @@ def enable_sandbox(config):
   threading = sys.modules['%s.threading' % dist27.__name__]
   thread.start_new_thread = _make_request_id_aware_start_new_thread(
       thread.start_new_thread)
-  runtime.PatchStartNewThread(thread, threading)
-  reload(__import__('threading'))
+  # This import needs to be after enabling the sandbox so it imports the
+  # sandboxed version of the logging module.
+  from google.appengine.runtime import runtime
+  runtime.PatchStartNewThread(thread)
+  threading._start_new_thread = thread.start_new_thread
 
   __import__('site')
   # Set the path again because site messes with it.
@@ -167,7 +172,7 @@ def enable_sandbox(config):
   sandboxed_os = __import__('os')
   request_environment.PatchOsEnviron(sandboxed_os)
   os.__dict__.update(sandboxed_os.__dict__)
-  _init_logging()
+  _init_logging(config.stderr_log_level)
 
 
 def _find_shared_object_c_module():
@@ -192,12 +197,22 @@ def _should_keep_module(name):
           'mysql' in name.lower())
 
 
-def _init_logging():
+def _init_logging(stderr_log_level):
   logging = __import__('logging')
   logger = logging.getLogger()
 
   console_handler = logging.StreamHandler(sys.stderr)
-  console_handler.setLevel(logging.INFO)
+  if stderr_log_level == 0:
+    console_handler.setLevel(logging.DEBUG)
+  elif stderr_log_level == 1:
+    console_handler.setLevel(logging.INFO)
+  elif stderr_log_level == 2:
+    console_handler.setLevel(logging.WARNING)
+  elif stderr_log_level == 3:
+    console_handler.setLevel(logging.ERROR)
+  elif stderr_log_level == 4:
+    console_handler.setLevel(logging.CRITICAL)
+
   console_handler.setFormatter(logging.Formatter(
       '%(levelname)-8s %(asctime)s %(filename)s:%(lineno)s] %(message)s'))
   logger.addHandler(console_handler)
@@ -873,3 +888,31 @@ class PathRestrictingImportHook(object):
 
   def load_module(self, unused_fullname):
     raise ImportError
+
+
+class PyCryptoRandomImportHook(BaseImportHook):
+  """An import hook that allows Crypto.Random.OSRNG.new() to work on posix.
+
+  This changes PyCrypto to always use os.urandom() instead of reading from
+  /dev/urandom.
+  """
+
+  def __init__(self, path):
+    self._path = path
+
+  @classmethod
+  def find_module(cls, fullname, path=None):
+    if fullname == 'Crypto.Random.OSRNG.posix':
+      return cls(path)
+    return None
+
+  def load_module(self, fullname):
+    if fullname in sys.modules:
+      return sys.modules[fullname]
+    __import__('Crypto.Random.OSRNG.fallback')
+    module = self._find_and_load_module('posix', fullname, self._path)
+    fallback = sys.modules['Crypto.Random.OSRNG.fallback']
+    module.new = fallback.new
+    module.__loader__ = self
+    sys.modules[fullname] = module
+    return module

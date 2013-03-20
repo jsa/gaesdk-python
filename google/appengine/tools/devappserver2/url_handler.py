@@ -128,11 +128,9 @@ class UserConfiguredURLHandler(URLHandler):
 
     if constants.FAKE_IS_ADMIN_HEADER in environ:
       admin = True
-      del environ[constants.FAKE_IS_ADMIN_HEADER]
 
     if constants.FAKE_LOGGED_IN_HEADER in environ:
       email_addr = 'Fake User'
-      del environ[constants.FAKE_LOGGED_IN_HEADER]
 
     # admin has an effect only with login: admin (not login: required).
     if requires_login and not email_addr and not (admin and admin_only):

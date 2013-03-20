@@ -700,6 +700,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
       new_index_spec = metadata.mutable_index_spec()
       new_index_spec.set_name(index_spec.name())
       new_index_spec.set_consistency(index_spec.consistency())
+      new_index_spec.set_namespace(index_spec.namespace())
       if params.fetch_schema():
         self._AddSchemaInformation(index, metadata)
 

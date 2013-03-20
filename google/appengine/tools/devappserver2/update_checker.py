@@ -19,8 +19,8 @@
 
 import sys
 
-from google.appengine.tools import appcfg
 from google.appengine.tools import appengine_rpc
+from google.appengine.tools import sdk_update_checker
 
 SDK_PRODUCT = 'devappserver2_py'
 # The server to use when checking for SDK updates.
@@ -30,7 +30,7 @@ _UPDATE_SERVER = 'appengine.google.com'
 def _get_user_agent():
   """Returns the value of the 'User-Agent' header to use for update requests."""
   product_tokens = []
-  version = appcfg.GetVersionObject()
+  version = sdk_update_checker.GetVersionObject()
   if version is None:
     release = 'unknown'
   else:
@@ -50,7 +50,7 @@ def _get_user_agent():
 
 def _get_source_name():
   """Gets the name of this source version. Used for authentication."""
-  version = appcfg.GetVersionObject()
+  version = sdk_update_checker.GetVersionObject()
   if version is None:
     release = 'unknown'
   else:
@@ -84,8 +84,8 @@ def check_for_updates(application_configuration):
   # TODO: Update check needs to be refactored so the api_version for
   # all runtimes can be checked without generating duplicate nag messages.
   if application_configuration.servers:
-    update_check = appcfg.UpdateCheck(update_server,
-                                      application_configuration.servers[0])
+    update_check = sdk_update_checker.SDKUpdateChecker(
+        update_server, application_configuration.servers)
     update_check.CheckSupportedVersion()  # Can raise SystemExit.
     if update_check.AllowedToCheckForUpdates():
       update_check.CheckForUpdates()

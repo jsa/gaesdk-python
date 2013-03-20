@@ -26,7 +26,7 @@ import google
 import jinja2
 import webapp2
 
-from google.appengine.tools import appcfg
+from google.appengine.tools import sdk_update_checker
 
 
 def _urlencode_filter(value):
@@ -47,7 +47,7 @@ _DEFAULT_SDK_VERSION = '(Internal)'
 
 
 def _get_sdk_version():
-  version_object = appcfg.GetVersionObject()
+  version_object = sdk_update_checker.GetVersionObject()
   if version_object:
     return version_object['release']
   else:

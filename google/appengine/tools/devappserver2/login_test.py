@@ -57,6 +57,18 @@ class CookieTest(unittest.TestCase):
     self.assertFalse(admin)
     self.assertEqual(USER_ID, user_id)
 
+  def test_get_user_info_invalid_email(self):
+    """Tests the get_user_info function when the admin field is False."""
+    cookie_value = 'foo:True:%s' % USER_ID
+
+    http_cookie = 'one=two; %s=%s; three=four' % (COOKIE_NAME, cookie_value)
+    email, admin, user_id = login.get_user_info(http_cookie,
+                                                cookie_name=COOKIE_NAME)
+
+    self.assertEqual('', email)
+    self.assertFalse(admin)
+    self.assertEqual('', user_id)
+
   def test_get_user_info_does_not_exist(self):
     """Tests the get_user_info function when the cookie is not present."""
     http_cookie = 'one=two; three=four'

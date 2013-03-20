@@ -67,6 +67,10 @@ import time
 import zipfile
 
 from google.net.proto import ProtocolBuffer
+try:
+  from google.appengine.ext import ndb
+except ImportError:
+  ndb = None
 from google.appengine.api import datastore
 from google.appengine.api import files
 from google.appengine.api import logservice
@@ -214,13 +218,11 @@ def _get_params(mapper_spec, allowed_keys=None):
         "input_reader subdictionary.")
     if allowed_keys:
       raise errors.BadReaderParamsError(message)
-    else:
-      logging.warning(message)
     params = mapper_spec.params
     params = dict((str(n), v) for n, v in params.iteritems())
   else:
     if not isinstance(mapper_spec.params.get("input_reader"), dict):
-      raise BadReaderParamsError(
+      raise errors.BadReaderParamsError(
           "Input reader parameters should be a dictionary")
     params = mapper_spec.params.get("input_reader")
     params = dict((str(n), v) for n, v in params.iteritems())
@@ -913,8 +915,10 @@ class DatastoreInputReader(AbstractDatastoreInputReader):
   def _get_raw_entity_kind(cls, entity_kind):
     """Returns an entity kind to use with datastore calls."""
     entity_type = util.for_name(entity_kind)
-    if isinstance(entity_kind, db.Model):
+    if isinstance(entity_type, db.Model):
       return entity_type.kind()
+    elif ndb and isinstance(entity_type, (ndb.Model, ndb.MetaModel)):
+      return entity_type._get_kind()
     else:
       return util.get_short_name(entity_kind)
 

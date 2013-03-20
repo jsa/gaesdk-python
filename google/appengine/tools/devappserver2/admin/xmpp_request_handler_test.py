@@ -84,7 +84,8 @@ class TestXmppRequestHandler(unittest.TestCase):
         headers=[('Content-Type',
                   mox.Regex('multipart/form-data; boundary=".*?"'))],
         body=mox.IsA(str),
-        source_ip='0.1.0.10')
+        source_ip='0.1.0.10',
+        fake_login=True)
 
     data = xmpp_request_handler._FormData()
     self.mox.ReplayAll()

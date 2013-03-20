@@ -29,7 +29,7 @@ from google.net.proto2.proto import descriptor_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='apphosting/tools/devappserver2/scrubbed/runtime_config.proto',
   package='apphosting.tools.devappserver2',
-  serialized_pb='\n<apphosting/tools/devappserver2/scrubbed/runtime_config.proto\x12\x1e\x61pphosting.tools.devappserver2\"\xdf\x02\n\x06\x43onfig\x12\x0e\n\x06\x61pp_id\x18\x01 \x02(\x0c\x12\x12\n\nversion_id\x18\x02 \x02(\x0c\x12\x18\n\x10\x61pplication_root\x18\x03 \x02(\x0c\x12\x19\n\nthreadsafe\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x10\n\x08\x61pi_port\x18\x05 \x01(\x05\x12:\n\tlibraries\x18\x06 \x03(\x0b\x32\'.apphosting.tools.devappserver2.Library\x12\x16\n\nskip_files\x18\x07 \x01(\t:\x02^$\x12\x18\n\x0cstatic_files\x18\x08 \x01(\t:\x02^$\x12\x38\n\x07\x65nviron\x18\n \x03(\x0b\x32\'.apphosting.tools.devappserver2.Environ\x12\x42\n\x10\x63loud_sql_config\x18\x0b \x01(\x0b\x32(.apphosting.tools.devappserver2.CloudSQL\"t\n\x08\x43loudSQL\x12\x12\n\nmysql_host\x18\x01 \x02(\t\x12\x12\n\nmysql_port\x18\x02 \x02(\x05\x12\x12\n\nmysql_user\x18\x03 \x02(\t\x12\x16\n\x0emysql_password\x18\x04 \x02(\t\x12\x14\n\x0cmysql_socket\x18\x05 \x01(\t\"(\n\x07Library\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\t\"%\n\x07\x45nviron\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\x42\x02 \x02')
+  serialized_pb='\n<apphosting/tools/devappserver2/scrubbed/runtime_config.proto\x12\x1e\x61pphosting.tools.devappserver2\"\xa5\x03\n\x06\x43onfig\x12\x0e\n\x06\x61pp_id\x18\x01 \x02(\x0c\x12\x12\n\nversion_id\x18\x02 \x02(\x0c\x12\x18\n\x10\x61pplication_root\x18\x03 \x02(\x0c\x12\x19\n\nthreadsafe\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x10\n\x08\x61pi_port\x18\x05 \x02(\x05\x12:\n\tlibraries\x18\x06 \x03(\x0b\x32\'.apphosting.tools.devappserver2.Library\x12\x16\n\nskip_files\x18\x07 \x01(\t:\x02^$\x12\x18\n\x0cstatic_files\x18\x08 \x01(\t:\x02^$\x12\x38\n\x07\x65nviron\x18\n \x03(\x0b\x32\'.apphosting.tools.devappserver2.Environ\x12\x42\n\x10\x63loud_sql_config\x18\x0b \x01(\x0b\x32(.apphosting.tools.devappserver2.CloudSQL\x12\x12\n\ndatacenter\x18\x0c \x02(\t\x12\x13\n\x0binstance_id\x18\r \x02(\t\x12\x1b\n\x10stderr_log_level\x18\x0f \x01(\x03:\x01\x31\"t\n\x08\x43loudSQL\x12\x12\n\nmysql_host\x18\x01 \x02(\t\x12\x12\n\nmysql_port\x18\x02 \x02(\x05\x12\x12\n\nmysql_user\x18\x03 \x02(\t\x12\x16\n\x0emysql_password\x18\x04 \x02(\t\x12\x14\n\x0cmysql_socket\x18\x05 \x01(\t\"(\n\x07Library\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\t\"%\n\x07\x45nviron\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\x42\x02 \x02')
 
 
 
@@ -71,7 +71,7 @@ _CONFIG = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='api_port', full_name='apphosting.tools.devappserver2.Config.api_port', index=4,
-      number=5, type=5, cpp_type=1, label=1,
+      number=5, type=5, cpp_type=1, label=2,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -111,6 +111,27 @@ _CONFIG = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='datacenter', full_name='apphosting.tools.devappserver2.Config.datacenter', index=10,
+      number=12, type=9, cpp_type=9, label=2,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='instance_id', full_name='apphosting.tools.devappserver2.Config.instance_id', index=11,
+      number=13, type=9, cpp_type=9, label=2,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='stderr_log_level', full_name='apphosting.tools.devappserver2.Config.stderr_log_level', index=12,
+      number=15, type=3, cpp_type=2, label=1,
+      has_default_value=True, default_value=1,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -121,7 +142,7 @@ _CONFIG = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=97,
-  serialized_end=448,
+  serialized_end=518,
 )
 
 
@@ -176,8 +197,8 @@ _CLOUDSQL = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=450,
-  serialized_end=566,
+  serialized_start=520,
+  serialized_end=636,
 )
 
 
@@ -211,8 +232,8 @@ _LIBRARY = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=568,
-  serialized_end=608,
+  serialized_start=638,
+  serialized_end=678,
 )
 
 
@@ -246,8 +267,8 @@ _ENVIRON = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=610,
-  serialized_end=647,
+  serialized_start=680,
+  serialized_end=717,
 )
 
 _CONFIG.fields_by_name['libraries'].message_type = _LIBRARY

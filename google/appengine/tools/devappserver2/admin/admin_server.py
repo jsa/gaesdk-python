@@ -25,6 +25,7 @@ import jinja2
 import webapp2
 
 from google.appengine.tools.devappserver2.admin import admin_request_handler
+from google.appengine.tools.devappserver2.admin import blobstore_viewer
 from google.appengine.tools.devappserver2.admin import console
 from google.appengine.tools.devappserver2.admin import cron_handler
 from google.appengine.tools.devappserver2.admin import datastore_indexes_viewer
@@ -32,6 +33,7 @@ from google.appengine.tools.devappserver2.admin import datastore_stats_handler
 from google.appengine.tools.devappserver2.admin import datastore_viewer
 from google.appengine.tools.devappserver2.admin import mail_request_handler
 from google.appengine.tools.devappserver2.admin import memcache_viewer
+from google.appengine.tools.devappserver2.admin import quit_handler
 from google.appengine.tools.devappserver2.admin import search_handler
 from google.appengine.tools.devappserver2.admin import servers_handler
 from google.appengine.tools.devappserver2.admin import static_file_handler
@@ -63,20 +65,23 @@ class AdminApplication(webapp2.WSGIApplication):
          ('/console', console.ConsoleRequestHandler),
          ('/console/restart/(.+)', console.ConsoleRequestHandler.restart),
          ('/memcache', memcache_viewer.MemcacheViewerRequestHandler),
+         ('/blobstore', blobstore_viewer.BlobstoreRequestHandler),
+         ('/blobstore/blob/(.+)', blobstore_viewer.BlobRequestHandler),
          ('/taskqueue', taskqueue_queues_handler.TaskQueueQueuesHandler),
          ('/taskqueue/queue/(.+)',
           taskqueue_tasks_handler.TaskQueueTasksHandler),
          ('/cron', cron_handler.CronHandler),
          ('/xmpp', xmpp_request_handler.XmppRequestHandler),
          ('/mail', mail_request_handler.MailRequestHandler),
+         ('/quit', quit_handler.QuitHandler),
          ('/search', search_handler.SearchIndexesListHandler),
          ('/search/document', search_handler.SearchDocumentHandler),
          ('/search/index', search_handler.SearchIndexHandler),
          ('/assets/(.+)', static_file_handler.StaticFileHandler),
-         ('/servers', servers_handler.ServersHandler),
+         ('/instances', servers_handler.ServersHandler),
          webapp2.Route('/',
                        webapp2.RedirectHandler,
-                       defaults={'_uri': '/servers'})],
+                       defaults={'_uri': '/instances'})],
         debug=True)
     self.dispatcher = dispatch
     self.configuration = configuration

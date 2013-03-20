@@ -26,7 +26,7 @@ import google
 import mox
 import webapp2
 
-from google.appengine.tools import appcfg
+from google.appengine.tools import sdk_update_checker
 from google.appengine.tools.devappserver2.admin import admin_request_handler
 
 
@@ -132,8 +132,8 @@ class GetSDKVersionTest(unittest.TestCase):
                         admin_request_handler._get_sdk_version())
 
   def test_version_file_missing(self):
-    self.mox.StubOutWithMock(appcfg, 'GetVersionObject')
-    appcfg.GetVersionObject().AndReturn(None)
+    self.mox.StubOutWithMock(sdk_update_checker, 'GetVersionObject')
+    sdk_update_checker.GetVersionObject().AndReturn(None)
 
     self.mox.ReplayAll()
     self.assertEqual(admin_request_handler._DEFAULT_SDK_VERSION,

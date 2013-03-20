@@ -630,12 +630,25 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
 
   def __Init(self):
 
+
+
+    self.__connection.execute('PRAGMA synchronous = OFF')
+
+
     self.__connection.executescript(_CORE_SCHEMA)
     self.__connection.commit()
 
 
     c = self.__connection.execute('SELECT app_id, name_space FROM Namespaces')
     self.__namespaces = set(c.fetchall())
+
+
+    for app_ns in self.__namespaces:
+      prefix = ('%s!%s' % app_ns).replace('"', '""')
+      self.__connection.execute(
+          'INSERT OR IGNORE INTO ScatteredIdCounters VALUES (?, ?)',
+          (prefix, 1))
+    self.__connection.commit()
 
 
 

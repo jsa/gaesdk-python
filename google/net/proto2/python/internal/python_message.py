@@ -44,12 +44,10 @@ try:
 except ImportError:
   from StringIO import StringIO
 import copy_reg
-import logging
 import struct
 import weakref
 
 
-from google.net.proto2.python.internal import api_implementation
 from google.net.proto2.python.internal import containers
 from google.net.proto2.python.internal import decoder
 from google.net.proto2.python.internal import encoder
@@ -264,17 +262,10 @@ def _DefaultValueConstructorForField(field):
       return MakeRepeatedMessageDefault
     else:
       type_checker = type_checkers.GetTypeChecker(field.cpp_type, field.type)
-      if (field.type == _FieldDescriptor.TYPE_STRING and
-          api_implementation.AlwaysReturnUnicode()):
-        def MakeRepeatedStringDefault(message):
-          return containers.RepeatedStringFieldContainer(
-              message._listener_for_children, type_checker, field)
-        return MakeRepeatedStringDefault
-      else:
-        def MakeRepeatedScalarDefault(message):
-          return containers.RepeatedScalarFieldContainer(
-              message._listener_for_children, type_checker)
-        return MakeRepeatedScalarDefault
+      def MakeRepeatedScalarDefault(message):
+        return containers.RepeatedScalarFieldContainer(
+            message._listener_for_children, type_checker)
+      return MakeRepeatedScalarDefault
 
   if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
 
@@ -449,8 +440,8 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
   getter.__module__ = None
   getter.__doc__ = 'Getter for %s.' % proto_field_name
   def setter(self, new_value):
-    type_checker.CheckValue(new_value)
-    self._fields[field] = new_value
+
+    self._fields[field] = type_checker.CheckValue(new_value)
 
 
     if not self._cached_byte_size_dirty:
@@ -461,22 +452,7 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
 
 
   doc = 'Magic attribute generated for "%s" proto field.' % proto_field_name
-
-  if (field.type == _FieldDescriptor.TYPE_STRING and
-      api_implementation.AlwaysReturnUnicode()):
-
-    def string_getter(self):
-      val = self._fields.get(field, default_value)
-      if isinstance(val, str):
-        logging.warning('string field %s value converted from byte string '
-                        '(see http://goto/pyprotounicode)',
-                        field.full_name)
-        return unicode(val, 'ascii')
-      return val
-
-    setattr(cls, property_name, property(string_getter, setter, doc=doc))
-  else:
-    setattr(cls, property_name, property(getter, setter, doc=doc))
+  setattr(cls, property_name, property(getter, setter, doc=doc))
 
 
 def _AddPropertiesForNonRepeatedCompositeField(field, cls):
@@ -1147,8 +1123,9 @@ class _ExtensionDict(object):
 
     type_checker = type_checkers.GetTypeChecker(
         extension_handle.cpp_type, extension_handle.type)
-    type_checker.CheckValue(value)
-    self._extended_message._fields[extension_handle] = value
+
+    self._extended_message._fields[extension_handle] = (
+      type_checker.CheckValue(value))
     self._extended_message._Modified()
 
   def _FindExtensionByName(self, name):

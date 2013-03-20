@@ -19,18 +19,15 @@
 import collections
 import logging
 
-import google
-from concurrent import futures
-
 from google.appengine.api import request_info
 from google.appengine.tools.devappserver2 import constants
 from google.appengine.tools.devappserver2 import instance
 from google.appengine.tools.devappserver2 import scheduled_executor
 from google.appengine.tools.devappserver2 import server
 from google.appengine.tools.devappserver2 import start_response_utils
+from google.appengine.tools.devappserver2 import thread_executor
 
-# TODO: Consolidate the various thread pools.
-_THREAD_POOL = futures.ThreadPoolExecutor(max_workers=100)
+_THREAD_POOL = thread_executor.ThreadExecutor()
 
 ResponseTuple = collections.namedtuple('ResponseTuple',
                                        ['status', 'headers', 'content'])
@@ -47,6 +44,7 @@ class Dispatcher(request_info.Dispatcher):
                configuration,
                host,
                port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config):
     """Initializer for Dispatcher.
@@ -57,6 +55,9 @@ class Dispatcher(request_info.Dispatcher):
       host: A string containing the host that any HTTP servers should bind to
           e.g. "localhost".
       port: An int specifying the first port where servers should listen.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
@@ -71,6 +72,7 @@ class Dispatcher(request_info.Dispatcher):
     self._server_configurations = {}
     self._host = host
     self._port = port
+    self._runtime_stderr_loglevel = runtime_stderr_loglevel
     self._server_name_to_server = {}
     self._executor = scheduled_executor.ScheduledExecutor(_THREAD_POOL)
 
@@ -108,27 +110,36 @@ class Dispatcher(request_info.Dispatcher):
           self._host,
           port,
           self._api_port,
+          self._runtime_stderr_loglevel,
 
           self._cloud_sql_config,
-          self._request_data)
+          self._port,
+          self._request_data,
+          self)
     elif server_configuration.basic_scaling:
       servr = server.BasicScalingServer(
           server_configuration,
           self._host,
           port,
           self._api_port,
+          self._runtime_stderr_loglevel,
 
           self._cloud_sql_config,
-          self._request_data)
+          self._port,
+          self._request_data,
+          self)
     else:
       servr = server.AutoScalingServer(
           server_configuration,
           self._host,
           port,
           self._api_port,
+          self._runtime_stderr_loglevel,
 
           self._cloud_sql_config,
-          self._request_data)
+          self._port,
+          self._request_data,
+          self)
     if port != 0:
       port += 1
     return servr, port
@@ -393,7 +404,8 @@ class Dispatcher(request_info.Dispatcher):
                         catch_and_log_exceptions=True)
 
   def add_request(self, method, relative_url, headers, body, source_ip,
-                  server_name=None, version=None, instance_id=None):
+                  server_name=None, version=None, instance_id=None,
+                  fake_login=False):
     """Process an HTTP request.
 
     Args:
@@ -410,6 +422,8 @@ class Dispatcher(request_info.Dispatcher):
       instance_id: An optional str containing the instance_id of the instance to
           service this request. If unset, the request will be dispatched to
           according to the load-balancing for the server and version.
+      fake_login: A bool indicating whether login checks should be bypassed,
+          i.e. "login: required" should be ignored for this request.
 
     Returns:
       A ResponseTuple containing the response information for the HTTP request.
@@ -419,7 +433,8 @@ class Dispatcher(request_info.Dispatcher):
     port = servr.get_instance_port(instance_id) if instance_id else (
         servr.balanced_port)
     environ = servr.build_request_environ(method, relative_url, headers, body,
-                                          source_ip, port)
+                                          source_ip, port,
+                                          fake_login=fake_login)
     start_response = start_response_utils.CapturingStartResponse()
     response = self._handle_request(environ,
                                     start_response,

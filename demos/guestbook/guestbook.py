@@ -18,22 +18,26 @@ import cgi
 import datetime
 import webapp2
 
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from google.appengine.api import users
 
-class Greeting(db.Model):
-  author = db.UserProperty()
-  content = db.StringProperty(multiline=True)
-  date = db.DateTimeProperty(auto_now_add=True)
+guestbook_key = ndb.Key('Guestbook', 'default_guestbook')
+
+class Greeting(ndb.Model):
+  author = ndb.UserProperty()
+  content = ndb.TextProperty()
+  date = ndb.DateTimeProperty(auto_now_add=True)
 
 
 class MainPage(webapp2.RequestHandler):
   def get(self):
     self.response.out.write('<html><body>')
 
-    greetings = db.GqlQuery("SELECT * "
-                            "FROM Greeting "
-                            "ORDER BY date DESC LIMIT 10")
+    greetings = ndb.gql('SELECT * '
+                        'FROM Greeting '
+                        'WHERE ANCESTOR IS :1 '
+                        'ORDER BY date DESC LIMIT 10',
+                        guestbook_key)
 
     for greeting in greetings:
       if greeting.author:
@@ -55,7 +59,7 @@ class MainPage(webapp2.RequestHandler):
 
 class Guestbook(webapp2.RequestHandler):
   def post(self):
-    greeting = Greeting()
+    greeting = Greeting(parent=guestbook_key)
 
     if users.get_current_user():
       greeting.author = users.get_current_user()

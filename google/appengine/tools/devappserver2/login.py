@@ -32,6 +32,7 @@ supply no parameters.
 import cgi
 import Cookie
 import hashlib
+import logging
 import urllib
 
 import google
@@ -92,6 +93,10 @@ def _get_user_info_from_dict(cookie_dict, cookie_name=_COOKIE_NAME):
   cookie_value = cookie_dict.get(cookie_name, '')
 
   email, admin, user_id = (cookie_value.split(':') + ['', '', ''])[:3]
+  if '@' not in email:
+    if email:
+      logging.warning('Ignoring invalid login cookie: %s', cookie_value)
+    return '', False, ''
   return email, (admin == 'True'), user_id
 
 
@@ -163,7 +168,7 @@ _LOGIN_TEMPLATE = """<html>
     <h3>%(login_message)s</h3>
     <p style="padding: 0; margin: 0">
       <label for="email" style="width: 3em">Email:</label>
-      <input name="email" type="text" value="%(email)s" id="email"/>
+      <input name="email" type="email" value="%(email)s" id="email"/>
     </p>
     <p style="margin: .5em 0 0 3em; font-size:12px">
       <input name="admin" type="checkbox" value="True"

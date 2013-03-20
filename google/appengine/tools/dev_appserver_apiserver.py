@@ -62,6 +62,13 @@ _API_REST_PATH_FORMAT = '{!name}/{!version}/%s'
 _PATH_VARIABLE_PATTERN = r'[a-zA-Z_][a-zA-Z_\d]*'
 _RESERVED_PATH_VARIABLE_PATTERN = r'!' + _PATH_VARIABLE_PATTERN
 _PATH_VALUE_PATTERN = r'[^:/?#\[\]{}]*'
+_CORS_HEADER_ORIGIN = 'Origin'.lower()
+_CORS_HEADER_REQUEST_METHOD = 'Access-Control-Request-Method'.lower()
+_CORS_HEADER_REQUEST_HEADERS = 'Access-Control-Request-Headers'.lower()
+_CORS_HEADER_ALLOW_ORIGIN = 'Access-Control-Allow-Origin'
+_CORS_HEADER_ALLOW_METHODS = 'Access-Control-Allow-Methods'
+_CORS_HEADER_ALLOW_HEADERS = 'Access-Control-Allow-Headers'
+_CORS_ALLOWED_METHODS = frozenset(('DELETE', 'GET', 'PATCH', 'POST', 'PUT'))
 
 
 class ApiRequest(object):
@@ -591,6 +598,7 @@ def CreateApiserverDispatcher(config_manager=None):
 
     def __init__(self, config_manager=None, *args, **kwargs):
       self._is_rpc = None
+      self.request = None
       self._request_stage = self.RequestState.INIT
       self._is_batch = False
       if config_manager is None:
@@ -879,7 +887,48 @@ def CreateApiserverDispatcher(config_manager=None):
                                  dev_appserver)
       else:
         self._EndRequest()
-        return SendCGINotFoundResponse(outfile)
+        cors_handler = ApiserverDispatcher.__CheckCorsHeaders(self.request)
+        return SendCGINotFoundResponse(outfile, cors_handler=cors_handler)
+
+    class __CheckCorsHeaders(object):
+      """Track information about CORS headers and our response to them."""
+
+      def __init__(self, request):
+        self.allow_cors_request = False
+        self.origin = None
+        self.cors_request_method = None
+        self.cors_request_headers = None
+
+        self.__CheckCorsRequest(request)
+
+      def __CheckCorsRequest(self, request):
+        """Check for a CORS request, and see if it gets a CORS response."""
+
+        for orig_header, orig_value in request.headers.iteritems():
+          if orig_header.lower() == _CORS_HEADER_ORIGIN:
+            self.origin = orig_value
+          if orig_header.lower() == _CORS_HEADER_REQUEST_METHOD:
+            self.cors_request_method = orig_value
+          if orig_header.lower() == _CORS_HEADER_REQUEST_HEADERS:
+            self.cors_request_headers = orig_value
+
+
+        if (self.origin and
+            ((self.cors_request_method is None) or
+             (self.cors_request_method.upper() in _CORS_ALLOWED_METHODS))):
+          self.allow_cors_request = True
+
+      def UpdateHeaders(self, headers):
+        """Add CORS headers to the response, if needed."""
+        if not self.allow_cors_request:
+          return
+
+
+        headers[_CORS_HEADER_ALLOW_ORIGIN] = self.origin
+        headers[_CORS_HEADER_ALLOW_METHODS] = ','.join(
+            tuple(_CORS_ALLOWED_METHODS))
+        if self.cors_request_headers is not None:
+          headers[_CORS_HEADER_ALLOW_HEADERS] = self.cors_request_headers
 
     def HandleSpiResponse(self, dispatched_output, outfile):
       """Handle SPI response, transforming output as needed.
@@ -909,7 +958,10 @@ def CreateApiserverDispatcher(config_manager=None):
       if self.IsRpc():
         body = self.TransformJsonrpcResponse(body)
       self._EndRequest()
-      return SendCGIResponse(response.status_code, headers, body, outfile)
+
+      cors_handler = ApiserverDispatcher.__CheckCorsHeaders(self.request)
+      return SendCGIResponse(response.status_code, headers, body, outfile,
+                             cors_handler=cors_handler)
 
     def FailRequest(self, message, outfile):
       """Write an immediate failure response to outfile, no redirect.
@@ -922,7 +974,11 @@ def CreateApiserverDispatcher(config_manager=None):
         None
       """
       self._EndRequest()
-      return SendCGIErrorResponse(message, outfile)
+      if self.request:
+        cors_handler = ApiserverDispatcher.__CheckCorsHeaders(self.request)
+      else:
+        cors_handler = None
+      return SendCGIErrorResponse(message, outfile, cors_handler=cors_handler)
 
     def LookupRestMethod(self):
       """Looks up and returns rest method for the currently-pending request.
@@ -1104,20 +1160,23 @@ def WriteHeaders(headers, outfile, content_len=None):
     outfile.write('Content-Length: %s\r\n' % content_len)
 
 
-def SendCGINotFoundResponse(outfile):
-  SendCGIResponse('404', {'Content-Type': 'text/plain'}, 'Not Found', outfile)
+def SendCGINotFoundResponse(outfile, cors_handler=None):
+  SendCGIResponse('404', {'Content-Type': 'text/plain'}, 'Not Found', outfile,
+                  cors_handler=cors_handler)
 
 
-def SendCGIErrorResponse(message, outfile):
+def SendCGIErrorResponse(message, outfile, cors_handler=None):
   body = json.dumps({'error': {'message': message}})
-  SendCGIResponse('500', {'Content-Type': 'application/json'}, body, outfile)
+  SendCGIResponse('500', {'Content-Type': 'application/json'}, body, outfile,
+                  cors_handler=cors_handler)
 
 
-def SendCGIRedirectResponse(redirect_location, outfile):
-  SendCGIResponse('302', {'Location': redirect_location}, None, outfile)
+def SendCGIRedirectResponse(redirect_location, outfile, cors_handler=None):
+  SendCGIResponse('302', {'Location': redirect_location}, None, outfile,
+                  cors_handler=cors_handler)
 
 
-def SendCGIResponse(status, headers, content, outfile):
+def SendCGIResponse(status, headers, content, outfile, cors_handler=None):
   """Dump reformatted response to CGI outfile.
 
   Args:
@@ -1125,10 +1184,15 @@ def SendCGIResponse(status, headers, content, outfile):
     headers: Headers dictionary {header_name: header_value, ...}
     content: Body content to write
     outfile: File-like object where response will be written.
+    cors_handler: A handler to process CORS request headers and update the
+      headers in the response.  Or this can be None, to bypass CORS checks.
 
   Returns:
     None
   """
+  if cors_handler:
+    cors_handler.UpdateHeaders(headers)
+
   outfile.write('Status: %s\r\n' % status)
   WriteHeaders(headers, outfile, len(content) if content else None)
   outfile.write('\r\n')

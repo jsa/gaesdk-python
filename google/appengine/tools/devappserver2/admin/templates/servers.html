@@ -1,9 +1,13 @@
 {% extends "skeleton.html" %}
-{% block page_title %}Servers{% endblock %}
+{% block page_title %}Instances{% endblock %}
+
+{% block page_head %}
+  <style type="text/css">{% include "servers.css" %}</style>
+{% endblock %}
 
 {% block body %}
 <div id="servers">
-<h3>Servers</h3>
+<h3>Instances</h3>
   <table id="ae-servers" class="ae-table">
     <thead>
       <tr>
@@ -22,8 +26,8 @@
         </th>
       </tr>
       {% for instance in server.instances|sort(attribute='instance_id') %}
-      <tr>
-        <td>
+      <tr class="instance">
+        <td class="instance-id">
           {% if server.supports_individually_addressable_instances %}
           <a href="//{{ server.get_instance_address(instance.instance_id) }}"
             target="_blank">

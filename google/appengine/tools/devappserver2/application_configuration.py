@@ -19,6 +19,7 @@
 # TODO: Support more than just app.yaml.
 
 
+import errno
 import logging
 import os
 import os.path
@@ -40,6 +41,7 @@ HANDLERS_CHANGED = 3
 INBOUND_SERVICES_CHANGED = 4
 ENV_VARIABLES_CHANGED = 5
 ERROR_HANDLERS_CHANGED = 6
+NOBUILD_FILES_CHANGED = 7
 
 
 class ServerConfiguration(object):
@@ -75,7 +77,9 @@ class ServerConfiguration(object):
     self._application_root = os.path.realpath(os.path.dirname(yaml_path))
     self._last_failure_message = None
 
-    self._app_info_external = self._parse_configuration(self._yaml_path)
+    self._app_info_external, files_to_check = self._parse_configuration(
+        self._yaml_path)
+    self._mtimes = self._get_mtimes([self._yaml_path] + files_to_check)
     self._application = 'dev~%s' % self._app_info_external.application
     self._api_version = self._app_info_external.api_version
     self._server_name = self._app_info_external.server
@@ -157,6 +161,10 @@ class ServerConfiguration(object):
     return self._app_info_external.skip_files
 
   @property
+  def nobuild_files(self):
+    return self._app_info_external.nobuild_files
+
+  @property
   def error_handlers(self):
     return self._app_info_external.error_handlers
 
@@ -183,8 +191,13 @@ class ServerConfiguration(object):
       A set containing the changes that occured. See the *_CHANGED module
       constants.
     """
+    new_mtimes = self._get_mtimes(self._mtimes.keys())
+    if new_mtimes == self._mtimes:
+      return set()
+
     try:
-      app_info_external = self._parse_configuration(self._yaml_path)
+      app_info_external, files_to_check = self._parse_configuration(
+          self._yaml_path)
     except Exception, e:
       failure_message = str(e)
       if failure_message != self._last_failure_message:
@@ -192,6 +205,8 @@ class ServerConfiguration(object):
       self._last_failure_message = failure_message
       return set()
     self._last_failure_message = None
+
+    self._mtimes = self._get_mtimes([self._yaml_path] + files_to_check)
 
     for app_info_attribute, self_attribute in self._IMMUTABLE_PROPERTIES:
       app_info_value = getattr(app_info_external, app_info_attribute)
@@ -219,6 +234,8 @@ class ServerConfiguration(object):
       changes.add(NORMALIZED_LIBRARIES_CHANGED)
     if app_info_external.skip_files != self.skip_files:
       changes.add(SKIP_FILES_CHANGED)
+    if app_info_external.nobuild_files != self.nobuild_files:
+      changes.add(NOBUILD_FILES_CHANGED)
     if app_info_external.handlers != self.handlers:
       changes.add(HANDLERS_CHANGED)
     if app_info_external.inbound_services != self.inbound_services:
@@ -235,11 +252,23 @@ class ServerConfiguration(object):
     return changes
 
   @staticmethod
+  def _get_mtimes(filenames):
+    filename_to_mtime = {}
+    for filename in filenames:
+      try:
+        filename_to_mtime[filename] = os.path.getmtime(filename)
+      except OSError as e:
+        # Ignore deleted includes.
+        if e.errno != errno.ENOENT:
+          raise
+    return filename_to_mtime
+
+  @staticmethod
   def _parse_configuration(configuration_path):
     # TODO: It probably makes sense to catch the exception raised
     # by Parse() and re-raise it using a module-specific exception.
     with open(configuration_path) as f:
-      return appinfo_includes.Parse(f)
+      return appinfo_includes.ParseAndReturnIncludePaths(f)
 
 
 class BackendsConfiguration(object):
@@ -260,7 +289,7 @@ class BackendsConfiguration(object):
         backend_yaml_path)
 
     self._backends_name_to_backend_entry = {}
-    for backend in backend_info_external.backends:
+    for backend in backend_info_external.backends or []:
       self._backends_name_to_backend_entry[backend.name] = backend
     self._changes = dict(
         (backend_name, set())
@@ -340,6 +369,10 @@ class BackendConfiguration(object):
     return self._server_configuration.application
 
   @property
+  def api_version(self):
+    return self._server_configuration.api_version
+
+  @property
   def server_name(self):
     return self._backend_entry.name
 
@@ -381,6 +414,10 @@ class BackendConfiguration(object):
   @property
   def skip_files(self):
     return self._server_configuration.skip_files
+
+  @property
+  def nobuild_files(self):
+    return self._server_configuration.nobuild_files
 
   @property
   def error_handlers(self):

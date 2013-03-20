@@ -273,13 +273,12 @@ class ConfirmBackupImportHandler(webapp.RequestHandler):
         elif prefix and not prefix.endswith('/'):
           prefix += '/'
         for backup_info_file in list_bucket_files(bucket_name, prefix):
-          if backup_info_file.endswith('.backup_info'):
-            backup_info_file = '/gs/%s/%s' % (bucket_name, backup_info_file)
-
-            if backup_info_specified and backup_info_file == gs_handle:
-              selected_backup_info_file = backup_info_file
-            else:
-              other_backup_info_files.append(backup_info_file)
+          backup_info_path = '/gs/%s/%s' % (bucket_name, backup_info_file)
+          if backup_info_specified and backup_info_path == gs_handle:
+            selected_backup_info_file = backup_info_path
+          elif (backup_info_file.endswith('.backup_info')
+                and backup_info_file.count('.') == 1):
+            other_backup_info_files.append(backup_info_path)
       except Exception, ex:
         error = 'Failed to read bucket: %s' % ex
     template_params = {

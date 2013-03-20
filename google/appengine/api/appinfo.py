@@ -314,7 +314,6 @@ _SUPPORTED_LIBRARIES = [
         'http://www.djangoproject.com/',
         'A full-featured web application framework for Python.',
         ['1.2', '1.3', '1.4'],
-        experimental_versions=['1.4']
         ),
     _VersionedLibrary(
         'jinja2',
@@ -384,7 +383,6 @@ _SUPPORTED_LIBRARIES = [
         'A library that provides wrappers around the WSGI request environment.',
         ['1.1.1', '1.2.3'],
         default_version='1.1.1',
-        experimental_versions=['1.2.3']
         ),
     _VersionedLibrary(
         'yaml',
@@ -1029,16 +1027,6 @@ class BuiltinHandler(validation.Validated):
 
 
 
-
-
-
-
-
-
-
-
-
-
   class DynamicAttributes(dict):
     """Provide a dictionary object that will always claim to have a key.
 
@@ -1064,7 +1052,6 @@ class BuiltinHandler(validation.Validated):
   def __init__(self, **attributes):
     """Ensure that all BuiltinHandler objects at least have attribute 'default'.
     """
-    self.ATTRIBUTES.clear()
     self.builtin_name = ''
     super(BuiltinHandler, self).__init__(**attributes)
 
@@ -1089,6 +1076,13 @@ class BuiltinHandler(validation.Validated):
       raise appinfo_errors.MultipleBuiltinsSpecified(
           'More than one builtin defined in list element.  Each new builtin '
           'should be prefixed by "-".')
+
+  def __getattr__(self, key):
+    if key.startswith('_'):
+
+
+      raise AttributeError
+    return None
 
   def ToDict(self):
     """Convert BuiltinHander object to a dictionary.
@@ -1255,16 +1249,55 @@ class AppInclude(validation.Validated):
   Used for both builtins and includes directives.
   """
 
+
+
+
   ATTRIBUTES = {
       BUILTINS: validation.Optional(validation.Repeated(BuiltinHandler)),
       INCLUDES: validation.Optional(validation.Type(list)),
       HANDLERS: validation.Optional(validation.Repeated(URLMap)),
       ADMIN_CONSOLE: validation.Optional(AdminConsole),
+      MANUAL_SCALING: validation.Optional(ManualScaling),
 
 
 
 
   }
+
+  @classmethod
+  def MergeManualScaling(cls, appinclude_one, appinclude_two):
+    """Takes the greater of <manual_scaling.instances> from the args.
+
+    Note that appinclude_one is mutated to be the merged result in this process.
+
+    Also, this function needs to be updated if ManualScaling gets additional
+    fields.
+
+    Args:
+      appinclude_one: object one to merge. Must have a "manual_scaling" field
+        which contains a ManualScaling().
+      appinclude_two: object two to merge. Must have a "manual_scaling" field
+        which contains a ManualScaling().
+
+    Returns:
+      Object that is the result of merging
+      appinclude_one.manual_scaling.instances and
+      appinclude_two.manual_scaling.instances. I.e., <appinclude_one>
+      after the mutations are complete.
+    """
+
+    def _Instances(appinclude):
+      if appinclude.manual_scaling:
+        if appinclude.manual_scaling.instances:
+          return int(appinclude.manual_scaling.instances)
+      return None
+
+
+
+    instances = max(_Instances(appinclude_one), _Instances(appinclude_two))
+    if instances is not None:
+      appinclude_one.manual_scaling = ManualScaling(instances=str(instances))
+    return appinclude_one
 
   @classmethod
   def MergeAppYamlAppInclude(cls, appyaml, appinclude):
@@ -1295,6 +1328,9 @@ class AppInclude(validation.Validated):
       appyaml.handlers.extend(tail)
 
 
+    AppInclude.MergeManualScaling(appyaml, appinclude)
+
+
     appyaml.admin_console = AdminConsole.Merge(appyaml.admin_console,
                                                appinclude.admin_console)
 
@@ -1307,13 +1343,16 @@ class AppInclude(validation.Validated):
     any static objects are copied into an aggregate AppInclude object that
     preserves the directives of both provided AppInclude objects.
 
+    Note that appinclude_one is mutated to be the merged result in this process.
+
     Args:
       appinclude_one: object one to merge
       appinclude_two: object two to merge
 
     Returns:
       AppInclude object that is the result of merging the static directives of
-      appinclude_one and appinclude_two.
+      appinclude_one and appinclude_two. I.e., <appinclude_one> after the
+      mutations are complete.
     """
 
 
@@ -1322,11 +1361,17 @@ class AppInclude(validation.Validated):
       return appinclude_one or appinclude_two
 
 
+
     if appinclude_one.handlers:
       if appinclude_two.handlers:
         appinclude_one.handlers.extend(appinclude_two.handlers)
     else:
       appinclude_one.handlers = appinclude_two.handlers
+
+
+    appinclude_one = AppInclude.MergeManualScaling(
+        appinclude_one,
+        appinclude_two)
 
 
     appinclude_one.admin_console = (

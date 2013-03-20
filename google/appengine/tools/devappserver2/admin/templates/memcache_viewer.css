@@ -23,7 +23,6 @@
 }
 
 #value_display_value {
-  height: 20em;
   margin: 0;
   padding: 1ex;
   background: #f9f9f9;
@@ -51,4 +50,9 @@
 
 #memcache_edit div#value_key_text {
   padding-top: 3px;
+}
+
+#memcache-editor label {
+  font-weight: bold;
+  margin-right: 40px;
 }

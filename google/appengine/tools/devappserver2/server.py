@@ -32,9 +32,6 @@ import time
 import urlparse
 import wsgiref.headers
 
-import google
-from concurrent import futures
-
 from google.appengine.api import api_base_pb
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import appinfo
@@ -45,8 +42,10 @@ from google.appengine.tools.devappserver2 import blob_image
 from google.appengine.tools.devappserver2 import blob_upload
 from google.appengine.tools.devappserver2 import channel
 from google.appengine.tools.devappserver2 import constants
+from google.appengine.tools.devappserver2 import endpoints
 from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import file_watcher
+from google.appengine.tools.devappserver2 import go_runtime
 from google.appengine.tools.devappserver2 import http_runtime_constants
 from google.appengine.tools.devappserver2 import instance
 from google.appengine.tools.devappserver2 import login
@@ -56,7 +55,9 @@ from google.appengine.tools.devappserver2 import request_rewriter
 from google.appengine.tools.devappserver2 import runtime_config_pb2
 from google.appengine.tools.devappserver2 import start_response_utils
 from google.appengine.tools.devappserver2 import static_files_handler
+from google.appengine.tools.devappserver2 import thread_executor
 from google.appengine.tools.devappserver2 import url_handler
+from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_handler
 from google.appengine.tools.devappserver2 import wsgi_server
 
@@ -65,10 +66,11 @@ _LOWER_HEX_DIGITS = string.hexdigits.lower()
 _UPPER_HEX_DIGITS = string.hexdigits.upper()
 _REQUEST_ID_HASH_LENGTH = 8
 
-_THREAD_POOL = futures.ThreadPoolExecutor(max_workers=100)
+_THREAD_POOL = thread_executor.ThreadExecutor()
 _RESTART_INSTANCES_CONFIG_CHANGES = frozenset(
     [application_configuration.NORMALIZED_LIBRARIES_CHANGED,
      application_configuration.SKIP_FILES_CHANGED,
+     application_configuration.NOBUILD_FILES_CHANGED,
      # The server must be restarted when the handlers change because files
      # appearing in static content handlers make them unavailable to the
      # runtime.
@@ -146,7 +148,12 @@ class Server(object):
       A instance.InstanceFactory subclass that can be used to create instances
       with the provided configuration.
     """
-    if server_configuration.runtime in ('python', 'python27'):
+    if server_configuration.runtime == 'go':
+      return go_runtime.GoRuntimeInstanceFactory(
+          request_data=self._request_data,
+          runtime_config_getter=self._get_runtime_config,
+          server_configuration=server_configuration)
+    elif server_configuration.runtime in ('python', 'python27'):
       return python_runtime.PythonRuntimeInstanceFactory(
           request_data=self._request_data,
           runtime_config_getter=self._get_runtime_config,
@@ -179,6 +186,11 @@ class Server(object):
     url_pattern = '/%s' % channel.CHANNEL_URL_PATTERN
     handlers.append(
         wsgi_handler.WSGIHandler(channel.application, url_pattern))
+
+    url_pattern = '/%s' % endpoints.API_SERVING_PATTERN
+    handlers.append(
+        wsgi_handler.WSGIHandler(
+            endpoints.EndpointsDispatcher(self._dispatcher), url_pattern))
 
     found_start_handler = False
     found_warmup_handler = False
@@ -216,6 +228,13 @@ class Server(object):
     return handlers
 
   def _get_runtime_config(self):
+    """Returns the configuration for the runtime.
+
+    Returns:
+      A runtime_config_pb2.Config instance representing the configuration to be
+      passed to an instance. NOTE: This does *not* include the instance_id
+      field, which must be populated elsewhere.
+    """
     runtime_config = runtime_config_pb2.Config()
     runtime_config.app_id = self._server_configuration.application
     runtime_config.version_id = self._server_configuration.version_id
@@ -226,6 +245,8 @@ class Server(object):
     runtime_config.static_files = _static_files_regex_from_handlers(
         self._server_configuration.handlers)
     runtime_config.api_port = self._api_port
+    runtime_config.stderr_log_level = self._runtime_stderr_loglevel
+    runtime_config.datacenter = 'us1'
 
     for library in self._server_configuration.normalized_libraries:
       runtime_config.libraries.add(name=library.name, version=library.version)
@@ -239,20 +260,29 @@ class Server(object):
 
     return runtime_config
 
-  def _restart_instances(self, restart_clean):
-    """Restart every instance or every instance that has serviced a request.
+  def _maybe_restart_instances(self, config_changed, file_changed):
+    """Restarts instances. May avoid some restarts depending on policy.
+
+    One of config_changed or file_changed must be True.
 
     Args:
-      restart_clean: If False then only instances that have handled at least
-          one request will be restarted.
+      config_changed: True if the configuration for the application has changed.
+      file_changed: True if any file relevant to the application has changed.
     """
-    # TODO: The instance restart strategy should be customizable
-    # per runtime. Compiled languages, for example, might need to
-    # recompile.
+    if not config_changed and not file_changed:
+      return
+
     logging.debug('Restarting instances.')
+    policy = self._instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY
+    assert policy is not None, 'FILE_CHANGE_INSTANCE_RESTART_POLICY not set'
+
     with self._condition:
-      instances_to_quit = set(inst for inst in self._instances
-                              if restart_clean or inst.total_requests)
+      instances_to_quit = set()
+      for inst in self._instances:
+        if (config_changed or
+            (policy == instance.ALWAYS) or
+            (policy == instance.AFTER_FIRST_REQUEST and inst.total_requests)):
+          instances_to_quit.add(inst)
       self._instances -= instances_to_quit
 
     for inst in instances_to_quit:
@@ -270,19 +300,27 @@ class Server(object):
       with self._handler_lock:
         self._handlers = handlers
 
+    if has_file_changes:
+      self._instance_factory.files_changed()
+
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
-      self._restart_instances(restart_clean=True)
-    elif has_file_changes:
-      self._restart_instances(restart_clean=False)
+      self._instance_factory.configuration_changed(config_changes)
+
+    self._maybe_restart_instances(
+        config_changed=bool(config_changes & _RESTART_INSTANCES_CONFIG_CHANGES),
+        file_changed=has_file_changes)
 
   def __init__(self,
                server_configuration,
                host,
                balanced_port,
                api_port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config,
-               request_data):
+               default_version_port,
+               request_data,
+               dispatcher):
     """Initializer for Server.
 
     Args:
@@ -293,28 +331,37 @@ class Server(object):
       balanced_port: An int specifying the port where the balanced server for
           the pool should listen.
       api_port: The port that APIServer listens for RPC requests on.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
+      default_version_port: An int containing the port of the default version.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
+      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
     """
     self._server_configuration = server_configuration
     self._name = server_configuration.server_name
     self._host = host
     self._api_port = api_port
+    self._runtime_stderr_loglevel = runtime_stderr_loglevel
     self._balanced_port = balanced_port
 
     self._cloud_sql_config = cloud_sql_config
     self._request_data = request_data
-    self._watcher = file_watcher.get_file_watcher(
-        self._server_configuration.application_root)
-
     self._instance_factory = self._create_instance_factory(
         self._server_configuration)
+    self._dispatcher = dispatcher
+    self._watcher = file_watcher.get_file_watcher(
+        [self._server_configuration.application_root] +
+        self._instance_factory.get_restart_directories())
+
     self._handler_lock = threading.Lock()
     self._handlers = self._create_url_handlers()
+    self._default_version_port = default_version_port
 
     self._balanced_server = wsgi_server.WsgiServer(
         (self._host, self._balanced_port), self)
@@ -423,6 +470,10 @@ class Server(object):
         environ['SERVER_PORT'] = str(self.balanced_port)
     else:
       environ['SERVER_PORT'] = str(self.balanced_port)
+    if 'HTTP_HOST' in environ:
+      environ['SERVER_NAME'] = environ['HTTP_HOST'].split(':', 1)[0]
+    environ['DEFAULT_VERSION_HOSTNAME'] = '%s:%s' % (
+        environ['SERVER_NAME'], self._default_version_port)
     with self._request_data.request(
         environ,
         self._server_configuration) as request_id:
@@ -619,9 +670,12 @@ class Server(object):
                                       self._host,
                                       self._balanced_port,
                                       self._api_port,
+                                      self._runtime_stderr_loglevel,
 
                                       self._cloud_sql_config,
-                                      self._request_data)
+                                      self._default_version_port,
+                                      self._request_data,
+                                      self._dispatcher)
     else:
       raise NotImplementedError('runtime does not support interactive commands')
 
@@ -653,8 +707,7 @@ class Server(object):
                'wsgi.input': cStringIO.StringIO(body)}
     if fake_login:
       environ[constants.FAKE_LOGGED_IN_HEADER] = '1'
-    for key, value in headers:
-      environ['HTTP_%s' % key.upper().replace('-', '_')] = value
+    util.put_headers_in_environ(headers, environ)
     return environ
 
 
@@ -713,9 +766,12 @@ class AutoScalingServer(Server):
                host,
                balanced_port,
                api_port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config,
-               request_data):
+               default_version_port,
+               request_data,
+               dispatcher):
     """Initializer for AutoScalingServer.
 
     Args:
@@ -726,20 +782,28 @@ class AutoScalingServer(Server):
       balanced_port: An int specifying the port where the balanced server for
           the pool should listen.
       api_port: The port that APIServer listens for RPC requests on.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
+      default_version_port: An int containing the port of the default version.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
+      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
     """
     super(AutoScalingServer, self).__init__(server_configuration,
                                             host,
                                             balanced_port,
                                             api_port,
+                                            runtime_stderr_loglevel,
 
                                             cloud_sql_config,
-                                            request_data)
+                                            default_version_port,
+                                            request_data,
+                                            dispatcher)
 
     self._process_automatic_scaling(
         self._server_configuration.automatic_scaling)
@@ -907,7 +971,8 @@ class AutoScalingServer(Server):
     with self._condition:
       self._instances.add(inst)
 
-    inst.start()
+    if not inst.start():
+      return inst
     if perform_warmup:
       self._async_warmup(inst)
     else:
@@ -1074,9 +1139,12 @@ class ManualScalingServer(Server):
                host,
                balanced_port,
                api_port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config,
-               request_data):
+               default_version_port,
+               request_data,
+               dispatcher):
     """Initializer for ManualScalingServer.
 
     Args:
@@ -1087,20 +1155,28 @@ class ManualScalingServer(Server):
       balanced_port: An int specifying the port where the balanced server for
           the pool should listen.
       api_port: The port that APIServer listens for RPC requests on.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
+      default_version_port: An int containing the port of the default version.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
+      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
     """
     super(ManualScalingServer, self).__init__(server_configuration,
                                               host,
                                               balanced_port,
                                               api_port,
+                                              runtime_stderr_loglevel,
 
                                               cloud_sql_config,
-                                              request_data)
+                                              default_version_port,
+                                              request_data,
+                                              dispatcher)
 
     self._process_manual_scaling(server_configuration.manual_scaling)
 
@@ -1149,7 +1225,7 @@ class ManualScalingServer(Server):
     except ValueError:
       raise request_info.InvalidInstanceIdError()
     with self._condition:
-      if len(self._instances) > instance_id:
+      if 0 <= instance_id < len(self._instances):
         wsgi_servr = self._wsgi_servers[instance_id]
       else:
         raise request_info.InvalidInstanceIdError()
@@ -1327,6 +1403,13 @@ class ManualScalingServer(Server):
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
+
+    if has_file_changes:
+      self._instance_factory.files_changed()
+
+    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
+      self._instance_factory.configuration_changed(config_changes)
+
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or has_file_changes:
       with self._instances_change_lock:
         if not self._suspended:
@@ -1487,9 +1570,12 @@ class BasicScalingServer(Server):
                host,
                balanced_port,
                api_port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config,
-               request_data):
+               default_version_port,
+               request_data,
+               dispatcher):
     """Initializer for BasicScalingServer.
 
     Args:
@@ -1500,20 +1586,28 @@ class BasicScalingServer(Server):
       balanced_port: An int specifying the port where the balanced server for
           the pool should listen.
       api_port: The port that APIServer listens for RPC requests on.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
+      default_version_port: An int containing the port of the default version.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
+      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
     """
     super(BasicScalingServer, self).__init__(server_configuration,
                                              host,
                                              balanced_port,
                                              api_port,
+                                             runtime_stderr_loglevel,
 
                                              cloud_sql_config,
-                                             request_data)
+                                             default_version_port,
+                                             request_data,
+                                             dispatcher)
 
     self._process_basic_scaling(server_configuration.basic_scaling)
 
@@ -1566,7 +1660,7 @@ class BasicScalingServer(Server):
     except ValueError:
       raise request_info.InvalidInstanceIdError()
     with self._condition:
-      if len(self._wsgi_servers) > instance_id:
+      if 0 <= instance_id < len(self._instances):
         wsgi_servr = self._wsgi_servers[instance_id]
       else:
         raise request_info.InvalidInstanceIdError()
@@ -1758,6 +1852,13 @@ class BasicScalingServer(Server):
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
+
+    if has_file_changes:
+      self._instance_factory.files_changed()
+
+    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
+      self._instance_factory.configuration_changed(config_changes)
+
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or has_file_changes:
       self.restart()
 
@@ -1839,9 +1940,12 @@ class InteractiveCommandServer(Server):
                host,
                balanced_port,
                api_port,
+               runtime_stderr_loglevel,
 
                cloud_sql_config,
-               request_data):
+               default_version_port,
+               request_data,
+               dispatcher):
     """Initializer for InteractiveCommandServer.
 
     Args:
@@ -1854,20 +1958,29 @@ class InteractiveCommandServer(Server):
           constructing HTTP headers sent to the Instance executing the
           interactive command e.g. "localhost".
       api_port: The port that APIServer listens for RPC requests on.
+      runtime_stderr_loglevel: An int reprenting the minimum logging level at
+          which runtime log messages should be written to stderr. See
+          devappserver2.py for possible values.
 
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
+      default_version_port: An int containing the port of the default version.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
+      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
     """
-    super(InteractiveCommandServer, self).__init__(server_configuration,
-                                                   host,
-                                                   balanced_port,
-                                                   api_port,
+    super(InteractiveCommandServer, self).__init__(
+        server_configuration,
+        host,
+        balanced_port,
+        api_port,
+        runtime_stderr_loglevel,
 
-                                                   cloud_sql_config,
-                                                   request_data)
+        cloud_sql_config,
+        default_version_port,
+        request_data,
+        dispatcher)
     # Use a single instance so that state is consistent across requests.
     self._inst_lock = threading.Lock()
     self._inst = None

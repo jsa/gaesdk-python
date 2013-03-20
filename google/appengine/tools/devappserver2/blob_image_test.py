@@ -26,7 +26,10 @@ import mox
 try:
   from PIL import Image
 except ImportError:
-  raise unittest.SkipTest('blob_image_test could not import PIL')
+  try:
+    import Image
+  except ImportError:
+    raise unittest.SkipTest('blob_image_test could not import PIL')
 
 from google.appengine.api import datastore
 from google.appengine.api import datastore_errors

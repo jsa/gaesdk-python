@@ -15,25 +15,24 @@
 {% endif %}
 
 {% if show_stats %}
-<div id="stats">
-  <ul>
-    <li>Hit ratio: {{ hitratio }}% (hits: {{ stats.hits }} misses: {{ stats.misses }})</li>
-    <li>Size of cache: items: {{ stats["items"] }} size: {{ stats.bytes|filesizeformat }}
+<div id="stats" class="ae-settings-block-segment">
+  <div>
+    Hit ratio: {{ hitratio }}% (hits: {{ stats.hits }} misses: {{ stats.misses }})
+  </div>
+  <div>
+    Size of cache: items: {{ stats["items"] }} size: {{ stats.bytes|filesizeformat }}
           <form id="flush_form" action="{{ request.path }}" method="post">
             <input type="hidden" name="xsrf_token" value="{{ xsrf_token }}"/>
             <input type="submit" class="ae-button" name="action:flush" value="Flush Cache" onclick="return confirm('Are you sure you want to flush all keys from the cache?');"/>
           </form>
-    </li>
-  </ul>
+  </div>
 </div>
 
-<div id="memcache_search">
+<div id="memcache-editor" class="ae-settings-block">
   <form action="{{ request.path }}" method="post">
     <input type="hidden" name="xsrf_token" value="{{ xsrf_token }}"/>
-    <span class="field">
-      <span class="name">Key:</span>
-      <span class="value"><input id="key_input" name="key" type="text" size="40" value="{{ key }}"/></span>
-    </span>
+    <label for="key_input">Key</label>
+    <input id="key_input" name="key" type="text" size="40" value="{{ key }}"/>
     <span class="buttons">
       <input type="submit" class="ae-button" name="action:display" value="Display"/>
       <input type="submit" class="ae-button" name="action:edit" value="Edit/Create"/>
@@ -88,14 +87,14 @@
       <tr>
         <th id="value_key"><div id="value_key_text">Value</div></th>
         <td>
-          <textarea id="value_input" name="value" cols="80" rows="20"{% if not writable %} readonly{% endif %}>{{ value|default(boolean=true) }}</textarea>
+          <textarea id="value_input" name="value" cols="80" rows="10"{% if not writable %} readonly{% endif %}>{{ value|default(boolean=true) }}</textarea>
         </td>
       </tr>
       <tr>
         <th>&nbsp;</th>
         <td>
           {% if writable %}
-          <input type="submit" class="ae-button" name="action:save" value="Save"/>
+          <input type="submit" class="ae-button ae-button-submit" name="action:save" value="Save"/>
           {% endif %}
           <input type="submit" class="ae-button" name="action:cancel" value="Cancel"/>
         </td>

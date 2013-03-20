@@ -123,7 +123,7 @@ GOOGLE_SQL_EXTRA_PATH_SCRIPTS = 'google_sql'
 
 
 SCRIPT_EXCEPTIONS = {
-  "dev_appserver.py" : "dev_appserver_main.py"
+  "old_dev_appserver.py" : "dev_appserver_main.py"
 }
 
 SCRIPT_DIR_EXCEPTIONS = {

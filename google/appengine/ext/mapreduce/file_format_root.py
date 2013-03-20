@@ -347,7 +347,7 @@ class _RootFilesStream(_FilesStream):
       first_format._range = file_input.range
     self.__previous_input_index = self.__input_index
     self.__input_index += 1
-    return files.open(file_input.filename, 'r')
+    return files.open(file_input.filename, 'r', buffering=-1)
 
   def to_json(self):
     result = super(_RootFilesStream, self).to_json()

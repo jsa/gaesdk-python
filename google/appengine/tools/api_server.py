@@ -480,7 +480,7 @@ def ParseCommandArguments(args):
 
   parser.add_argument('--datastore_path', default=None)
 
-  parser.add_argument('--auto_id_policy', default='sequential',
+  parser.add_argument('--auto_id_policy', default='scattered',
       type=lambda s: s.lower(),
       choices=(datastore_stub_util.SEQUENTIAL,
                datastore_stub_util.SCATTERED))

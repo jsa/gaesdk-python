@@ -143,7 +143,8 @@ class XmppRequestHandler(admin_request_handler.AdminRequestHandler):
         headers=[('Content-Type',
                   'multipart/form-data; boundary="%s"' % boundary)],
         body=content,
-        source_ip=REMOTE_IP)
+        source_ip=REMOTE_IP,
+        fake_login=True)
 
   def _send_presence_available(self, to, from_):
     # TODO: Support "show" values i.e. "away", "chat" "dnd" and "xa".

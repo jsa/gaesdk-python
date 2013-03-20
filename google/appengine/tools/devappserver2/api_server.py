@@ -21,7 +21,9 @@ The Remote API protocol is used for communication.
 
 
 import logging
+import os
 import pickle
+import shutil
 import socket
 import sys
 import tempfile
@@ -35,6 +37,7 @@ import google
 import yaml
 
 # Stubs
+from google.appengine.api import datastore_file_stub
 from google.appengine.api import mail_stub
 from google.appengine.api import urlfetch_stub
 from google.appengine.api import user_service_stub
@@ -57,6 +60,7 @@ from google.appengine.datastore import datastore_sqlite_stub
 from google.appengine.datastore import datastore_stub_util
 
 from google.appengine.api import apiproxy_stub_map
+from google.appengine.api import datastore
 from google.appengine.ext.remote_api import remote_api_pb
 from google.appengine.ext.remote_api import remote_api_services
 from google.appengine.runtime import apiproxy_errors
@@ -161,8 +165,14 @@ class APIServer(wsgi_server.WsgiServer):
       # NOTE: Exceptions encountered when parsing the PB or handling the request
       # will be propagated back to the caller the same way as exceptions raised
       # by the actual API call.
-      request.ParseFromString(
-          environ['wsgi.input'].read(int(environ['CONTENT_LENGTH'])))
+      if environ.get('HTTP_TRANSFER_ENCODING') == 'chunked':
+        # CherryPy concatenates all chunks  when 'wsgi.input' is read but v3.2.2
+        # will not return even when all of the data in all chunks has been
+        # read. See: https://bitbucket.org/cherrypy/cherrypy/issue/1131.
+        wsgi_input = environ['wsgi.input'].read(2**32)
+      else:
+        wsgi_input = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
+      request.ParseFromString(wsgi_input)
       api_response = _execute_request(request).Encode()
       response.set_response(api_response)
     except Exception, e:
@@ -208,6 +218,7 @@ def setup_stubs(
     datastore_consistency,
     datastore_path,
     datastore_require_indexes,
+    datastore_auto_id_policy,
     images_host_prefix,
     logs_path,
     mail_smtp_host,
@@ -242,6 +253,9 @@ def setup_stubs(
         datastore indexes requirements should be enforced i.e. if True then
         a google.appengine.ext.db.NeedIndexError will be be raised if a query
         is executed without the required indexes.
+    datastore_auto_id_policy: The type of sequence from which the datastore
+        stub assigns auto IDs, either datastore_stub_util.SEQUENTIAL or
+        datastore_stub_util.SCATTERED.
     images_host_prefix: The URL prefix (protocol://host:port) to preprend to
         image urls on calls to images.GetUrlBase.
     logs_path: Path to the file to store the logs data in.
@@ -290,17 +304,18 @@ def setup_stubs(
       'channel',
       channel_service_stub.ChannelServiceStub(request_data=request_data))
 
-  datastore = datastore_sqlite_stub.DatastoreSqliteStub(
+  datastore_stub = datastore_sqlite_stub.DatastoreSqliteStub(
       app_id,
       datastore_path,
       datastore_require_indexes,
       trusted,
-      root_path=application_root)
+      root_path=application_root,
+      auto_id_policy=datastore_auto_id_policy)
 
-  datastore.SetConsistencyPolicy(datastore_consistency)
+  datastore_stub.SetConsistencyPolicy(datastore_consistency)
 
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'datastore_v3', datastore)
+  apiproxy_stub_map.apiproxy.ReplaceStub(
+      'datastore_v3', datastore_stub)
 
   apiproxy_stub_map.apiproxy.RegisterStub(
       'file',
@@ -384,6 +399,58 @@ def setup_stubs(
       _remote_socket_stub.RemoteSocketServiceStub())
 
 
+def maybe_convert_datastore_file_stub_data_to_sqlite(app_id, filename):
+  if not os.access(filename, os.R_OK | os.W_OK):
+    return
+  try:
+    with open(filename, 'rb') as f:
+      if f.read(16) == 'SQLite format 3\x00':
+        return
+  except (IOError, OSError):
+    return
+  try:
+    _convert_datastore_file_stub_data_to_sqlite(app_id, filename)
+  except:
+    logging.exception('Failed to convert datastore file stub data to sqlite.')
+    raise
+
+
+def _convert_datastore_file_stub_data_to_sqlite(app_id, datastore_path):
+  logging.info('Converting datastore stub data to sqlite.')
+  previous_stub = apiproxy_stub_map.apiproxy.GetStub('datastore_v3')
+  try:
+    apiproxy_stub_map.apiproxy = apiproxy_stub_map.APIProxyStubMap()
+    datastore_stub = datastore_file_stub.DatastoreFileStub(
+        app_id, datastore_path, trusted=True, save_changes=False)
+    apiproxy_stub_map.apiproxy.RegisterStub('datastore_v3', datastore_stub)
+
+    entities = _fetch_all_datastore_entities()
+    sqlite_datastore_stub = datastore_sqlite_stub.DatastoreSqliteStub(
+        app_id, datastore_path + '.sqlite', trusted=True)
+    apiproxy_stub_map.apiproxy.ReplaceStub('datastore_v3',
+                                           sqlite_datastore_stub)
+    datastore.Put(entities)
+    sqlite_datastore_stub.Close()
+  finally:
+    apiproxy_stub_map.apiproxy.ReplaceStub('datastore_v3', previous_stub)
+
+  shutil.copy(datastore_path, datastore_path + '.filestub')
+  os.remove(datastore_path)
+  shutil.move(datastore_path + '.sqlite', datastore_path)
+  logging.info('Datastore conversion complete. File stub data has been backed '
+               'up in %s', datastore_path + '.filestub')
+
+
+def _fetch_all_datastore_entities():
+  """Returns all datastore entities from all namespaces as a list."""
+  all_entities = []
+  for namespace in datastore.Query('__namespace__').Run():
+    namespace_name = namespace.key().name()
+    for kind in datastore.Query('__kind__', namespace=namespace_name).Run():
+      all_entities.extend(
+          datastore.Query(kind.key().name(), namespace=namespace_name).Run())
+  return all_entities
+
 
 def test_setup_stubs(
     request_data=None,
@@ -394,6 +461,7 @@ def test_setup_stubs(
     datastore_consistency=None,
     datastore_path=':memory:',
     datastore_require_indexes=False,
+    datastore_auto_id_policy=datastore_stub_util.SCATTERED,
     images_host_prefix='http://localhost:8080',
     logs_path=':memory:',
     mail_smtp_host='',
@@ -426,6 +494,7 @@ def test_setup_stubs(
               datastore_consistency,
               datastore_path,
               datastore_require_indexes,
+              datastore_auto_id_policy,
               images_host_prefix,
               logs_path,
               mail_smtp_host,

@@ -40,6 +40,7 @@ try:
   import json
 except ImportError:
   import simplejson as json
+import logging
 import re
 
 from protorpc import message_types
@@ -81,24 +82,144 @@ def _CheckListType(settings, allowed_type, name, allow_none=True):
   Returns:
     The list of settings, for convenient use in assignment.
   """
-  if (settings is None and allow_none or
-      isinstance(settings, (tuple, list)) and
-      all(isinstance(i, allowed_type) for i in settings)):
+  if settings is None:
+    if not allow_none:
+      raise TypeError('%s is None, which is not allowed.' % name)
     return settings
-  raise TypeError('%s is not a list of %s' % (name, allowed_type.__name__))
+  if not isinstance(settings, (tuple, list)):
+    raise TypeError('%s is not a list.' % name)
+  if not all(isinstance(i, allowed_type) for i in settings):
+    type_list = list(set(type(setting) for setting in settings))
+    raise TypeError('%s contains types that don\'t match %s: %s' %
+                    (name, allowed_type.__name__, type_list))
+  return settings
+
+
+def _CheckType(value, check_type, name, allow_none=True):
+  """Check that the type of an object is acceptable.
+
+  Args:
+    value: The object whose type is to be checked.
+    check_type: The type that the object must be an instance of.
+    name: Name of the object, to be placed in any error messages.
+    allow_none: True if value can be None, false if not.
+
+  Raises:
+    TypeError: If value is not an acceptable type.
+  """
+  if value is None and allow_none:
+    return
+  if not isinstance(value, check_type):
+    raise TypeError('%s type doesn\'t match %s.' % (name, check_type))
+
 
 
 class _ApiInfo(object):
   """Configurable attributes of an API.
 
-  ApiInfo is a structured data object used by the @api decorator below to store
-  configurable parameters for an API implementation (e.g. name, version)
+  A structured data object used to store API information associated with each
+  remote.Service-derived class that implements an API.  This stores properties
+  that could be different for each class (such as the path or
+  collection/resource name), as well as properties common to all classes in
+  the API (such as API name and version).
+  """
+
+  @util.positional(2)
+  def __init__(self, common_info, resource_name=None, path=None, audiences=None,
+               scopes=None, allowed_client_ids=None):
+    """Constructor for _ApiInfo.
+
+    Args:
+      common_info: _ApiDecorator.__ApiCommonInfo, Information that's common for
+        all classes that implement an API.
+      resource_name: string, The collection that the annotated class will
+        implement in the API. (Default: None)
+      path: string, Base request path for all methods in this API.
+        (Default: None)
+      audiences: list of strings, Acceptable audiences for authentication.
+        (Default: None)
+      scopes: list of strings, Acceptable scopes for authentication.
+        (Default: None)
+      allowed_client_ids: list of strings, Acceptable client IDs for auth.
+        (Default: None)
+    """
+    _CheckType(resource_name, basestring, 'resource_name')
+    _CheckType(path, basestring, 'path')
+    _CheckListType(audiences, basestring, 'audiences')
+    _CheckListType(scopes, basestring, 'scopes')
+    _CheckListType(allowed_client_ids, basestring, 'allowed_client_ids')
+
+    self.__common_info = common_info
+    self.__resource_name = resource_name
+    self.__path = path
+    self.__audiences = audiences
+    self.__scopes = scopes
+    self.__allowed_client_ids = allowed_client_ids
+
+  @property
+  def name(self):
+    """Name of the API."""
+    return self.__common_info.name
+
+  @property
+  def version(self):
+    """Version of the API."""
+    return self.__common_info.version
+
+  @property
+  def description(self):
+    """Description of the API."""
+    return self.__common_info.description
+
+  @property
+  def hostname(self):
+    """Hostname for the API."""
+    return self.__common_info.hostname
+
+  @property
+  def audiences(self):
+    """List of audiences accepted for the API, overriding the defaults."""
+    if self.__audiences is not None:
+      return self.__audiences
+    return self.__common_info.audiences
+
+  @property
+  def scopes(self):
+    """List of scopes accepted for the API, overriding the defaults."""
+    if self.__scopes is not None:
+      return self.__scopes
+    return self.__common_info.scopes
+
+  @property
+  def allowed_client_ids(self):
+    """List of client IDs accepted for the API, overriding the defaults."""
+    if self.__allowed_client_ids is not None:
+      return self.__allowed_client_ids
+    return self.__common_info.allowed_client_ids
+
+  @property
+  def resource_name(self):
+    """Resource name for the class this decorates."""
+    return self.__resource_name
+
+  @property
+  def path(self):
+    """Base path prepended to any method paths in the class this decorates."""
+    return self.__path
+
+
+class _ApiDecorator(object):
+  """Decorator for single- or multi-class APIs.
+
+  An instance of this class can be used directly as a decorator for a
+  single-class API.  Or call the collection() method to decorate a multi-class
+  API.
   """
 
   @util.positional(3)
   def __init__(self, name, version, description=None, hostname=None,
                audiences=None, scopes=None, allowed_client_ids=None):
-    """Constructor for _ApiInfo.
+    """Constructor for _ApiDecorator.
 
     Args:
       name: string, Name of the API.
@@ -109,50 +230,151 @@ class _ApiInfo(object):
       scopes: list of strings, Acceptable scopes for authentication.
       allowed_client_ids: list of strings, Acceptable client IDs for auth.
     """
-    self.__name = name
-    self.__version = version
-    self.__description = description
-    self.__hostname = hostname
-    self.__audiences = audiences
-    self.__scopes = scopes
-    self.__allowed_client_ids = allowed_client_ids
+    self.__common_info = self.__ApiCommonInfo(
+        name, version, description=description, hostname=hostname,
+        audiences=audiences, scopes=scopes,
+        allowed_client_ids=allowed_client_ids)
 
-  @property
-  def name(self):
-    """Name of the API."""
-    return self.__name
+  class __ApiCommonInfo(object):
+    """API information that's common among all classes that implement an API.
 
-  @property
-  def version(self):
-    """Version of the API."""
-    return self.__version
+    When a remote.Service-derived class implements part of an API, there is
+    some common information that remains constant across all such classes
+    that implement the same API.  This includes things like name, version,
+    hostname, and so on.  __ApiComminInfo stores that common information, and
+    a single __ApiCommonInfo instance is shared among all classes that
+    implement the same API, guaranteeing that they share the same common
+    information.
 
-  @property
-  def description(self):
-    """Description of the API."""
-    return self.__description
+    Some of these values can be overridden (such as audiences and scopes),
+    while some can't and remain the same for all classes that implement
+    the API (such as name and version).
+    """
 
-  @property
-  def hostname(self):
-    """Hostname for the API."""
-    return self.__hostname
+    @util.positional(3)
+    def __init__(self, name, version, description=None, hostname=None,
+                 audiences=None, scopes=None, allowed_client_ids=None):
+      """Constructor for _ApiCommonInfo.
 
-  @property
-  def audiences(self):
-    """List of audiences accepted by default for the API, if not overridden."""
-    return self.__audiences
+      Args:
+        name: string, Name of the API.
+        version: string, Version of the API.
+        description: string, Short description of the API (Default: None)
+        hostname: string, Hostname of the API (Default: app engine default host)
+        audiences: list of strings, Acceptable audiences for authentication.
+        scopes: list of strings, Acceptable scopes for authentication.
+        allowed_client_ids: list of strings, Acceptable client IDs for auth.
+      """
+      _CheckType(name, basestring, 'name', allow_none=False)
+      _CheckType(version, basestring, 'version', allow_none=False)
+      _CheckType(description, basestring, 'description')
+      _CheckType(hostname, basestring, 'hostname')
+      _CheckListType(audiences, basestring, 'audiences')
+      _CheckListType(scopes, basestring, 'scopes')
+      _CheckListType(allowed_client_ids, basestring, 'allowed_client_ids')
 
-  @property
-  def scopes(self):
-    """List of scopes accepted by default for the API, if not overridden."""
-    return self.__scopes
+      if hostname is None:
+        hostname = app_identity.get_default_version_hostname()
+      if audiences is None and hostname is not None:
+        audiences = [hostname]
+      if scopes is None:
+        scopes = [EMAIL_SCOPE]
+      if allowed_client_ids is None:
+        allowed_client_ids = [API_EXPLORER_CLIENT_ID]
 
-  @property
-  def allowed_client_ids(self):
-    """List of client IDs accepted by default for the API, if not overridden."""
-    return self.__allowed_client_ids
+      self.__name = name
+      self.__version = version
+      self.__description = description
+      self.__hostname = hostname
+      self.__audiences = audiences
+      self.__scopes = scopes
+      self.__allowed_client_ids = allowed_client_ids
 
+    @property
+    def name(self):
+      """Name of the API."""
+      return self.__name
 
+    @property
+    def version(self):
+      """Version of the API."""
+      return self.__version
+
+    @property
+    def description(self):
+      """Description of the API."""
+      return self.__description
+
+    @property
+    def hostname(self):
+      """Hostname for the API."""
+      return self.__hostname
+
+    @property
+    def audiences(self):
+      """List of audiences accepted by default for the API."""
+      return self.__audiences
+
+    @property
+    def scopes(self):
+      """List of scopes accepted by default for the API."""
+      return self.__scopes
+
+    @property
+    def allowed_client_ids(self):
+      """List of client IDs accepted by default for the API."""
+      return self.__allowed_client_ids
+
+  def __call__(self, api_class):
+    """Decorator for ProtoRPC class that configures Google's API server.
+
+    Args:
+      api_class: remote.Service class, ProtoRPC service class being wrapped.
+
+    Returns:
+      Same class with API attributes assigned in api_info.
+    """
+    return self.collection()(api_class)
+
+  def collection(self, resource_name=None, path=None, audiences=None,
+                 scopes=None, allowed_client_ids=None):
+    """Get a decorator for a class that implements an API.
+
+    This can be used for single-class or multi-class implementations.  It's
+    used implicitly in simple single-class APIs that only use @api directly.
+
+    Args:
+      resource_name: string, Resource name for the class this decorates.
+        (Default: None)
+      path: string, Base path prepended to any method paths in the class this
+        decorates. (Default: None)
+      audiences: list of strings, Acceptable audiences for authentication.
+        (Default: None)
+      scopes: list of strings, Acceptable scopes for authentication.
+        (Default: None)
+      allowed_client_ids: list of strings, Acceptable client IDs for auth.
+        (Default: None)
+
+    Returns:
+      A decorator function to decorate a class that implements an API.
+    """
+
+    def apiserving_api_decorator(api_class):
+      """Decorator for ProtoRPC class that configures Google's API server.
+
+      Args:
+        api_class: remote.Service class, ProtoRPC service class being wrapped.
+
+      Returns:
+        Same class with API attributes assigned in api_info.
+      """
+      api_class.api_info = _ApiInfo(
+          self.__common_info, resource_name=resource_name,
+          path=path, audiences=audiences, scopes=scopes,
+          allowed_client_ids=allowed_client_ids)
+      return api_class
+
+    return apiserving_api_decorator
 
 
 @util.positional(2)
@@ -164,16 +386,16 @@ def api(name, version, description=None, hostname=None, audiences=None,
   hostname for your API.
 
   Sample usage (python 2.7):
-    @api_config.api(name='guestbook', version='v0.2',
-                    description='Guestbook API')
+    @endpoints.api(name='guestbook', version='v0.2',
+                   description='Guestbook API')
     class PostService(remote.Service):
       pass
 
   Sample usage (python 2.5):
     class PostService(remote.Service):
       pass
-    api_config.api(PostService, name='guestbook', version='v0.2',
-                   description='Guestbook API')(PostService)
+    endpoints.api(name='guestbook', version='v0.2',
+                  description='Guestbook API')(PostService)
 
   Args:
     name: string, Name of the API.
@@ -188,34 +410,9 @@ def api(name, version, description=None, hostname=None, audiences=None,
     Class decorated with api_info attribute, an instance of ApiInfo.
   """
 
-  def apiserving_api_decorator(api_class):
-    """Decorator for ProtoRPC class that configures Google's API server.
-
-    Args:
-      api_class: remote.Service class, ProtoRPC service class being wrapped.
-
-    Returns:
-      Same class with attributes assigned corresponding name, version, kwargs.
-    """
-    api_class.api_info = _ApiInfo(
-        name, version, description=description, hostname=hostname,
-        audiences=audiences, scopes=scopes,
-        allowed_client_ids=allowed_client_ids)
-    return api_class
-
-  _CheckListType(scopes, basestring, 'scopes')
-  _CheckListType(audiences, basestring, 'audiences')
-  _CheckListType(allowed_client_ids, basestring, 'allowed_client_ids')
-
-  if hostname is None:
-    hostname = app_identity.get_default_version_hostname()
-  if audiences is None and hostname is not None:
-    audiences = [hostname]
-  if scopes is None:
-    scopes = [EMAIL_SCOPE]
-  if allowed_client_ids is None:
-    allowed_client_ids = [API_EXPLORER_CLIENT_ID]
-  return apiserving_api_decorator
+  return _ApiDecorator(name, version, description=description,
+                       hostname=hostname, audiences=audiences, scopes=scopes,
+                       allowed_client_ids=allowed_client_ids)
 
 
 class CacheControl(object):
@@ -292,6 +489,7 @@ class _MethodInfo(object):
 
 
     safe_name = re.sub('[^\.a-zA-Z0-9]', '', method_name)
+
     return safe_name[0:1].lower() + safe_name[1:]
 
   @property
@@ -301,8 +499,37 @@ class _MethodInfo(object):
 
   @property
   def path(self):
-    """Path portion of the URL to the method (for RESTful methods)."""
+    """Deprecated: path portion of the URL to the method."""
+
+
+    logging.warning('_MethodInfopath property is deprecated.  '
+                    'Use the get_path method instead.')
     return self.__path
+
+  def get_path(self, api_info):
+    """Get the path portion of the URL to the method (for RESTful methods).
+
+    Request path can be specified in the method, and it could have a base
+    path prepended to it.
+
+    Args:
+      api_info: API information for this API, possibly including a base path.
+        This is the api_info property on the class that's been annotated for
+        this API.
+
+    Returns:
+      This method's request path (not including the http://.../_ah/api/ prefix).
+    """
+    path = self.__path or ''
+    if path and path[0] == '/':
+
+      path = path[1:]
+    else:
+
+      if api_info.path:
+        path = '%s%s%s' % (api_info.path, '/' if path else '', path)
+
+    return path
 
   @property
   def http_method(self):
@@ -329,13 +556,17 @@ class _MethodInfo(object):
     """List of allowed client IDs for the API method."""
     return self.__allowed_client_ids
 
-  def method_id(self, api_name):
+  def method_id(self, api_info):
     """Computed method name."""
 
 
 
-    return '%s.%s' % (self.__safe_name(api_name),
-                      self.__safe_name(self.name))
+    if api_info.resource_name:
+      resource_part = '.%s' % self.__safe_name(api_info.resource_name)
+    else:
+      resource_part = ''
+    return '%s%s.%s' % (self.__safe_name(api_info.name), resource_part,
+                        self.__safe_name(self.name))
 
 
 @util.positional(2)
@@ -544,11 +775,8 @@ class ApiConfigGenerator(object):
       descriptor = {}
       required = field.required
       if '{%s}' % field.name in path:
-        descriptor['source'] = 'path'
         required = True
-      elif request_kind == self.__NO_BODY:
-        descriptor['source'] = 'query'
-      else:
+      elif request_kind != self.__NO_BODY:
 
         continue
 
@@ -562,10 +790,20 @@ class ApiConfigGenerator(object):
       descriptor['type'] = param_type
 
       if field.default:
-        if type(field) == messages.EnumField:
+        if isinstance(field, messages.EnumField):
           descriptor['default'] = str(field.default)
         else:
           descriptor['default'] = field.default
+
+      if field.repeated:
+        descriptor['repeated'] = True
+
+      if isinstance(field, messages.EnumField):
+        enum_descriptor = {}
+        for enum_value in field.type.to_dict().keys():
+          enum_descriptor[enum_value] = {'backendValue': enum_value}
+
+        descriptor['enum'] = enum_descriptor
 
       params[field.name] = descriptor
 
@@ -640,14 +878,13 @@ class ApiConfigGenerator(object):
 
     return descriptor
 
-  def __method_descriptor(self, service, service_name, api_name, method_info,
+  def __method_descriptor(self, service, service_name, method_info,
                           protorpc_method_name, protorpc_method_info):
     """Describes a method.
 
     Args:
       service: endpoints.Service, Implementation of the API as a service.
       service_name: string, Name of the service.
-      api_name: string, Name of the API.
       method_info: _MethodInfo, Configuration for the method.
       protorpc_method_name: string, Name of the method as given in the
         ProtoRPC implementation.
@@ -666,20 +903,25 @@ class ApiConfigGenerator(object):
     request_kind = self.__get_request_kind(method_info)
     remote_method = protorpc_method_info.remote
 
-    descriptor['path'] = method_info.path if method_info.path else ''
+    descriptor['path'] = method_info.get_path(service.api_info)
     descriptor['httpMethod'] = method_info.http_method
     descriptor['rosyMethod'] = '%s.%s' % (service_name, protorpc_method_name)
     descriptor['request'] = self.__request_message_descriptor(
-        request_kind, request_message_type, method_info.method_id(api_name),
+        request_kind, request_message_type,
+        method_info.method_id(service.api_info),
         descriptor['path'])
     descriptor['response'] = self.__response_message_descriptor(
-        remote_method.response_type(), method_info.method_id(api_name),
+        remote_method.response_type(), method_info.method_id(service.api_info),
         method_info.cache_control)
 
 
 
 
-
+    scopes = (method_info.scopes
+              if method_info.scopes is not None
+              else service.api_info.scopes)
+    if scopes:
+      descriptor['scopes'] = scopes
     audiences = (method_info.audiences
                  if method_info.audiences is not None
                  else service.api_info.audiences)
@@ -736,11 +978,13 @@ class ApiConfigGenerator(object):
 
     return descriptor
 
-  def __api_descriptor(self, service):
+  def __api_descriptor(self, service, hostname=None):
     """Builds a description of an API.
 
     Args:
       service: protorpc.remote.Service, Implementation of the API as a service.
+      hostname: string, Hostname of the API, to override the value set on the
+        current service. Defaults to None.
 
     Returns:
       A dictionary that can be deserialized into JSON and stored as an API
@@ -749,8 +993,7 @@ class ApiConfigGenerator(object):
     Raises:
       ValueError: if any method path and request required fields do not match
     """
-
-    descriptor = self.get_descriptor_defaults(service)
+    descriptor = self.get_descriptor_defaults(service, hostname=hostname)
 
     description = service.api_info.description or service.__doc__
     if description:
@@ -764,10 +1007,10 @@ class ApiConfigGenerator(object):
 
       if method_info is None:
         continue
-      method_id = method_info.method_id(service.api_info.name)
+      method_id = method_info.method_id(service.api_info)
       self.__id_from_name[protorpc_meth_name] = method_id
       method_map[method_id] = self.__method_descriptor(
-          service, service.__name__, service.api_info.name, method_info,
+          service, service.__name__, method_info,
           protorpc_meth_name, protorpc_meth_info)
 
     if method_map:
@@ -777,33 +1020,38 @@ class ApiConfigGenerator(object):
 
     return descriptor
 
-  def get_descriptor_defaults(self, service):
+  def get_descriptor_defaults(self, service, hostname=None):
     """Gets a default configuration for a service.
 
     Args:
       service: protorpc.remote.Service, implementation of the API as a service.
+      hostname: string, Hostname of the API, to override the value set on the
+        current service. Defaults to None.
 
     Returns:
       A dictionary with the default configuration.
     """
+    hostname = hostname or service.api_info.hostname
     return {
         'extends': 'thirdParty.api',
-        'root': 'https://%s/_ah/api' % service.api_info.hostname,
+        'root': 'https://%s/_ah/api' % hostname,
         'name': service.api_info.name,
         'version': service.api_info.version,
         'defaultVersion': True,
         'abstract': False,
         'adapter': {
-            'bns': 'http://%s/_ah/spi' % service.api_info.hostname,
+            'bns': 'https://%s/_ah/spi' % hostname,
             'type': 'lily'
         }
     }
 
-  def pretty_print_config_to_json(self, service):
+  def pretty_print_config_to_json(self, service, hostname=None):
     """Description of a protorpc.remote.Service in API format.
 
     Args:
       service: protorpc.remote.Service, Implementation of the API as a service.
+      hostname: string, Hostname of the API, to override the value set on the
+        current service. Defaults to None.
 
     Returns:
       string, The API descriptor document as JSON.
@@ -811,5 +1059,5 @@ class ApiConfigGenerator(object):
     Raises:
       ValueError: if any method path and request required fields do not match
     """
-    descriptor = self.__api_descriptor(service)
+    descriptor = self.__api_descriptor(service, hostname=hostname)
     return json.dumps(descriptor, sort_keys=True, indent=2)

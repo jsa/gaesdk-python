@@ -18,6 +18,7 @@
 
 
 import sys
+import types
 import warnings
 
 from google.appengine.tools.devappserver2 import fsevents_file_watcher
@@ -45,16 +46,46 @@ class DummyFileWatcher(object):
     return False
 
 
-def get_file_watcher(directory):
-  """Returns an instance that monitors a tree for changes.
+class _MultipleFileWatcher(object):
+  """A FileWatcher than can watch many directories."""
+
+  def __init__(self, directories):
+    self._file_watchers = [get_file_watcher([directory]) for directory
+                           in directories]
+
+  def start(self):
+    for watcher in self._file_watchers:
+      watcher.start()
+
+  def quit(self):
+    for watcher in self._file_watchers:
+      watcher.quit()
+
+  def has_changes(self):
+    has_changes = False
+    for watcher in self._file_watchers:
+      # .has_changes() returns True if there has been any changes since the
+      # last call to .has_changes() so it must be called for every FileWatcher
+      # to prevent spurious change notifications on subsequent calls.
+      has_changes = watcher.has_changes() or has_changes
+    return has_changes
+
+
+def get_file_watcher(directories):
+  """Returns an instance that monitors a hierarchy of directories.
 
   Args:
-    directory: A string representing the path of the directory to monitor.
+    directories: A list representing the paths of the directories to monitor.
 
   Returns:
     A FileWatcher appropriate for the current platform. start() must be called
     before has_changes().
   """
+  assert not isinstance(directories, types.StringTypes), 'expected list got str'
+  if len(directories) != 1:
+    return _MultipleFileWatcher(directories)
+
+  directory = directories[0]
   if sys.platform.startswith('linux'):
     return inotify_file_watcher.InotifyFileWatcher(directory)
   elif sys.platform.startswith('win'):

@@ -22,6 +22,7 @@ import getpass
 import itertools
 import os
 import os.path
+import sys
 import tempfile
 import unittest
 
@@ -86,12 +87,12 @@ class GetStoragePathTest(unittest.TestCase):
   def test_no_path_given_directory_does_not_exist(self):
     path = tempfile.mkdtemp()
     os.rmdir(path)
-    devappserver2._generate_storage_paths('myapp').AndReturn([path])
+    devappserver2._generate_storage_paths('example.com_myapp').AndReturn([path])
 
     self.mox.ReplayAll()
     self.assertEqual(
         path,
-        devappserver2._get_storage_path(None, 'myapp'))
+        devappserver2._get_storage_path(None, 'dev~example.com:myapp'))
     self.mox.VerifyAll()
     self.assertTrue(os.path.isdir(path))
 
@@ -100,12 +101,17 @@ class GetStoragePathTest(unittest.TestCase):
     os.chmod(path1, 0777)
     path2 = tempfile.mkdtemp()  # Made with mode 0700.
 
-    devappserver2._generate_storage_paths('myapp').AndReturn([path1, path2])
+    devappserver2._generate_storage_paths('example.com_myapp').AndReturn(
+        [path1, path2])
 
     self.mox.ReplayAll()
+    if sys.platform == 'win32':
+      expected_path = path1
+    else:
+      expected_path = path2
     self.assertEqual(
-        path2,
-        devappserver2._get_storage_path(None, 'myapp'))
+        expected_path,
+        devappserver2._get_storage_path(None, 'dev~example.com:myapp'))
     self.mox.VerifyAll()
 
   def test_path_given_does_not_exist(self):
@@ -114,7 +120,7 @@ class GetStoragePathTest(unittest.TestCase):
 
     self.assertEqual(
         path,
-        devappserver2._get_storage_path(path, 'myapp'))
+        devappserver2._get_storage_path(path, 'dev~example.com:myapp'))
     self.assertTrue(os.path.isdir(path))
 
   def test_path_given_not_directory(self):
@@ -122,14 +128,14 @@ class GetStoragePathTest(unittest.TestCase):
 
     self.assertRaises(
         IOError,
-        devappserver2._get_storage_path, path, 'myapp')
+        devappserver2._get_storage_path, path, 'dev~example.com:myapp')
 
   def test_path_given_exists(self):
     path = tempfile.mkdtemp()
 
     self.assertEqual(
         path,
-        devappserver2._get_storage_path(path, 'myapp'))
+        devappserver2._get_storage_path(path, 'dev~example.com:myapp'))
 
 
 class PortParserTest(unittest.TestCase):

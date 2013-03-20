@@ -78,18 +78,18 @@ class AutoScalingServerFacade(server.AutoScalingServer):
   def __init__(self,
                server_configuration,
                host='fakehost',
-               balanced_port=0,
-               api_port=8080,
+               balanced_port=0):
+    super(AutoScalingServerFacade, self).__init__(
+        server_configuration,
+        host,
+        balanced_port,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-               request_data=None,
-               instance_factory=None):
-    super(AutoScalingServerFacade, self).__init__(server_configuration,
-                                                  host,
-                                                  balanced_port,
-                                                  api_port,
-
-                                                  cloud_sql_config=None,
-                                                  request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
 
   def start(self):
     pass
@@ -110,18 +110,18 @@ class ManualScalingServerFacade(server.ManualScalingServer):
   def __init__(self,
                server_configuration,
                host='fakehost',
-               balanced_port=0,
-               api_port=8080,
+               balanced_port=0):
+    super(ManualScalingServerFacade, self).__init__(
+        server_configuration,
+        host,
+        balanced_port,
+        api_port=8080,
+        runtime_stderr_loglevel=1,
 
-               request_data=None,
-               instance_factory=None):
-    super(ManualScalingServerFacade, self).__init__(server_configuration,
-                                                    host,
-                                                    balanced_port,
-                                                    api_port,
-
-                                                    cloud_sql_config=None,
-                                                    request_data=request_data)
+        cloud_sql_config=None,
+        default_version_port=8080,
+        request_data=None,
+        dispatcher=None)
 
   def start(self):
     pass
@@ -151,6 +151,7 @@ class DispatcherTest(unittest.TestCase):
     app_config = ApplicationConfigurationStub(SERVER_CONFIGURATIONS)
     self.dispatcher = dispatcher.Dispatcher(app_config,
                                             'localhost',
+                                            1,
                                             1,
 
                                             cloud_sql_config=None)
@@ -274,7 +275,7 @@ class DispatcherTest(unittest.TestCase):
     self.mox.StubOutWithMock(self.dispatcher, '_handle_request')
     self.dispatcher._server_name_to_server['default'].build_request_environ(
         'PUT', '/foo?bar=baz', [('Header', 'Value'), ('Other', 'Values')],
-        'body', '1.2.3.4', 1).AndReturn(
+        'body', '1.2.3.4', 1, fake_login=True).AndReturn(
             dummy_environ)
     self.dispatcher._handle_request(
         dummy_environ, mox.IgnoreArg(),
@@ -283,7 +284,7 @@ class DispatcherTest(unittest.TestCase):
     self.mox.ReplayAll()
     response = self.dispatcher.add_request(
         'PUT', '/foo?bar=baz', [('Header', 'Value'), ('Other', 'Values')],
-        'body', '1.2.3.4')
+        'body', '1.2.3.4', fake_login=True)
     self.mox.VerifyAll()
     self.assertEqual('Hello World', response.content)
 

@@ -43,6 +43,11 @@ _POTENTIAL_SOCKET_LOCATIONS = (
 
 _connect_kwargs = {}
 
+
+
+_OS_NAME = os.name
+
+
 def SetConnectKwargs(**kwargs):
   """Sets the keyword args (host, user, etc) to pass to MySQLdb.connect()."""
 
@@ -91,7 +96,10 @@ else:
     host = merged_kwargs.get('host')
     if ((not host or host == 'localhost') and
         not merged_kwargs.get('unix_socket') and
-        os.name == 'posix'):
+        _OS_NAME == 'posix'):
+
+
+
 
 
 

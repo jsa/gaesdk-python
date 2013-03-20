@@ -25,8 +25,10 @@ from google.appengine.api import appinfo
 from google.appengine.tools.devappserver2 import http_runtime
 from google.appengine.tools.devappserver2 import instance
 
-_RUNTIME_PATH = (
-    os.path.join(os.path.dirname(sys.argv[0]), '_python_runtime.py'))
+_RUNTIME_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(sys.argv[0]), '_python_runtime.py')
+    )
+_RUNTIME_ARGS = [sys.executable, _RUNTIME_PATH]
 
 
 class PythonRuntimeInstanceFactory(instance.InstanceFactory):
@@ -41,6 +43,7 @@ class PythonRuntimeInstanceFactory(instance.InstanceFactory):
       script='$PYTHON_LIB/default_warmup_handler.py',
       login='admin')
   SUPPORTS_INTERACTIVE_REQUESTS = True
+  FILE_CHANGE_INSTANCE_RESTART_POLICY = instance.AFTER_FIRST_REQUEST
 
   def __init__(self, request_data, runtime_config_getter, server_configuration):
     """Initializer for PythonRuntimeInstanceFactory.
@@ -74,9 +77,15 @@ class PythonRuntimeInstanceFactory(instance.InstanceFactory):
     Returns:
       The newly created instance.Instance.
     """
+
+    def instance_config_getter():
+      runtime_config = self._runtime_config_getter()
+      runtime_config.instance_id = str(instance_id)
+      return runtime_config
+
     proxy = http_runtime.HttpRuntimeProxy(
-        [sys.executable, _RUNTIME_PATH],
-        self._runtime_config_getter,
+        _RUNTIME_ARGS,
+        instance_config_getter,
         self._server_configuration,
         env=dict(os.environ, PYTHONHASHSEED='random'))
     return instance.Instance(self.request_data,

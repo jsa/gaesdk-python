@@ -3,10 +3,11 @@
 
 {% block page_head %}
   <script>{% include "datastore_viewer.js" %}</script>
+  <style type="text/css">{% include "datastore_viewer.css" %}</style>
 {% endblock %}
 
 {% block body %}
-<div>
+<div id="datastore-viewer">
   <h3>Datastore Viewer</h3>
 
   {% if message %}
@@ -15,32 +16,30 @@
   </div>
   {% endif %}
 
-  {% if entities %}
-  <div>
-    Results {{ start + 1 }} - {{ entities|length + start }} of
-    {{ total_entities }}
-  </div>
-  {% endif %}
-
   <form action="{{ request.path }}" method="get">
   {% if kinds %}
-    <div>
+    <div id="entity-manager" class="ae-settings-block">
       <table>
+        <thead>
+          <tr>
+            {% if show_namespace %}
+              <th>
+                Namespace
+              </th>
+            {% endif %}
+            <th>
+              Entity Kind
+            </th>
+            <th>
+              &nbsp;
+            </th>
+          </tr>
+        </thead>
         <tr>
           {% if show_namespace %}
-          <td>
-            Namespace
-          </td>
-          {% endif %}
-          <td>
-            Entity Kind
-          </td>
-        </tr>
-        <tr>
-          {% if show_namespace %}
-          <td>
-            <input id="namespace_input" name="namespace" type="text" size="20" value="{{ namespace }}"/>
-          </td>
+            <td>
+              <input id="namespace_input" name="namespace" type="text" size="20" value="{{ namespace }}"/>
+            </td>
           {% endif %}
           <td>
             <select name="kind" class="ae-button" id="kind_input">
@@ -52,19 +51,15 @@
           <td>
             <input type="submit" class="ae-button" value="List Entities"/>
             <input type="button" id="create_button" class="ae-button" value="Create New Entity"/>
+            {% if not show_namespace %}
+              <a href="{{ select_namespace_url }}">Select a different namespace</a>
+            {% endif %}
           </td>
         </tr>
-        {% if not show_namespace %}
-        <tr>
-          <td colspan="2">
-            <a href="{{ select_namespace_url }}">Select different namespace</a>
-          </td>
-        </tr>
-        {% endif %}
       </table>
     </div>
     {% else %}
-    <div id="datastore_empty">
+    <p id="datastore_empty">
       {% if namespace %}
         Datastore has no entities in namespace
         &quot;{{ namespace }}&quot;.
@@ -80,7 +75,7 @@
       {% else %}
       <a href="{{ select_namespace_url }}">Select different namespace</a>
       {% endif %}
-    </div>
+    </p>
   {% endif %}
   </form>
 
@@ -88,7 +83,7 @@
     <form action="{{ request.path }}" method="post">
       <input type="hidden" name="xsrf_token" value="{{ xsrf_token }}"/>
       <input type="hidden" name="kind" value="{{ kind }}"/>
-      <table class="ae-table">
+      <table class="ae-table ae-settings-block">
         <thead>
         <tr>
           <th><input id="allkeys" type="checkbox" /></th>
@@ -133,29 +128,41 @@
           </tr>
         {% endfor %}
       </table>
-       <div>
-          <div>
+      <div>
+          <div class="ae-settings-block">
             <div>
               <input id="delete_button" class="ae-button" name="action:delete_entities" type="submit" value="Delete" />
               <input id="memcache_flush_button" class="ae-button" type="submit" name="action:flush_memcache" value="Flush Memcache" />
             </div>
           </div>
-          <div>
+          <div class="ae-settings-block">
             <div>
-              {% if page != 1 %}
-                <a href="{{ paging_base_url }}&amp;page={{ page - 1 }}">Previous</a>
+              {% if num_pages > 1 %}
+                <div class="ae-paginator">
+                  {% if page != 1 %}
+                    <a href="{{ paging_base_url }}&amp;page={{ page - 1 }}">Previous</a>
+                  {% endif %}
+
+                  {% for page_count in range(1, num_pages+1) %}
+                    {% if page_count == page %}
+                      {{ page_count }}
+                    {% else %}
+                      <a href="{{ paging_base_url }}&amp;page={{ page_count }}">{{ page_count }}</a>
+                    {% endif %}
+                  {% endfor %}
+
+                  {% if page != num_pages %}
+                    <a href="{{ paging_base_url }}&amp;page={{ page + 1 }}">Next</a>
+                  {% endif %}
+                </div>
               {% endif %}
-
-              {% for page_count in range(1, num_pages+1) %}
-                {% if page_count == page %}
-                  {{ page_count }}
-                {% else %}
-                  <a href="{{ paging_base_url }}&amp;page={{ page_count }}">{{ page_count }}</a>
-                {% endif %}
-              {% endfor %}
-
-              {% if page != num_pages %}
-                <a href="{{ paging_base_url }}&amp;page={{ page + 1 }}">Next</a>
+            </div>
+            <div class="ae-result-count">
+              {% if entities %}
+                <div>
+                  Results {{ start + 1 }} - {{ entities|length + start }} of
+                  {{ total_entities }}
+                </div>
               {% endif %}
             </div>
           </div>
@@ -166,9 +173,9 @@
     <p>
       Datastore contains no entities of kind &quot;{{ kind }}&quot; in the
       {% if namespace %}
-        namespace &quot;{{ namespace }}&quot;.
+        namespace &quot;<strong>{{ namespace }}</strong>&quot;.
       {% else %}
-        Empty namespace.
+        <strong>Empty</strong> namespace.
       {% endif %}
     </p>
     {% endif %}
@@ -183,4 +190,3 @@
   {% endif %}
 </div>
 {% endblock %}
-

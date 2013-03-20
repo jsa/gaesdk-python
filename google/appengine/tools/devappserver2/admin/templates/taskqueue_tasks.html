@@ -11,13 +11,13 @@
 <h3>Tasks for Queue: {{ queue_name }}</h3>
 
 {% if tasks %}
-  {% if is_push_queue %}
-    <p>
-    Push the 'Run' button to execute a task manually.
-    </p>
-  {% endif %}
+  <p>
+    About {{ queue_info.tasks_in_queue }} tasks in <strong>{{ queue_name }}</strong> queue.
+    {% if is_push_queue %}
+      Push the 'Run' button to execute a task manually.
+    {% endif %}
+  </p>
 
-  About {{ queue_info.tasks_in_queue }} tasks in {{ queue_name }}
   {% if queue_info.tasks_in_queue > tasks|length %}
     (first {{ tasks|length }} viewable)
   {% endif %}
@@ -75,22 +75,26 @@
       {% endfor %}
     </tbody>
   </table>
+  {% if num_pages > 1 %}
+    <div class="ae-paginator">
+      {% if page != 1 %}
+        <a href="?page={{ page - 1 }}">Previous</a>
+      {% endif %}
 
-  {% if page != 1 %}
-    <a href="?page={{ page - 1 }}">Previous</a>
+      {% for page_count in range(1, num_pages+1) %}
+        {% if page_count == page %}
+          {{ page_count }}
+        {% else %}
+          <a href="?page={{ page_count }}">{{ page_count }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page != num_pages %}
+        <a href="?page={{ page + 1 }}">Next</a>
+      {% endif %}
+    </div>
   {% endif %}
 
-  {% for page_count in range(1, num_pages+1) %}
-    {% if page_count == page %}
-      {{ page_count }}
-    {% else %}
-      <a href="?page={{ page_count }}">{{ page_count }}</a>
-    {% endif %}
-  {% endfor %}
-
-  {% if page != num_pages %}
-    <a href="?page={{ page + 1 }}">Next</a>
-  {% endif %}
 
 {% else %}
   This queue doesn't contain any tasks.

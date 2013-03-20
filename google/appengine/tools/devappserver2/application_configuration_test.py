@@ -17,6 +17,7 @@
 """Tests for google.apphosting.tools.devappserver2.application_configuration."""
 
 
+import collections
 import os.path
 import unittest
 
@@ -37,6 +38,7 @@ class TestServerConfiguration(unittest.TestCase):
     self.mox.StubOutWithMock(
         application_configuration.ServerConfiguration,
         '_parse_configuration')
+    self.mox.StubOutWithMock(os.path, 'getmtime')
 
   def tearDown(self):
     self.mox.UnsetStubs()
@@ -63,7 +65,8 @@ class TestServerConfiguration(unittest.TestCase):
         env_variables=env_variables,
         )
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info)
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
     self.mox.ReplayAll()
     config = application_configuration.ServerConfiguration(
@@ -85,6 +88,55 @@ class TestServerConfiguration(unittest.TestCase):
     self.assertEqual(handlers, config.handlers)
     self.assertEqual(['warmup'], config.inbound_services)
     self.assertEqual(env_variables, config.env_variables)
+    self.assertEqual({'/appdir/app.yaml': 10}, config._mtimes)
+
+  def test_check_for_updates_unchanged_mtime(self):
+    info = appinfo.AppInfoExternal(
+        application='app',
+        server='default',
+        version='version',
+        runtime='python27',
+        threadsafe=False)
+    application_configuration.ServerConfiguration._parse_configuration(
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+
+    self.mox.ReplayAll()
+    config = application_configuration.ServerConfiguration('/appdir/app.yaml')
+    self.assertSequenceEqual(set(), config.check_for_updates())
+    self.mox.VerifyAll()
+
+  def test_check_for_updates_with_includes(self):
+    info = appinfo.AppInfoExternal(
+        application='app',
+        server='default',
+        version='version',
+        runtime='python27',
+        includes=['/appdir/include.yaml'],
+        threadsafe=False)
+    application_configuration.ServerConfiguration._parse_configuration(
+        '/appdir/app.yaml').AndReturn((info, ['/appdir/include.yaml']))
+    os.path.getmtime('/appdir/app.yaml').InAnyOrder().AndReturn(10)
+    os.path.getmtime('/appdir/include.yaml').InAnyOrder().AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/include.yaml').AndReturn(11)
+
+    application_configuration.ServerConfiguration._parse_configuration(
+        '/appdir/app.yaml').AndReturn((info, ['/appdir/include.yaml']))
+    os.path.getmtime('/appdir/app.yaml').InAnyOrder().AndReturn(10)
+    os.path.getmtime('/appdir/include.yaml').InAnyOrder().AndReturn(11)
+
+    self.mox.ReplayAll()
+    config = application_configuration.ServerConfiguration('/appdir/app.yaml')
+    self.assertEqual({'/appdir/app.yaml': 10, '/appdir/include.yaml': 10},
+                     config._mtimes)
+    config._mtimes = collections.OrderedDict([('/appdir/app.yaml', 10),
+                                              ('/appdir/include.yaml', 10)])
+    self.assertSequenceEqual(set(), config.check_for_updates())
+    self.mox.VerifyAll()
+    self.assertEqual({'/appdir/app.yaml': 10, '/appdir/include.yaml': 11},
+                     config._mtimes)
 
   def test_check_for_updates_no_changes(self):
     info = appinfo.AppInfoExternal(
@@ -94,14 +146,18 @@ class TestServerConfiguration(unittest.TestCase):
         runtime='python27',
         threadsafe=False)
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info)
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info)
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
     config = application_configuration.ServerConfiguration('/appdir/app.yaml')
     self.assertSequenceEqual(set(), config.check_for_updates())
     self.mox.VerifyAll()
+    self.assertEqual({'/appdir/app.yaml': 11}, config._mtimes)
 
   def test_check_for_updates_immutable_changes(self):
     automatic_scaling1 = appinfo.AutomaticScaling(
@@ -130,9 +186,12 @@ class TestServerConfiguration(unittest.TestCase):
             max_idle_instances=2))
 
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info1)
+        '/appdir/app.yaml').AndReturn((info1, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info2)
+        '/appdir/app.yaml').AndReturn((info2, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
     config = application_configuration.ServerConfiguration('/appdir/app.yaml')
@@ -174,9 +233,12 @@ class TestServerConfiguration(unittest.TestCase):
         )
 
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info1)
+        '/appdir/app.yaml').AndReturn((info1, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info2)
+        '/appdir/app.yaml').AndReturn((info2, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
     config = application_configuration.ServerConfiguration('/appdir/app.yaml')
@@ -241,6 +303,22 @@ class TestBackendsConfiguration(unittest.TestCase):
                           config.get_backend_configurations())
     self.mox.VerifyAll()
 
+  def test_no_backends(self):
+    self.mox.StubOutWithMock(application_configuration, 'ServerConfiguration')
+    backend_info = backendinfo.BackendInfoExternal()
+    server_config = object()
+    application_configuration.ServerConfiguration(
+        '/appdir/app.yaml').AndReturn(server_config)
+    application_configuration.BackendsConfiguration._parse_configuration(
+        '/appdir/backends.yaml').AndReturn(backend_info)
+
+    self.mox.ReplayAll()
+    config = application_configuration.BackendsConfiguration(
+        '/appdir/app.yaml',
+        '/appdir/backends.yaml')
+    self.assertEqual([], config.get_backend_configurations())
+    self.mox.VerifyAll()
+
   def test_check_for_changes(self):
     static_backend_entry = backendinfo.BackendEntry(name='static')
     dynamic_backend_entry = backendinfo.BackendEntry(name='dynamic')
@@ -275,6 +353,7 @@ class TestBackendConfiguration(unittest.TestCase):
     self.mox.StubOutWithMock(
         application_configuration.ServerConfiguration,
         '_parse_configuration')
+    self.mox.StubOutWithMock(os.path, 'getmtime')
 
   def tearDown(self):
     self.mox.UnsetStubs()
@@ -306,7 +385,8 @@ class TestBackendConfiguration(unittest.TestCase):
         options='public')
 
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info)
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
     self.mox.ReplayAll()
     server_config = application_configuration.ServerConfiguration(
@@ -333,6 +413,20 @@ class TestBackendConfiguration(unittest.TestCase):
     self.assertEqual(handlers, config.handlers)
     self.assertEqual(['warmup'], config.inbound_services)
     self.assertEqual(env_variables, config.env_variables)
+
+    whitelist_fields = ['server_name', 'version_id', 'automatic_scaling',
+                        'manual_scaling', 'basic_scaling', 'is_backend']
+    # Check that all public attributes and methods in a ServerConfiguration
+    # exist in a BackendConfiguration.
+    for field in dir(server_config):
+      if not field.startswith('_'):
+        self.assertTrue(hasattr(config, field), 'Missing field: %s' % field)
+        value = getattr(server_config, field)
+        if field not in whitelist_fields and not callable(value):
+          # Check that the attributes other than those in the whitelist have
+          # equal values in the BackendConfiguration to the ServerConfiguration
+          # from which it inherits.
+          self.assertEqual(value, getattr(config, field))
 
   def test_good_configuration_dynamic_scaling(self):
     automatic_scaling = appinfo.AutomaticScaling(min_pending_latency='1.0s',
@@ -362,7 +456,8 @@ class TestBackendConfiguration(unittest.TestCase):
         start='handler')
 
     application_configuration.ServerConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(info)
+        '/appdir/app.yaml').AndReturn((info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
     self.mox.ReplayAll()
     server_config = application_configuration.ServerConfiguration(
@@ -577,8 +672,8 @@ class TestApplicationConfiguration(unittest.TestCase):
         application_configuration.BackendsConfiguration)
     backends_config.get_backend_configurations().AndReturn([backend_config])
     application_configuration.BackendsConfiguration(
-        os.path.join('/appdir', 'app.yaml'),
-        os.path.join('/appdir', 'backends.yaml')).AndReturn(backends_config)
+        '/appdir/app.yaml',
+        '/appdir/backends.yaml').AndReturn(backends_config)
 
     self.mox.ReplayAll()
     config = application_configuration.ApplicationConfiguration(

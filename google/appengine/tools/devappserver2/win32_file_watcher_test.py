@@ -54,7 +54,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.FindFirstChangeNotificationA(
-        os.path.realpath('/tmp'), True,
+        os.path.abspath('/tmp'), True,
         win32_file_watcher._INTERESTING_NOTIFICATIONS).AndReturn(5)
     ctypes.windll.kernel32.FindNextChangeNotification(5).AndReturn(True)
 
@@ -66,7 +66,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.FindFirstChangeNotificationA(
-        os.path.realpath('/tmp'), True,
+        os.path.abspath('/tmp'), True,
         win32_file_watcher._INTERESTING_NOTIFICATIONS).AndReturn(
             win32_file_watcher.INVALID_HANDLE_VALUE)
 
@@ -78,7 +78,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.FindFirstChangeNotificationA(
-        os.path.realpath('/tmp'), True,
+        os.path.abspath('/tmp'), True,
         win32_file_watcher._INTERESTING_NOTIFICATIONS).AndReturn(5)
     ctypes.windll.kernel32.FindNextChangeNotification(5).AndReturn(False)
 

@@ -23,13 +23,9 @@ import threading
 import time
 
 import google
-from concurrent import futures
 
 from google.appengine.tools.devappserver2 import errors
 
-
-# TODO: Consolidate the various thread pools.
-_THREAD_POOL = futures.ThreadPoolExecutor(max_workers=100)
 
 NORMAL_REQUEST = 0
 READY_REQUEST = 1  # A warmup request i.e. /_ah/warmup.
@@ -38,6 +34,14 @@ SHUTDOWN_REQUEST = 3  # A request to stop the server i.e. /_ah/stop.
 # A request to send a command to the server for evaluation e.g. for use by
 # interactive shells.
 INTERACTIVE_REQUEST = 4
+
+# Constants for use with FILE_CHANGE_INSTANCE_RESTART_POLICY. These constants
+# determine whether an instance will be restarted if a file is changed in
+# the application_root or any directory returned by
+# InstanceFactory.get_restart_directories.
+ALWAYS = 0               # Always restart instances.
+AFTER_FIRST_REQUEST = 1  # Restart instances that have received >= 1 request.
+NEVER = 2                # Never restart instances.
 
 
 class CannotAcceptRequests(errors.Error):
@@ -57,9 +61,7 @@ class RuntimeProxy(object):
 
   def handle(self, environ, start_response, url_map, match, request_id,
              request_type):
-    """Forwards an HTTP request to a runtime process and yields the result.
-
-    Subclasses should not override this; override handle_hook instead.
+    """Serves this request by forwarding it to the runtime process.
 
     Args:
       environ: An environ dict for the request as defined in PEP-333.
@@ -68,26 +70,16 @@ class RuntimeProxy(object):
           handler matching this request.
       match: A re.MatchObject containing the result of the matched URL pattern.
       request_id: A unique string id associated with the request.
-      request_type: The type of the request. See *_REQUEST module constants.
+      request_type: The type of the request. See instance.*_REQUEST module
+          constants.
 
-    Returns:
-      An iterable over strings containing the body of the HTTP response.
+    Yields:
+      A sequence of strings containing the body of the HTTP response.
     """
     raise NotImplementedError()
 
   def start(self):
-    """Starts the runtime process."""
-    raise NotImplementedError()
-
-  def wait_until_serving(self, timeout=30.0):
-    """Waits until the runtime is ready to handle requests.
-
-    Args:
-      timeout: The maximum number of seconds to wait for the server to be ready.
-
-    Raises:
-      Error: if the server process exits or is not ready in "timeout" seconds.
-    """
+    """Starts the runtime process and waits until it is ready to serve."""
     raise NotImplementedError()
 
   def quit(self):
@@ -202,10 +194,12 @@ class Instance(object):
   def idle_seconds(self):
     """The number of seconds that the Instance has been idle.
 
-    Will be None if no requests have ever been received.
+    Will be 0.0 if the Instance has not started.
     """
     with self._condition:
       if self._num_outstanding_requests:
+        return 0.0
+      elif not self._started:
         return 0.0
       else:
         return time.time() - self._last_request_end_time
@@ -271,13 +265,14 @@ class Instance(object):
       True if the Instance was started or False, if the Instance has already
       been quit.
     """
-    # TODO: This is held for a long time, which blocks other threads from
-    # viewing instance state.
     with self._condition:
       if self._quit:
         return False
-      self._runtime_proxy.start()
-      self._runtime_proxy.wait_until_serving()
+    self._runtime_proxy.start()
+    with self._condition:
+      if self._quit:
+        self._runtime_proxy.quit()
+        return False
       self._last_request_end_time = time.time()
       self._started = True
     logging.debug('Started instance: %s', self)
@@ -332,8 +327,6 @@ class Instance(object):
         raise CannotAcceptRequests('Instance has been quit')
       if not self._started:
         raise CannotAcceptRequests('Instance has not started')
-      if self._expecting_ready_request:
-        raise CannotAcceptRequests('Instance is waiting for ready request')
       if not self.remaining_background_thread_capacity:
         raise CannotAcceptRequests(
             'Instance has no additional background thread capacity')
@@ -378,7 +371,6 @@ class Instance(object):
       self._request_data.set_request_instance(request_id, self)
       self._total_requests += 1
 
-    environ['INSTANCE_ID'] = str(self._instance_id)
     try:
       # Force the generator to complete so the code in the finally block runs
       # at the right time.
@@ -449,6 +441,9 @@ class InstanceFactory(object):
   # If True then the runtime supports interactive command evaluation e.g. for
   # use in interactive shells.
   SUPPORTS_INTERACTIVE_REQUESTS = False
+  # Controls how instances are restarted when a file relevant to the application
+  # is changed. Possible values: NEVER, AFTER_FIRST_RESTART, ALWAYS.
+  FILE_CHANGE_INSTANCE_RESTART_POLICY = None
 
   def __init__(self, request_data, max_concurrent_requests,
                max_background_threads=0):
@@ -467,6 +462,27 @@ class InstanceFactory(object):
     self.request_data = request_data
     self.max_concurrent_requests = max_concurrent_requests
     self.max_background_threads = max_background_threads
+
+  def get_restart_directories(self):
+    """Returns a list of directories changes in which should trigger a restart.
+
+    Returns:
+      A list of directory paths. Changes (i.e. files added, deleted or modified)
+      in these directories will trigger the restart of all instances created
+      with this factory.
+    """
+    return []
+
+  def files_changed(self):
+    """Called when a file relevant to the factory *might* have changed."""
+
+  def configuration_changed(self, config_changes):
+    """Called when the configuration of the server has changed.
+
+    Args:
+      config_changes: A set containing the changes that occured. See the
+          *_CHANGED constants in the application_configuration module.
+    """
 
   def new_instance(self, instance_id, expect_ready_request=False):
     """Create and return a new Instance.

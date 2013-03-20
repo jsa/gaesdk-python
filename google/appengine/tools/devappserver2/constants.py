@@ -37,6 +37,8 @@ IGNORED_REQUEST_HEADERS = frozenset([
     'te',
     'trailer',
     'transfer-encoding',
+    'x-appengine-fake-is-admin',
+    'x-appengine-fake-logged-in',
     ])
 
 # All of these headers will be stripped from the response.

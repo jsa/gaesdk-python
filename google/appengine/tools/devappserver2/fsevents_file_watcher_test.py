@@ -71,7 +71,7 @@ class FSEventsFileWatcherTest(unittest.TestCase):
         None,
         watcher._fsevents_callback,
         None,
-        [os.path.realpath('/tmp')],
+        [os.path.abspath('/tmp')],
         fsevents_file_watcher.FSEvents.kFSEventStreamEventIdSinceNow,
         1,
         fsevents_file_watcher.FSEvents.kFSEventStreamCreateFlagNone).AndReturn(

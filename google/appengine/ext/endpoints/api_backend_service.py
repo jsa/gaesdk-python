@@ -152,8 +152,15 @@ class BackendServiceImpl(api_backend.BackendService):
       Void message.
     """
     Level = api_backend.LogMessagesRequest.LogMessage.Level
+    log = logging.getLogger(__name__)
     for message in request.messages:
       level = message.level if message.level is not None else Level.info
-      logging.log(level.number, message.message)
+
+
+
+      record = logging.LogRecord(name=__name__, level=level.number, pathname='',
+                                 lineno='', msg=message.message, args=None,
+                                 exc_info=None)
+      log.handle(record)
 
     return message_types.VoidMessage()

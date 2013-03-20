@@ -40,6 +40,7 @@ other things adds a buffered file-like interface.
 
 import errno
 import os
+import re
 import struct
 import time
 import weakref
@@ -159,7 +160,20 @@ def _SystemExceptionFromAppError(e):
   if app_error in (RemoteSocketServiceError.SYSTEM_ERROR,
                    RemoteSocketServiceError.GAI_ERROR):
     error_detail = RemoteSocketServiceError()
-    error_detail.ParseASCII(e.error_detail)
+    try:
+      error_detail.ParseASCII(e.error_detail)
+    except NotImplementedError:
+
+
+      m = re.match(
+          r'system_error:\s*(-?\d+)\s*,?\s*error_detail:\s*"([^"]*)"\s*',
+          e.error_detail)
+      if m:
+        error_detail.set_system_error(int(m.group(1)))
+        error_detail.set_error_detail(m.group(2))
+      else:
+        error_detail.set_system_error(-1)
+        error_detail.set_error_detail(e.error_detail)
     if app_error == RemoteSocketServiceError.SYSTEM_ERROR:
       return error(error_detail.system_error(),
                    (error_detail.error_detail() or
@@ -933,7 +947,11 @@ class socket(object):
 
     request = remote_socket_service_pb.SendRequest()
     request.set_socket_descriptor(self._socket_descriptor)
-    request.set_data(data)
+
+    if len(data) > 512*1024:
+      request.set_data(data[:512*1024])
+    else:
+      request.set_data(data)
     request.set_flags(flags)
     request.set_stream_offset(self._stream_offset)
 

@@ -26,17 +26,16 @@ import time
 import google
 
 from cherrypy import wsgiserver
-from concurrent import futures
 
 from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import http_runtime_constants
+from google.appengine.tools.devappserver2 import thread_executor
 
 
 class BindError(errors.Error):
   """The server failed to bind its address."""
 
-# TODO: Consolidate the various thread pools.
-_THREAD_POOL = futures.ThreadPoolExecutor(max_workers=100)
+_THREAD_POOL = thread_executor.ThreadExecutor()
 
 
 class SharedCherryPyThreadPool(object):
@@ -150,6 +149,10 @@ class WsgiServer(wsgiserver.CherryPyWSGIServer):
     self._error = None  # Protected by _lock.
     self.requests = SharedCherryPyThreadPool()
     self.software = http_runtime_constants.SERVER_SOFTWARE
+    # Some servers, especially the API server, may receive many simultaneous
+    # requests so set the listen() backlog to something high to reduce the
+    # likelihood of refused connections.
+    self.request_queue_size = 100
 
   def start(self):
     """Starts the WsgiServer.

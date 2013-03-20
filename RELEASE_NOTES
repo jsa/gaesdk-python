@@ -3,6 +3,69 @@ All rights reserved.
 
 App Engine Python SDK - Release Notes
 
+Version 1.7.6
+===============================
+- The new and improved development appserver, which was previewed last release,
+  now becomes the default. The old development appserver has been renamed to
+  old_appserver.py and will remain available until the first release after
+  1 July 2013 when it will be removed from the SDK. For more information, please
+  visit
+  http://developers.google.com/appengine/docs/python/tools/devserver
+- A Go runtime has been added to the new and improved development appserver.
+- The Debug log level for the runtime has been enabled.
+- Improvements to the App Engine billing system will be rolled out gradually to
+  all apps. Fore more information, please visit
+  http://developers.google.com/appengine/docs/billing
+- The application summary no longer displays the default version of a running
+  application, instead it lists the application as 'RUNNING'. In an upcoming
+  release applications will have multiple logical sub components, each of which
+  will have a default version. This UI update is meant to align with this
+  functionality.
+- Projection queries are now a fully supported GA feature.
+- The XMPP API now has multi-JID get_presence. This provides the ability to get
+  the availability of multiple users.
+- Django 1.4 and Webob 1.2.3 are now promoted to GA.
+- Apps now have the ability to fopen() files that are declared as static files
+  in app.yaml using the application_readable flag.
+- The dev_appserver now allocates automatic ids using the 'scattered' id
+  allocation policy by default. For more information, please see "Specifying the
+  Automatic ID Allocation Policy":
+  https://developers.google.com/appengine/docs/python/tools/devserver#Using_the_
+  Datastore
+- Admin console dashboard charts and current load/errors reports will be moving
+  to a new, more reliable backend. The change will be gradually rolling to users
+  of admin console over the next few weeks.
+- New Search API quotas are now displayed in the Admin Console. These quotas are
+  not currently enforced, but will be part of the pricing model for the Search
+  API in a future release.
+- The experimental Search API's ability to explicitly sort search results by
+  SortExpression.RANK_FIELD_NAME (i.e. _order_id) field in ascending order has
+  been removed.
+- Globally consistent indexes in the experimental Search API are now deprecated
+  and will be removed in the next release.
+- Task Queue tasks may now be added and deleted asynchronously. This allows
+  applications to perform common task queue operations without blocking. This is
+  an experimental feature.
+- In the experimental MapReduce framework, shards that encounter Files API
+  errors will retry three times before the entire job fails.
+- Google Protocol RPC now supports deserializing and reserializing of unexpected
+  fields.
+- A new Google Protocol RPC field type for supporting datetime values has been
+  added. For more information, please visit
+  https://developers.google.com/appengine/docs/python/tools/protorpc
+- Fixed an issue which caused an incorrect server error message when setting the
+  default version on the admin console, though the version was set correctly.
+- Fixed an issue where get_indexes() didn't correctly populate the namespace
+  when run from the new dev_appserver.
+- Fixed an issue with the new dev_appserver failing on invalid login cookies. It
+  now uses type="email" for email in the login form.
+    https://code.google.com/p/appengine-devappserver2-experiment/issues/detail?
+    id=36
+- Fixed an issue with the new dev_appserver to have fix_sys_path add the
+  necessary libraries to sys.path making it now compatible with the testbed.
+    https://code.google.com/p/appengine-devappserver2-experiment/issues/detail?
+    id=45
+
 Version 1.7.5
 ===============================
 - New instance classes F4_1G and B4_1G are now available.  These instances have
