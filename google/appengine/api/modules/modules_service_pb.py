@@ -31,11 +31,11 @@ else:
   _extension_runtime = False
   _ExtendableProtocolMessage = ProtocolBuffer.ProtocolMessage
 
-class ServersServiceError(ProtocolBuffer.ProtocolMessage):
+class ModulesServiceError(ProtocolBuffer.ProtocolMessage):
 
 
   OK           =    0
-  INVALID_SERVER =    1
+  INVALID_MODULE =    1
   INVALID_VERSION =    2
   INVALID_INSTANCES =    3
   TRANSIENT_ERROR =    4
@@ -43,7 +43,7 @@ class ServersServiceError(ProtocolBuffer.ProtocolMessage):
 
   _ErrorCode_NAMES = {
     0: "OK",
-    1: "INVALID_SERVER",
+    1: "INVALID_MODULE",
     2: "INVALID_VERSION",
     3: "INVALID_INSTANCES",
     4: "TRANSIENT_ERROR",
@@ -116,8 +116,8 @@ class ServersServiceError(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.ServersServiceError'
-class GetServersRequest(ProtocolBuffer.ProtocolMessage):
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.ModulesServiceError'
+class GetModulesRequest(ProtocolBuffer.ProtocolMessage):
 
   def __init__(self, contents=None):
     pass
@@ -181,37 +181,37 @@ class GetServersRequest(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.GetServersRequest'
-class GetServersResponse(ProtocolBuffer.ProtocolMessage):
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.GetModulesRequest'
+class GetModulesResponse(ProtocolBuffer.ProtocolMessage):
 
   def __init__(self, contents=None):
-    self.server_ = []
+    self.module_ = []
     if contents is not None: self.MergeFromString(contents)
 
-  def server_size(self): return len(self.server_)
-  def server_list(self): return self.server_
+  def module_size(self): return len(self.module_)
+  def module_list(self): return self.module_
 
-  def server(self, i):
-    return self.server_[i]
+  def module(self, i):
+    return self.module_[i]
 
-  def set_server(self, i, x):
-    self.server_[i] = x
+  def set_module(self, i, x):
+    self.module_[i] = x
 
-  def add_server(self, x):
-    self.server_.append(x)
+  def add_module(self, x):
+    self.module_.append(x)
 
-  def clear_server(self):
-    self.server_ = []
+  def clear_module(self):
+    self.module_ = []
 
 
   def MergeFrom(self, x):
     assert x is not self
-    for i in xrange(x.server_size()): self.add_server(x.server(i))
+    for i in xrange(x.module_size()): self.add_module(x.module(i))
 
   def Equals(self, x):
     if x is self: return 1
-    if len(self.server_) != len(x.server_): return 0
-    for e1, e2 in zip(self.server_, x.server_):
+    if len(self.module_) != len(x.module_): return 0
+    for e1, e2 in zip(self.module_, x.module_):
       if e1 != e2: return 0
     return 1
 
@@ -221,34 +221,34 @@ class GetServersResponse(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    n += 1 * len(self.server_)
-    for i in xrange(len(self.server_)): n += self.lengthString(len(self.server_[i]))
+    n += 1 * len(self.module_)
+    for i in xrange(len(self.module_)): n += self.lengthString(len(self.module_[i]))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    n += 1 * len(self.server_)
-    for i in xrange(len(self.server_)): n += self.lengthString(len(self.server_[i]))
+    n += 1 * len(self.module_)
+    for i in xrange(len(self.module_)): n += self.lengthString(len(self.module_[i]))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
 
   def OutputUnchecked(self, out):
-    for i in xrange(len(self.server_)):
+    for i in xrange(len(self.module_)):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_[i])
+      out.putPrefixedString(self.module_[i])
 
   def OutputPartial(self, out):
-    for i in xrange(len(self.server_)):
+    for i in xrange(len(self.module_)):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_[i])
+      out.putPrefixedString(self.module_[i])
 
   def TryMerge(self, d):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.add_server(d.getPrefixedString())
+        self.add_module(d.getPrefixedString())
         continue
 
 
@@ -259,10 +259,10 @@ class GetServersResponse(ProtocolBuffer.ProtocolMessage):
   def __str__(self, prefix="", printElemNumber=0):
     res=""
     cnt=0
-    for e in self.server_:
+    for e in self.module_:
       elm=""
       if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("server%s: %s\n" % (elm, self.DebugFormatString(e)))
+      res+=prefix+("module%s: %s\n" % (elm, self.DebugFormatString(e)))
       cnt+=1
     return res
 
@@ -270,11 +270,11 @@ class GetServersResponse(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
   }, 1)
 
   _TYPES = _BuildTagLookupTable({
@@ -285,36 +285,36 @@ class GetServersResponse(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.GetServersResponse'
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.GetModulesResponse'
 class GetVersionsRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  has_module_ = 0
+  module_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -323,32 +323,32 @@ class GetVersionsRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
 
 
@@ -358,18 +358,18 @@ class GetVersionsRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     return res
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
   }, 1)
 
   _TYPES = _BuildTagLookupTable({
@@ -486,34 +486,34 @@ class GetVersionsResponse(ProtocolBuffer.ProtocolMessage):
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.GetVersionsResponse'
 class GetDefaultVersionRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  has_module_ = 0
+  module_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -522,32 +522,32 @@ class GetDefaultVersionRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
 
 
@@ -557,18 +557,18 @@ class GetDefaultVersionRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     return res
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
   }, 1)
 
   _TYPES = _BuildTagLookupTable({
@@ -681,26 +681,26 @@ class GetDefaultVersionResponse(ProtocolBuffer.ProtocolMessage):
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.GetDefaultVersionResponse'
 class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  has_module_ = 0
+  module_ = ""
   has_version_ = 0
   version_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
   def version(self): return self.version_
 
@@ -718,13 +718,13 @@ class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
     if (x.has_version()): self.set_version(x.version())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     if self.has_version_ != x.has_version_: return 0
     if self.has_version_ and self.version_ != x.version_: return 0
     return 1
@@ -735,32 +735,32 @@ class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
     self.clear_version()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -769,7 +769,7 @@ class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
       if tt == 18:
         self.set_version(d.getPrefixedString())
@@ -782,7 +782,7 @@ class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     if self.has_version_: res+=prefix+("version: %s\n" % self.DebugFormatString(self.version_))
     return res
 
@@ -790,12 +790,12 @@ class GetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
   kversion = 2
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
     2: "version",
   }, 2)
 
@@ -910,8 +910,8 @@ class GetNumInstancesResponse(ProtocolBuffer.ProtocolMessage):
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.GetNumInstancesResponse'
 class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  has_module_ = 0
+  module_ = ""
   has_version_ = 0
   version_ = ""
   has_instances_ = 0
@@ -920,18 +920,18 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
   def version(self): return self.version_
 
@@ -962,14 +962,14 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
     if (x.has_version()): self.set_version(x.version())
     if (x.has_instances()): self.set_instances(x.instances())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     if self.has_version_ != x.has_version_: return 0
     if self.has_version_ and self.version_ != x.version_: return 0
     if self.has_instances_ != x.has_instances_: return 0
@@ -986,14 +986,14 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     n += self.lengthVarInt64(self.instances_)
     return n + 1
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     if (self.has_instances_):
       n += 1
@@ -1001,14 +1001,14 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
     self.clear_version()
     self.clear_instances()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1016,9 +1016,9 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
     out.putVarInt64(self.instances_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1030,7 +1030,7 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
       if tt == 18:
         self.set_version(d.getPrefixedString())
@@ -1046,7 +1046,7 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     if self.has_version_: res+=prefix+("version: %s\n" % self.DebugFormatString(self.version_))
     if self.has_instances_: res+=prefix+("instances: %s\n" % self.DebugFormatInt64(self.instances_))
     return res
@@ -1055,13 +1055,13 @@ class SetNumInstancesRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
   kversion = 2
   kinstances = 3
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
     2: "version",
     3: "instances",
   }, 3)
@@ -1142,27 +1142,27 @@ class SetNumInstancesResponse(ProtocolBuffer.ProtocolMessage):
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.SetNumInstancesResponse'
-class StartServerRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+class StartModuleRequest(ProtocolBuffer.ProtocolMessage):
+  has_module_ = 0
+  module_ = ""
   has_version_ = 0
   version_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
   def version(self): return self.version_
 
@@ -1180,23 +1180,23 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
     if (x.has_version()): self.set_version(x.version())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     if self.has_version_ != x.has_version_: return 0
     if self.has_version_ and self.version_ != x.version_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
     initialized = 1
-    if (not self.has_server_):
+    if (not self.has_module_):
       initialized = 0
       if debug_strs is not None:
-        debug_strs.append('Required field: server not set.')
+        debug_strs.append('Required field: module not set.')
     if (not self.has_version_):
       initialized = 0
       if debug_strs is not None:
@@ -1205,34 +1205,34 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    n += self.lengthString(len(self.server_))
+    n += self.lengthString(len(self.module_))
     n += self.lengthString(len(self.version_))
     return n + 2
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_):
+    if (self.has_module_):
       n += 1
-      n += self.lengthString(len(self.server_))
+      n += self.lengthString(len(self.module_))
     if (self.has_version_):
       n += 1
       n += self.lengthString(len(self.version_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
     self.clear_version()
 
   def OutputUnchecked(self, out):
     out.putVarInt32(10)
-    out.putPrefixedString(self.server_)
+    out.putPrefixedString(self.module_)
     out.putVarInt32(18)
     out.putPrefixedString(self.version_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1241,7 +1241,7 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
       if tt == 18:
         self.set_version(d.getPrefixedString())
@@ -1254,7 +1254,7 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     if self.has_version_: res+=prefix+("version: %s\n" % self.DebugFormatString(self.version_))
     return res
 
@@ -1262,12 +1262,12 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
   kversion = 2
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
     2: "version",
   }, 2)
 
@@ -1280,8 +1280,8 @@ class StartServerRequest(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.StartServerRequest'
-class StartServerResponse(ProtocolBuffer.ProtocolMessage):
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.StartModuleRequest'
+class StartModuleResponse(ProtocolBuffer.ProtocolMessage):
 
   def __init__(self, contents=None):
     pass
@@ -1345,28 +1345,28 @@ class StartServerResponse(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.StartServerResponse'
-class StopServerRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.StartModuleResponse'
+class StopModuleRequest(ProtocolBuffer.ProtocolMessage):
+  has_module_ = 0
+  module_ = ""
   has_version_ = 0
   version_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
   def version(self): return self.version_
 
@@ -1384,13 +1384,13 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
     if (x.has_version()): self.set_version(x.version())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     if self.has_version_ != x.has_version_: return 0
     if self.has_version_ and self.version_ != x.version_: return 0
     return 1
@@ -1401,32 +1401,32 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
     self.clear_version()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1435,7 +1435,7 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
       if tt == 18:
         self.set_version(d.getPrefixedString())
@@ -1448,7 +1448,7 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     if self.has_version_: res+=prefix+("version: %s\n" % self.DebugFormatString(self.version_))
     return res
 
@@ -1456,12 +1456,12 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
   kversion = 2
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
     2: "version",
   }, 2)
 
@@ -1474,8 +1474,8 @@ class StopServerRequest(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.StopServerRequest'
-class StopServerResponse(ProtocolBuffer.ProtocolMessage):
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.StopModuleRequest'
+class StopModuleResponse(ProtocolBuffer.ProtocolMessage):
 
   def __init__(self, contents=None):
     pass
@@ -1539,10 +1539,10 @@ class StopServerResponse(ProtocolBuffer.ProtocolMessage):
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.StopServerResponse'
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.StopModuleResponse'
 class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
-  has_server_ = 0
-  server_ = ""
+  has_module_ = 0
+  module_ = ""
   has_version_ = 0
   version_ = ""
   has_instance_ = 0
@@ -1551,18 +1551,18 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
 
-  def server(self): return self.server_
+  def module(self): return self.module_
 
-  def set_server(self, x):
-    self.has_server_ = 1
-    self.server_ = x
+  def set_module(self, x):
+    self.has_module_ = 1
+    self.module_ = x
 
-  def clear_server(self):
-    if self.has_server_:
-      self.has_server_ = 0
-      self.server_ = ""
+  def clear_module(self):
+    if self.has_module_:
+      self.has_module_ = 0
+      self.module_ = ""
 
-  def has_server(self): return self.has_server_
+  def has_module(self): return self.has_module_
 
   def version(self): return self.version_
 
@@ -1593,14 +1593,14 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_server()): self.set_server(x.server())
+    if (x.has_module()): self.set_module(x.module())
     if (x.has_version()): self.set_version(x.version())
     if (x.has_instance()): self.set_instance(x.instance())
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_server_ != x.has_server_: return 0
-    if self.has_server_ and self.server_ != x.server_: return 0
+    if self.has_module_ != x.has_module_: return 0
+    if self.has_module_ and self.module_ != x.module_: return 0
     if self.has_version_ != x.has_version_: return 0
     if self.has_version_ and self.version_ != x.version_: return 0
     if self.has_instance_ != x.has_instance_: return 0
@@ -1613,27 +1613,27 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     if (self.has_instance_): n += 1 + self.lengthString(len(self.instance_))
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_server_): n += 1 + self.lengthString(len(self.server_))
+    if (self.has_module_): n += 1 + self.lengthString(len(self.module_))
     if (self.has_version_): n += 1 + self.lengthString(len(self.version_))
     if (self.has_instance_): n += 1 + self.lengthString(len(self.instance_))
     return n
 
   def Clear(self):
-    self.clear_server()
+    self.clear_module()
     self.clear_version()
     self.clear_instance()
 
   def OutputUnchecked(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1642,9 +1642,9 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
       out.putPrefixedString(self.instance_)
 
   def OutputPartial(self, out):
-    if (self.has_server_):
+    if (self.has_module_):
       out.putVarInt32(10)
-      out.putPrefixedString(self.server_)
+      out.putPrefixedString(self.module_)
     if (self.has_version_):
       out.putVarInt32(18)
       out.putPrefixedString(self.version_)
@@ -1656,7 +1656,7 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
     while d.avail() > 0:
       tt = d.getVarInt32()
       if tt == 10:
-        self.set_server(d.getPrefixedString())
+        self.set_module(d.getPrefixedString())
         continue
       if tt == 18:
         self.set_version(d.getPrefixedString())
@@ -1672,7 +1672,7 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_server_: res+=prefix+("server: %s\n" % self.DebugFormatString(self.server_))
+    if self.has_module_: res+=prefix+("module: %s\n" % self.DebugFormatString(self.module_))
     if self.has_version_: res+=prefix+("version: %s\n" % self.DebugFormatString(self.version_))
     if self.has_instance_: res+=prefix+("instance: %s\n" % self.DebugFormatString(self.instance_))
     return res
@@ -1681,13 +1681,13 @@ class GetHostnameRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kserver = 1
+  kmodule = 1
   kversion = 2
   kinstance = 3
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "server",
+    1: "module",
     2: "version",
     3: "instance",
   }, 3)
@@ -1806,4 +1806,4 @@ class GetHostnameResponse(ProtocolBuffer.ProtocolMessage):
 if _extension_runtime:
   pass
 
-__all__ = ['ServersServiceError','GetServersRequest','GetServersResponse','GetVersionsRequest','GetVersionsResponse','GetDefaultVersionRequest','GetDefaultVersionResponse','GetNumInstancesRequest','GetNumInstancesResponse','SetNumInstancesRequest','SetNumInstancesResponse','StartServerRequest','StartServerResponse','StopServerRequest','StopServerResponse','GetHostnameRequest','GetHostnameResponse']
+__all__ = ['ModulesServiceError','GetModulesRequest','GetModulesResponse','GetVersionsRequest','GetVersionsResponse','GetDefaultVersionRequest','GetDefaultVersionResponse','GetNumInstancesRequest','GetNumInstancesResponse','SetNumInstancesRequest','SetNumInstancesResponse','StartModuleRequest','StartModuleResponse','StopModuleRequest','StopModuleResponse','GetHostnameRequest','GetHostnameResponse']
