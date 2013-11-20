@@ -625,6 +625,11 @@ class MapperSpec(JsonMixin):
   def get_handler(self):
     """Get mapper handler instance.
 
+    This always creates a new instance of the handler. If the handler is a
+    callable instance, MR only wants to create a new instance at the
+    beginning of a shard or shard retry. The pickled callable instance
+    should be accessed from TransientShardState.
+
     Returns:
       handler instance as callable.
     """
@@ -987,7 +992,7 @@ class TransientShardState(object):
     self.slice_id = 0
     self.retries += 1
     self.output_writer = output_writer
-    self.handler = None
+    self.handler = self.mapreduce_spec.mapper.handler
 
   def advance_for_next_slice(self):
     """Advance relavent states for next slice."""
@@ -1033,12 +1038,12 @@ class TransientShardState(object):
               mapper_spec.output_writer_class(),
               output_writer.__class__))
 
-    request_path = request.path
-    base_path = request_path[:request_path.rfind("/")]
-
     handler = util.try_deserialize_handler(request.get("serialized_handler"))
     if not handler:
       handler = mapreduce_spec.mapper.handler
+
+    request_path = request.path
+    base_path = request_path[:request_path.rfind("/")]
 
     return cls(base_path,
                mapreduce_spec,
@@ -1108,6 +1113,9 @@ class ShardState(db.Model):
   RESULT_ABORTED = "aborted"
 
   _RESULTS = frozenset([RESULT_SUCCESS, RESULT_FAILED, RESULT_ABORTED])
+
+
+  _MAX_STATES_IN_MEMORY = 10
 
 
   active = db.BooleanProperty(default=True, indexed=False)
@@ -1255,8 +1263,22 @@ class ShardState(db.Model):
     return cls.get_by_key_name(shard_id)
 
   @classmethod
-  @db.non_transactional
   def find_by_mapreduce_state(cls, mapreduce_state):
+    """Find all shard states for given mapreduce.
+
+    Deprecated. Use find_all_by_mapreduce_state.
+    This will be removed after 1.8.9 release.
+
+    Args:
+      mapreduce_state: MapreduceState instance
+
+    Returns:
+      A list of ShardStates.
+    """
+    return list(cls.find_all_by_mapreduce_state(mapreduce_state))
+
+  @classmethod
+  def find_all_by_mapreduce_state(cls, mapreduce_state):
     """Find all shard states for given mapreduce.
 
     Never runs within a transaction since it may touch >5 entity groups (one
@@ -1265,11 +1287,22 @@ class ShardState(db.Model):
     Args:
       mapreduce_state: MapreduceState instance
 
-    Returns:
-      iterable of all ShardState for given mapreduce.
+    Yields:
+      shard states sorted by shard id.
     """
     keys = cls.calculate_keys_by_mapreduce_state(mapreduce_state)
-    return [state for state in db.get(keys) if state]
+    i = 0
+    while i < len(keys):
+      @db.non_transactional
+      def no_tx_get(i):
+        return db.get(keys[i:i+cls._MAX_STATES_IN_MEMORY])
+
+
+      states = no_tx_get(i)
+      for s in states:
+        i += 1
+        if s is not None:
+          yield s
 
   @classmethod
   def calculate_keys_by_mapreduce_state(cls, mapreduce_state):
@@ -1279,22 +1312,17 @@ class ShardState(db.Model):
       mapreduce_state: MapreduceState instance
 
     Returns:
-      A list of keys for shard states. The corresponding shard states
-      may not exist.
+      A list of keys for shard states, sorted by shard id.
+      The corresponding shard states may not exist.
     """
+    if mapreduce_state is None:
+      return []
+
     keys = []
     for i in range(mapreduce_state.mapreduce_spec.mapper.shard_count):
       shard_id = cls.shard_id_from_number(mapreduce_state.key().name(), i)
       keys.append(cls.get_key_by_shard_id(shard_id))
     return keys
-
-  @classmethod
-  def find_by_mapreduce_id(cls, mapreduce_id):
-    logging.error(
-        "ShardState.find_by_mapreduce_id method may be inconsistent. " +
-        "ShardState.find_by_mapreduce_state should be used instead.")
-    return cls.all().filter(
-        "mapreduce_id =", mapreduce_id).fetch(99999)
 
   @classmethod
   def create_new(cls, mapreduce_id, shard_number):

@@ -486,7 +486,7 @@ def _I18nHeader(text):
     email.header.Header
   """
   charset = _GuessCharset(text)
-  return email.header.Header(text, charset, maxlinelen=float('inf'))
+  return email.header.Header(text, charset, maxlinelen=1e3000)
 
 
 def mail_message_to_mime_message(protocol_message):
@@ -686,6 +686,10 @@ class EncodedPayload(object):
               self.encoding == other.encoding)
     else:
       return NotImplemented
+
+  def __hash__(self):
+    """Hash an EncodedPayload."""
+    return hash((self.payload, self.charset, self.encoding))
 
   def copy_to(self, mime_message):
     """Copy contents to MIME message payload.

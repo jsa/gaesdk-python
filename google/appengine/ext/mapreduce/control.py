@@ -92,15 +92,18 @@ def start_map(name,
     mapreduce id as string.
   """
   if shard_count is None:
-    shard_count = parameters.DEFAULT_SHARD_COUNT
+    shard_count = parameters.config.SHARD_COUNT
   if base_path is None:
-
-    base_path = parameters._DEFAULT_BASE_PATH
+    base_path = parameters.config.BASE_PATH
 
   if mapper_parameters:
     mapper_parameters = dict(mapper_parameters)
   if mapreduce_parameters:
     mapreduce_parameters = dict(mapreduce_parameters)
+    if "base_path" not in mapreduce_parameters:
+      mapreduce_parameters["base_path"] = base_path
+  else:
+    mapreduce_parameters = {"base_path": base_path}
 
   mapper_spec = model.MapperSpec(handler_spec,
                                  reader_spec,

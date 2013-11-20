@@ -71,7 +71,10 @@ from google.appengine.ext.mapreduce import records
 
 
 try:
+
   from google.appengine.ext import cloudstorage
+  if hasattr(cloudstorage, "_STUB"):
+    cloudstorage = None
 except ImportError:
   pass
 
@@ -607,12 +610,6 @@ class FileOutputWriterBase(OutputWriter):
       state = cls._State.from_json(mapreduce_state.writer_state)
       files.finalize(state.filenames[0])
 
-
-    finalized_filenames = cls.get_filenames(mapreduce_state)
-    state = cls._State(finalized_filenames, [])
-    mapreduce_state.writer_state = state.to_json()
-
-
   @classmethod
   def from_json(cls, state):
     """Creates an instance of the OutputWriter for the given json state.
@@ -623,11 +620,7 @@ class FileOutputWriterBase(OutputWriter):
     Returns:
       An instance of the OutputWriter configured using the values of json.
     """
-    if "request_filename" in state:
-      return cls(state["filename"], state["request_filename"])
-
-
-    return cls(state["filename"], None)
+    return cls(state["filename"], state["request_filename"])
 
 
   def to_json(self):
@@ -684,11 +677,6 @@ class FileOutputWriterBase(OutputWriter):
                                   request_filename,
                                   mime_type,
                                   acl=acl)
-
-
-      state = cls._State([filename], [request_filename])
-      shard_state.writer_state = state.to_json()
-
     else:
       state = cls._State.from_json(mapreduce_state.writer_state)
       filename = state.filenames[0]
@@ -705,12 +693,6 @@ class FileOutputWriterBase(OutputWriter):
     mapreduce_spec = ctx.mapreduce_spec
     output_sharding = self.__class__._get_output_sharding(
         mapper_spec=mapreduce_spec.mapper)
-
-
-    if self._request_filename is None or hasattr(self, "_183_test"):
-      writer_state = self._State.from_json(shard_state.writer_state)
-      self._request_filename = writer_state.request_filenames[0]
-
     if output_sharding == self.OUTPUT_SHARDING_INPUT_SHARDS:
       filesystem = self._get_filesystem(mapreduce_spec.mapper)
       files.finalize(self._filename)
@@ -740,16 +722,10 @@ class FileOutputWriterBase(OutputWriter):
           model.MapreduceState.RESULT_SUCCESS):
         state = cls._State.from_json(mapreduce_state.writer_state)
         filesystem = cls._get_filesystem(mapreduce_state.mapreduce_spec.mapper)
-
-
-        if not state.request_filenames:
-          finalized_filenames = state.filenames
-        else:
-
-          finalized_filenames = [cls._get_finalized_filename(
-              filesystem, state.filenames[0], state.request_filenames[0])]
+        finalized_filenames = [cls._get_finalized_filename(
+            filesystem, state.filenames[0], state.request_filenames[0])]
     else:
-      shards = model.ShardState.find_by_mapreduce_state(mapreduce_state)
+      shards = model.ShardState.find_all_by_mapreduce_state(mapreduce_state)
       for shard in shards:
         if shard.result_status == model.ShardState.RESULT_SUCCESS:
           state = cls._State.from_json(shard.writer_state)
@@ -1005,9 +981,8 @@ class _GoogleCloudStorageOutputWriter(OutputWriter):
 
   @classmethod
   def get_filenames(cls, mapreduce_state):
-    shards = model.ShardState.find_by_mapreduce_state(mapreduce_state)
     filenames = []
-    for shard in shards:
+    for shard in model.ShardState.find_all_by_mapreduce_state(mapreduce_state):
       if shard.result_status == model.ShardState.RESULT_SUCCESS:
         filenames.append(cls._get_filename(shard))
     return filenames
@@ -1038,6 +1013,10 @@ class _GoogleCloudStorageOutputWriter(OutputWriter):
     self._streaming_buffer.close()
 
     shard_state.writer_state = {"filename": self._filename}
+
+
+  def _can_be_retried(self, tstate):
+    return True
 
 
 class _GoogleCloudStorageRecordOutputWriter(_GoogleCloudStorageOutputWriter):

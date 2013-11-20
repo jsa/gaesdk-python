@@ -48,7 +48,7 @@ class ModuleConfigurationStub(object):
     self.application = application
     self.module_name = module_name
     self.major_version = version
-    self.version_id = '%s:%s.%s' % (module_name, version, '12345')
+    self.version_id = '%s.%s' % (version, '12345')
     self.runtime = 'python27'
     self.threadsafe = False
     self.handlers = []
@@ -488,10 +488,26 @@ class DispatcherTest(unittest.TestCase):
 
   def test_resolve_target_instance_module_prefix(self):
     self.mox.StubOutWithMock(self.dispatcher, '_module_for_request')
+    self.mox.StubOutWithMock(self.dispatcher, '_get_module_with_soft_routing')
+    servr = object()
+    self.dispatcher._get_module_with_soft_routing('backend', None).AndReturn(
+        servr)
     self.mox.ReplayAll()
-    self.assertRaises(request_info.ModuleDoesNotExistError,
-                      self.dispatcher._resolve_target, '1.backend.localhost:1',
-                      '/foo')
+    self.assertEqual((servr, None),
+                     self.dispatcher._resolve_target('1.backend.localhost:1',
+                                                     '/foo'))
+    self.mox.VerifyAll()
+
+  def test_resolve_target_instance_version_module_prefix(self):
+    self.mox.StubOutWithMock(self.dispatcher, '_module_for_request')
+    self.mox.StubOutWithMock(self.dispatcher, '_get_module_with_soft_routing')
+    servr = object()
+    self.dispatcher._get_module_with_soft_routing('backend', None).AndReturn(
+        servr)
+    self.mox.ReplayAll()
+    self.assertEqual((servr, None),
+                     self.dispatcher._resolve_target('1.v1.backend.localhost:1',
+                                                     '/foo'))
     self.mox.VerifyAll()
 
   def test_get_module_no_modules(self):

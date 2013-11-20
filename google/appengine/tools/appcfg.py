@@ -70,11 +70,8 @@ from google.appengine.api import queueinfo
 from google.appengine.api import yaml_errors
 from google.appengine.api import yaml_object
 from google.appengine.datastore import datastore_index
-from google.appengine.tools import app_engine_web_xml_parser
+from google.appengine.tools import appcfg_java
 from google.appengine.tools import appengine_rpc
-from google.appengine.tools import backends_xml_parser
-from google.appengine.tools import web_xml_parser
-from google.appengine.tools import yaml_translator
 try:
 
 
@@ -143,10 +140,16 @@ DEFAULT_RESOURCE_LIMITS = {
 
 APPCFG_CLIENT_ID = '550516889912.apps.googleusercontent.com'
 APPCFG_CLIENT_NOTSOSECRET = 'ykPq-0UYfKNprLRjVx1hBBar'
-APPCFG_SCOPES = ['https://www.googleapis.com/auth/appengine.admin']
+APPCFG_SCOPES = ('https://www.googleapis.com/auth/appengine.admin',)
 
 
 STATIC_FILE_PREFIX = '__static__'
+
+
+
+METADATA_BASE = 'http://metadata.google.internal'
+SERVICE_ACCOUNT_BASE = (
+    'computeMetadata/v1beta1/instance/service-accounts/default')
 
 
 class Error(Exception):
@@ -173,8 +176,7 @@ def PrintUpdate(msg):
   """
   if verbosity > 0:
     timestamp = datetime.datetime.now()
-    print >>sys.stderr, '%s' % datetime.datetime.now().strftime('%I:%M %p'),
-    print >>sys.stderr, msg
+    print >>sys.stderr, '%s %s' % (timestamp.strftime('%I:%M %p'), msg)
 
 
 def StatusUpdate(msg):
@@ -268,6 +270,8 @@ class FileClassification(object):
       The mime type string.  For example, 'text/plain' or 'image/gif'.
       None if this is not a static file.
     """
+    if FileClassification.__FileNameImpliesStaticFile(filename):
+      return FileClassification.__MimeType(filename)
     for handler in config.handlers:
       handler_type = handler.GetHandlerType()
       if handler_type in ('static_dir', 'static_files'):
@@ -278,6 +282,24 @@ class FileClassification(object):
         if re.match(regex, filename):
           return handler.mime_type or FileClassification.__MimeType(filename)
     return None
+
+  @staticmethod
+  def __FileNameImpliesStaticFile(filename):
+    """True if the name of a file implies that it is a static resource.
+
+    For Java applications specified with web.xml and appengine-web.xml, we
+    create a staging directory that includes a __static__ hierarchy containing
+    links to all files that are implied static by the contents of those XML
+    files. So if a file has been copied into that directory then we can assume
+    it is static.
+
+    Args:
+      filename: The full path to the file.
+
+    Returns:
+      True if the file should be considered a static resource based on its name.
+    """
+    return ('__static__' + os.sep) in filename
 
   @staticmethod
   def __GetAppReadableIfStaticFile(config, filename):
@@ -907,7 +929,8 @@ class LogsRequester(object):
       include_vhost: If true, the virtual host is included in log messages.
       include_all: If true, we add to the log message everything we know
         about the request.
-      time_func: Method that return a timestamp representing now (for testing).
+      time_func: A time.time() compatible function, which can be overridden for
+        testing.
     """
 
     self.rpcserver = rpcserver
@@ -1879,6 +1902,7 @@ class AppVersionUpload(object):
 
     Raises:
       RuntimeError: Some required files were not uploaded.
+      CannotStartServingError: Another operation is in progress on this version.
     """
     assert self.in_transaction, 'Begin() must be called before Commit().'
     if self.files:
@@ -1993,11 +2017,15 @@ class AppVersionUpload(object):
   def _ValidateIsServingYaml(resp):
     """Validates the given /isserving YAML string.
 
-    Returns the resulting dictionary if the response is valid.
+    Args:
+      resp: the response from an RPC to a URL such as /api/appversion/isserving.
+
+    Returns:
+      The resulting dictionary if the response is valid, or None otherwise.
     """
     response_dict = yaml.safe_load(resp)
     if 'serving' not in response_dict:
-      return False
+      return None
     return response_dict
 
   def IsServing(self):
@@ -2005,6 +2033,8 @@ class AppVersionUpload(object):
 
     Raises:
       RuntimeError: Deploy has not yet been called.
+      CannotStartServingError: A bad response was received from the isserving
+        API call.
 
     Returns:
       (serving, response) Where serving is True if the deployed app version is
@@ -2333,6 +2363,22 @@ def GetSourceName(get_version=sdk_update_checker.GetVersionObject):
   return 'Google-appcfg-%s' % (release,)
 
 
+def _ReadUrlContents(url):
+  """Reads the contents of a URL into a string.
+
+  Args:
+    url: a string that is the URL to read.
+
+  Returns:
+    A string that is the contents read from the URL.
+
+  Raises:
+    urllib2.URLError: If the URL cannot be read.
+  """
+  req = urllib2.Request(url)
+  return urllib2.urlopen(req).read()
+
+
 class AppCfgApp(object):
   """Singleton class to wrap AppCfg tool functionality.
 
@@ -2355,6 +2401,9 @@ class AppCfgApp(object):
     parser_class: The class to use for parsing the command line.  Because
       OptionsParser will exit the program when there is a parse failure, it
       is nice to subclass OptionsParser and catch the error before exiting.
+    read_url_contents: A function to read the contents of a URL.
+    override_java_supported: If not None, forces the code to assume that Java
+      support is (True) or is not (False) present.
   """
 
   def __init__(self, argv, parser_class=optparse.OptionParser,
@@ -2371,7 +2420,8 @@ class AppCfgApp(object):
                wrap_server_error_message=True,
                oauth_client_id=APPCFG_CLIENT_ID,
                oauth_client_secret=APPCFG_CLIENT_NOTSOSECRET,
-               oauth_scopes=APPCFG_SCOPES):
+               oauth_scopes=APPCFG_SCOPES,
+               override_java_supported=None):
     """Initializer.  Parses the cmdline and selects the Action to use.
 
     Initializes all of the attributes described in the class docstring.
@@ -2394,8 +2444,8 @@ class AppCfgApp(object):
         and returns a generator that yields all filenames in the file tree
         rooted at that path, skipping files that match the skip_files compiled
         regular expression.
-      time_func: Function which provides the current time (can be replaced for
-          testing).
+      time_func: A time.time() compatible function, which can be overridden for
+        testing.
       wrap_server_error_message: If true, the error messages from
           urllib2.HTTPError exceptions in Run() are wrapped with
           '--- begin server output ---' and '--- end server output ---',
@@ -2406,8 +2456,10 @@ class AppCfgApp(object):
           Defaults to the SDK default project client secret, the constant
           APPCFG_CLIENT_NOTSOSECRET.
       oauth_scopes: The scope or set of scopes to be accessed by the OAuth2
-          token retrieved. Defaults to APPCFG_SCOPES. Can be a string or list of
-          strings, representing the scope(s) to request.
+          token retrieved. Defaults to APPCFG_SCOPES. Can be a string or
+          iterable of strings, representing the scope(s) to request.
+      override_java_supported: If not None, forces the code to assume that Java
+        support is (True) or is not (False) present.
     """
     self.parser_class = parser_class
     self.argv = argv
@@ -2423,6 +2475,9 @@ class AppCfgApp(object):
     self.oauth_client_id = oauth_client_id
     self.oauth_client_secret = oauth_client_secret
     self.oauth_scopes = oauth_scopes
+    self.override_java_supported = override_java_supported
+
+    self.read_url_contents = _ReadUrlContents
 
 
 
@@ -2527,7 +2582,9 @@ class AppCfgApp(object):
     verbosity = self.options.verbose
 
 
-    if self.options.oauth2_refresh_token:
+
+    if any((self.options.oauth2_refresh_token, self.options.oauth2_access_token,
+            self.options.authenticate_service_account)):
       self.options.oauth2 = True
 
 
@@ -2570,6 +2627,13 @@ class AppCfgApp(object):
       return 1
     return 0
 
+  def _JavaSupported(self):
+    """True if this SDK supports uploading Java apps."""
+    if self.override_java_supported is not None:
+      return self.override_java_supported
+    tools_java_dir = os.path.join(os.path.dirname(appcfg_java.__file__), 'java')
+    return os.path.isdir(tools_java_dir)
+
   def _GetActionDescriptions(self):
     """Returns a formatted string containing the short_descs for all actions."""
     action_names = self.actions.keys()
@@ -2595,6 +2659,30 @@ class AppCfgApp(object):
         """Very simple formatter."""
         return description + '\n'
 
+    class AppCfgOption(optparse.Option):
+      """Custom Option for AppCfg.
+
+      Adds an 'update' action for storing key-value pairs as a dict.
+      """
+
+      _ACTION = 'update'
+      ACTIONS = optparse.Option.ACTIONS + (_ACTION,)
+      STORE_ACTIONS = optparse.Option.STORE_ACTIONS + (_ACTION,)
+      TYPED_ACTIONS = optparse.Option.TYPED_ACTIONS + (_ACTION,)
+      ALWAYS_TYPED_ACTIONS = optparse.Option.ALWAYS_TYPED_ACTIONS + (_ACTION,)
+
+      def take_action(self, action, dest, opt, value, values, parser):
+        if action != self._ACTION:
+          return optparse.Option.take_action(
+              self, action, dest, opt, value, values, parser)
+        try:
+          key, value = value.split(':', 1)
+        except ValueError:
+          raise optparse.OptionValueError(
+              'option %s: invalid value: %s (must match NAME:VALUE)' % (
+                  opt, value))
+        values.ensure_value(dest, {})[key] = value
+
     desc = self._GetActionDescriptions()
     desc = ('Action must be one of:\n%s'
             'Use \'help <action>\' for a detailed description.') % desc
@@ -2604,7 +2692,8 @@ class AppCfgApp(object):
     parser = self.parser_class(usage='%prog [options] <action>',
                                description=desc,
                                formatter=Formatter(),
-                               conflict_handler='resolve')
+                               conflict_handler='resolve',
+                               option_class=AppCfgOption)
 
 
 
@@ -2653,6 +2742,12 @@ class AppCfgApp(object):
                             'value from app.yaml file.'))
     parser.add_option('-r', '--runtime', action='store', dest='runtime',
                       help='Override runtime from app.yaml file.')
+    parser.add_option('-E', '--env_variable', action='update',
+                      dest='env_variables', metavar='NAME:VALUE',
+                      help=('Set an environment variable, potentially '
+                            'overriding an env_variable value from app.yaml '
+                            'file (flag may be repeated to set multiple '
+                            'variables).'))
     parser.add_option('-R', '--allow_any_runtime', action='store_true',
                       dest='allow_any_runtime', default=False,
                       help='Do not validate the runtime in app.yaml')
@@ -2663,6 +2758,10 @@ class AppCfgApp(object):
                       dest='oauth2_refresh_token', default=None,
                       help='An existing OAuth2 refresh token to use. Will '
                       'not attempt interactive OAuth approval.')
+    parser.add_option('--oauth2_access_token', action='store',
+                      dest='oauth2_access_token', default=None,
+                      help='An existing OAuth2 access token to use. Will '
+                      'not attempt interactive OAuth approval.')
     parser.add_option('--oauth2_client_id', action='store',
                       dest='oauth2_client_id', default=None,
                       help=optparse.SUPPRESS_HELP)
@@ -2672,6 +2771,11 @@ class AppCfgApp(object):
     parser.add_option('--oauth2_credential_file', action='store',
                       dest='oauth2_credential_file', default=None,
                       help=optparse.SUPPRESS_HELP)
+    parser.add_option('--authenticate_service_account', action='store_true',
+                      dest='authenticate_service_account', default=False,
+                      help='Authenticate using the default service account '
+                      'for the Google Compute Engine VM in which appcfg is '
+                      'being called')
     parser.add_option('--noauth_local_webserver', action='store_false',
                       dest='auth_local_webserver', default=True,
                       help='Do not run a local web server to handle redirects '
@@ -2712,7 +2816,9 @@ class AppCfgApp(object):
       A new AbstractRpcServer, on which RPC calls can be made.
 
     Raises:
-      OAuthNotAvailable: Oauth is requested but the dependecies aren't imported.
+      OAuthNotAvailable: OAuth is requested but the dependecies aren't imported.
+      RuntimeError: The user has request non-interactive authentication but the
+        environment is not correct for that to work.
     """
 
     def GetUserCredentials():
@@ -2733,6 +2839,8 @@ class AppCfgApp(object):
 
     StatusUpdate('Host: %s' % self.options.server)
 
+    source = GetSourceName()
+
 
 
     dev_appserver = self.options.host == 'localhost'
@@ -2741,14 +2849,18 @@ class AppCfgApp(object):
 
         raise OAuthNotAvailable()
       if not self.rpc_server_class:
-        self.rpc_server_class = appengine_rpc_httplib2.HttpRpcServerOauth2
+        self.rpc_server_class = appengine_rpc_httplib2.HttpRpcServerOAuth2
 
-      get_user_credentials = self.options.oauth2_refresh_token
 
-      source = (self.oauth_client_id,
-                self.oauth_client_secret,
-                self.oauth_scopes,
-                self.options.oauth2_credential_file)
+      get_user_credentials = (
+          appengine_rpc_httplib2.HttpRpcServerOAuth2.OAuth2Parameters(
+              access_token=self.options.oauth2_access_token,
+              client_id=self.oauth_client_id,
+              client_secret=self.oauth_client_secret,
+              scope=self.oauth_scopes,
+              refresh_token=self.options.oauth2_refresh_token,
+              credential_file=self.options.oauth2_credential_file,
+              token_uri=self._GetTokenUri()))
 
       if hasattr(appengine_rpc_httplib2.tools, 'FLAGS'):
         appengine_rpc_httplib2.tools.FLAGS.auth_local_webserver = (
@@ -2759,7 +2871,6 @@ class AppCfgApp(object):
         if hasattr(self, 'runtime'):
           self.rpc_server_class.RUNTIME = self.runtime
       get_user_credentials = GetUserCredentials
-      source = GetSourceName()
 
 
     if dev_appserver:
@@ -2794,6 +2905,37 @@ class AppCfgApp(object):
                                  account_type='HOSTED_OR_GOOGLE',
                                  secure=self.options.secure,
                                  ignore_certs=self.options.ignore_certs)
+
+  def _GetTokenUri(self):
+    """Returns the OAuth2 token_uri, or None to use the default URI.
+
+    Returns:
+      A string that is the token_uri, or None.
+
+    Raises:
+      RuntimeError: The user has requested authentication for a service account
+        but the environment is not correct for that to work.
+    """
+    if self.options.authenticate_service_account:
+
+
+
+      url = '%s/%s/scopes' % (METADATA_BASE, SERVICE_ACCOUNT_BASE)
+      try:
+        vm_scopes_string = self.read_url_contents(url)
+      except urllib2.URLError, e:
+        raise RuntimeError('Could not obtain scope list from metadata service: '
+                           '%s: %s. This may be because we are not running in '
+                           'a Google Compute Engine VM.' % (url, e))
+      vm_scopes = vm_scopes_string.split()
+      missing = list(set(self.oauth_scopes).difference(vm_scopes))
+      if missing:
+        raise RuntimeError('Required scopes %s missing from %s. '
+                           'This VM instance probably needs to be recreated '
+                           'with the missing scopes.' % (missing, vm_scopes))
+      return '%s/%s/token' % (METADATA_BASE, SERVICE_ACCOUNT_BASE)
+    else:
+      return None
 
   def _FindYaml(self, basepath, file_name):
     """Find yaml files in application directory.
@@ -2831,10 +2973,24 @@ class AppCfgApp(object):
     Returns:
       An AppInfoExternal object.
     """
-    appyaml = self._ParseYamlFile(basepath, basename, appinfo_includes.Parse)
-    if appyaml is None:
-      self.parser.error('Directory does not contain an %s.yaml '
-                        'configuration file.' % basename)
+    try:
+      appyaml = self._ParseYamlFile(basepath, basename, appinfo_includes.Parse)
+    except yaml_errors.EventListenerError, e:
+      self.parser.error('Error parsing %s.yaml: %s.' % (
+          os.path.join(basepath, basename), e))
+    if not appyaml:
+      if self._JavaSupported():
+        if appcfg_java.IsWarFileWithoutYaml(basepath):
+          java_app_update = appcfg_java.JavaAppUpdate(basepath, self.options)
+          appyaml_string = java_app_update.GenerateAppYamlString(basepath, [])
+          appyaml = appinfo.LoadSingleAppInfo(appyaml_string)
+        if not appyaml:
+          self.parser.error('Directory contains neither an %s.yaml '
+                            'configuration file nor a WEB-INF subdirectory '
+                            'with web.xml and appengine-web.xml.' % basename)
+      else:
+        self.parser.error('Directory does not contain an %s.yaml configuration '
+                          'file' % basename)
 
     orig_application = appyaml.application
     orig_module = appyaml.module
@@ -2847,6 +3003,10 @@ class AppCfgApp(object):
       appyaml.version = self.options.version
     if self.options.runtime:
       appyaml.runtime = self.options.runtime
+    if self.options.env_variables:
+      if appyaml.env_variables is None:
+        appyaml.env_variables = appinfo.EnvironmentVariables()
+      appyaml.env_variables.update(self.options.env_variables)
 
     if not appyaml.application:
       self.parser.error('Expected -A app_id when application property in file '
@@ -3186,9 +3346,38 @@ class AppCfgApp(object):
 
 
     yaml_file_basename = 'app.yaml'
-    appyaml = self._ParseAppInfoFromYaml(
-        self.basepath,
-        basename=os.path.splitext(yaml_file_basename)[0])
+
+    if appcfg_java.IsWarFileWithoutYaml(self.basepath):
+      java_app_update = appcfg_java.JavaAppUpdate(self.basepath, self.options)
+      sdk_root = os.path.dirname(appcfg_java.__file__)
+      self.options.compile_jsps = True
+
+
+
+
+
+
+
+      self.stage_dir = java_app_update.CreateStagingDirectory(sdk_root)
+      try:
+        appyaml = self._ParseAppInfoFromYaml(
+            self.stage_dir,
+            basename=os.path.splitext(yaml_file_basename)[0])
+        self._UpdateWithParsedAppYaml(
+            appyaml, self.stage_dir, yaml_file_basename)
+      finally:
+        if self.options.retain_upload_dir:
+          StatusUpdate(
+              'Temporary staging directory left in %s' % self.stage_dir)
+        else:
+          shutil.rmtree(self.stage_dir)
+    else:
+      appyaml = self._ParseAppInfoFromYaml(
+          self.basepath,
+          basename=os.path.splitext(yaml_file_basename)[0])
+      self._UpdateWithParsedAppYaml(appyaml, self.basepath, yaml_file_basename)
+
+  def _UpdateWithParsedAppYaml(self, appyaml, basepath, yaml_file_basename):
     self.runtime = appyaml.runtime
     rpcserver = self._GetRpcServer()
 
@@ -3206,23 +3395,22 @@ class AppCfgApp(object):
                    'match application in app.yaml' % yaml_name)
 
 
-    dos_yaml = self._ParseDosYaml(self.basepath, appyaml)
+    dos_yaml = self._ParseDosYaml(basepath, appyaml)
     if dos_yaml and dos_yaml.application != appyaml.application:
       return _AbortAppMismatch('dos.yaml')
 
-    queue_yaml = self._ParseQueueYaml(self.basepath, appyaml)
+    queue_yaml = self._ParseQueueYaml(basepath, appyaml)
     if queue_yaml and queue_yaml.application != appyaml.application:
       return _AbortAppMismatch('queue.yaml')
 
-    cron_yaml = self._ParseCronYaml(self.basepath, appyaml)
+    cron_yaml = self._ParseCronYaml(basepath, appyaml)
     if cron_yaml and cron_yaml.application != appyaml.application:
       return _AbortAppMismatch('cron.yaml')
 
-    index_defs = self._ParseIndexYaml(self.basepath, appyaml)
+    index_defs = self._ParseIndexYaml(basepath, appyaml)
     if index_defs and index_defs.application != appyaml.application:
       return _AbortAppMismatch('index.yaml')
-
-    self.UpdateVersion(rpcserver, self.basepath, appyaml, yaml_file_basename)
+    self.UpdateVersion(rpcserver, basepath, appyaml, yaml_file_basename)
 
     if appyaml.runtime == 'python':
       MigratePython27Notice()
@@ -3290,6 +3478,8 @@ class AppCfgApp(object):
     parser.add_option('--backends', action='store_true',
                       dest='backends', default=False,
                       help='Update backends when performing appcfg update.')
+    if self._JavaSupported():
+      appcfg_java.AddUpdateOptions(parser)
 
   def VacuumIndexes(self):
     """Deletes unused indexes."""
@@ -3646,7 +3836,7 @@ class AppCfgApp(object):
     """
 
     modules_to_process = []
-    if len(self.args) == 0:
+    if not self.args:
 
       if not (self.options.app_id and
               self.options.module and
@@ -3745,7 +3935,7 @@ class AppCfgApp(object):
       app_id = appyaml.application
       module = appyaml.module or ''
       version = appyaml.version
-    elif len(self.args) == 0:
+    elif not self.args:
       if not (self.options.app_id and self.options.version):
         self.parser.error(
             ('Expected a <directory> argument or both --application and '
@@ -3854,7 +4044,8 @@ class AppCfgApp(object):
 
     Args:
       date: A date string as YYYY-MM-DD.
-      time_func: time.time() function for testing.
+      time_func: A time.time() compatible function, which can be overridden for
+        testing.
 
     Returns:
       A date object representing the last day of logs to get.
@@ -4601,259 +4792,6 @@ an application in YAML."""),
 The 'delete_version' command deletes the specified version for the specified
 application."""),
   }
-
-
-def IsWarFileWithoutYaml(dir_path):
-  if os.path.isfile(os.path.join(dir_path, 'app.yaml')):
-    return False
-  web_inf = os.path.join(dir_path, 'WEB-INF')
-  if not os.path.isdir(web_inf):
-    return False
-  if not set(['appengine-web.xml', 'web.xml']).issubset(os.listdir(web_inf)):
-    return False
-  return True
-
-
-class JavaAppUpdate(object):
-  """Performs Java-specific update configurations."""
-  _JSP_REGEX = re.compile('.*\\.jspx?')
-
-
-
-
-  def __init__(self, basepath, options):
-    self.basepath = basepath
-    self.options = options
-
-    self.app_engine_web_xml = self._ReadAppEngineWebXml()
-    self.app_engine_web_xml.app_root = self.basepath
-    self.web_xml = self._ReadWebXml()
-
-  def _ReadAppEngineWebXml(self, basepath=None):
-    if not basepath:
-      basepath = self.basepath
-    return self._ReadAndParseXml(
-        basepath=basepath,
-        file_name='appengine-web.xml',
-        parser=app_engine_web_xml_parser.AppEngineWebXmlParser)
-
-  def _ReadWebXml(self, basepath=None):
-    if not basepath:
-      basepath = self.basepath
-    return self._ReadAndParseXml(
-        basepath=basepath,
-        file_name='web.xml',
-        parser=web_xml_parser.WebXmlParser)
-
-  def _ReadBackendsXml(self, basepath=None):
-    if not basepath:
-      basepath = self.basepath
-    return self._ReadAndParseXml(
-        basepath=basepath,
-        file_name='backends.xml',
-        parser=backends_xml_parser.BackendsXmlParser)
-
-  def _ReadAndParseXml(self, basepath, file_name, parser):
-    with open(os.path.join(basepath, 'WEB-INF', file_name)) as file_handle:
-      return parser().ProcessXml(file_handle.read())
-
-  def CreateStagingDirectory(self, sdk_root):
-    """Creates a staging directory for uploading.
-
-    This is where we perform the necessary actions to create an application
-    directory  for the update command to work properly - files are organized
-    into the static folder, and yaml files are generated where they can be
-    found later.
-
-    Args:
-      sdk_root: Path of the GAE SDK.
-
-    Returns:
-      The path to a new temporary directory which contains generated yaml files
-      and a static file directory. For the most part, the rest of the update and
-      upload flow can resume identically to Python/PHP/Go applications.
-    """
-    full_basepath = os.path.abspath(self.basepath)
-    stage_dir = tempfile.mkdtemp(prefix='appcfgpy')
-    static_dir = os.path.join(stage_dir, '__static__')
-    os.mkdir(static_dir)
-    self._CopyOrLink(full_basepath, stage_dir, static_dir, False)
-    self.app_engine_web_xml.app_root = stage_dir
-
-    if self.options.compile_jsps:
-      self._PrepareForJspCompilation(sdk_root, stage_dir)
-
-    self._GenerateAppYaml(stage_dir)
-
-    return stage_dir
-
-  def _GenerateAppYaml(self, stage_dir):
-    """Creates the app.yaml file in WEB-INF/appengine-generated/."""
-    backends = []
-    if os.path.isfile(os.path.join(self.basepath, 'WEB-INF', 'backends.xml')):
-      backends = self._ReadBackendsXml(stage_dir)
-    yaml_str = yaml_translator.AppYamlTranslator(
-        self.app_engine_web_xml,
-        backends,
-        self.web_xml,
-        self._GetStaticFileList(stage_dir),
-        None).GetYaml()
-    appengine_generated = os.path.join(
-        stage_dir, 'WEB-INF', 'appengine-generated')
-    if not os.path.isdir(appengine_generated):
-      os.mkdir(appengine_generated)
-    with open(os.path.join(appengine_generated, 'app.yaml'), 'w') as handle:
-      handle.write(yaml_str)
-
-  def _CopyOrLink(self, source_dir, stage_dir, static_dir, inside_web_inf):
-    for file_name in os.listdir(source_dir):
-      file_path = os.path.join(source_dir, file_name)
-
-      if file_name.startswith('.') or file_name == 'appengine-generated':
-        continue
-
-      if os.path.isdir(file_path):
-        self._CopyOrLink(
-            file_path,
-            os.path.join(stage_dir, file_name),
-            os.path.join(static_dir, file_name),
-            inside_web_inf or file_name == 'WEB-INF')
-      else:
-        if (inside_web_inf
-            or self.app_engine_web_xml.IncludesResource(file_path)
-            or (self.options.compile_jsps
-                and file_path.lower().endswith('.jsp'))):
-          self._CopyOrLinkFile(file_path, os.path.join(stage_dir, file_name))
-        if (not inside_web_inf
-            and self.app_engine_web_xml.IncludesStatic(file_path)):
-          self._CopyOrLinkFile(file_path, os.path.join(static_dir, file_name))
-
-  def _CopyOrLinkFile(self, source, dest):
-
-    if not os.path.exists(os.path.dirname(dest)):
-      os.makedirs(os.path.dirname(dest))
-    if not source.endswith('web.xml'):
-      os.symlink(source, dest)
-      return
-    shutil.copy(source, dest)
-
-  @staticmethod
-  def _GetStaticFileList(staging_dir):
-    static_files = []
-    for path, _, files in os.walk(os.path.join(staging_dir, '__static__')):
-      static_files += [os.path.join(path, f) for f in files]
-    return static_files
-
-  def _PrepareForJspCompilation(self, sdk_root, staging_dir):
-    """Performs necessary preparations for JSP Compilation."""
-    if self._MatchingFileExists(self._JSP_REGEX, staging_dir):
-      lib_dir = os.path.join(staging_dir, 'WEB-INF', 'lib')
-
-      for jar_file in GetUserJspLibFiles(sdk_root):
-        self._CopyOrLinkFile(
-            jar_file, os.path.join(lib_dir, os.path.basename(jar_file)))
-      for jar_file in GetSharedJspLibFiles(sdk_root):
-        self._CopyOrLinkFile(
-            jar_file, os.path.join(lib_dir, os.path.basename(jar_file)))
-
-      classes_dir = os.path.join(staging_dir, 'WEB-INF', 'classes')
-      gen_dir = tempfile.mkdtemp()
-
-      classpath = self._GetJspClasspath(sdk_root, classes_dir, gen_dir)
-
-      return classpath
-
-
-
-  @staticmethod
-  def _GetJspClasspath(sdk_root, classes_dir, gen_dir):
-    """Builds the classpath for the JSP Compilation system call."""
-    elements = GetImplLibs(sdk_root) + GetSharedLibFiles(sdk_root)
-    elements.append(classes_dir)
-    elements.append(gen_dir)
-
-    for path, _, files in os.walk(
-        os.path.join(os.path.dirname(classes_dir), 'lib')):
-      elements += [os.path.join(path, f) for f in files if
-                   f.endswith('.jar') or f.endswith('.zip')]
-
-    return (os.pathsep).join(elements)
-
-  @staticmethod
-  def _MatchingFileExists(regex, dir_path):
-    for _, _, files in os.walk(dir_path):
-      for f in files:
-        if re.search(regex, f):
-          return True
-    return False
-
-
-def GetImplLibs(sdk_root):
-  return _GetLibsShallow(os.path.join(sdk_root, 'java', 'lib', 'impl'))
-
-
-def GetSharedLibFiles(sdk_root):
-  return _GetLibsRecursive(os.path.join(sdk_root, 'java', 'lib', 'shared'))
-
-
-def GetUserJspLibFiles(sdk_root):
-  return _GetLibsRecursive(
-      os.path.join(sdk_root, 'java', 'lib', 'tools', 'jsp'))
-
-
-def GetSharedJspLibFiles(sdk_root):
-  return _GetLibsRecursive(
-      os.path.join(sdk_root, 'java', 'lib', 'shared', 'jsp'))
-
-
-def _GetLibsRecursive(dir_path):
-  libs = []
-  for path, _, files in os.walk(dir_path):
-    libs += [os.path.join(path, f) for f in files if f.endswith('.jar')]
-  return libs
-
-
-def _GetLibsShallow(dir_path):
-  libs = []
-  for f in os.listdir(dir_path):
-    if os.path.isfile(os.path.join(dir_path, f)) and f.endswith('.jar'):
-      libs.append(os.path.join(dir_path, f))
-  return libs
-
-
-def _JavaHome():
-  """Return the directory that the JDK is installed in.
-
-  The JDK install directory is expected to have a bin directory that contains
-  at a minimum the java and javac executables. If the environment variable
-  JAVA_HOME is set then it must point to such a directory. Otherwise, we look
-  for javac on the PATH and check that it is inside a JDK install directory.
-
-  Returns:
-    The JDK install directory.
-
-  Raises:
-    RuntimeError: If JAVA_HOME is set but is not a JDK install directory, or
-    otherwise if a JDK install directory cannot be found based on the PATH.
-  """
-  def IsValidJdk(path):
-    for binary in ['java', 'javac']:
-      binary_path = os.path.join(path, 'bin', binary)
-      if not os.path.isfile(binary_path) or not os.access(binary_path, os.X_OK):
-        return False
-    return True
-
-  java_home = os.getenv('JAVA_HOME')
-  if java_home:
-    if not IsValidJdk(java_home):
-      raise RuntimeError(
-          'JAVA_HOME is set but does not reference a valid JDK: %s' % java_home)
-    return java_home
-  for path_dir in os.environ['PATH'].split(os.pathsep):
-    maybe_root, last = os.path.split(path_dir)
-    if last == 'bin' and IsValidJdk(maybe_root):
-      return maybe_root
-  raise RuntimeError('Did not find JDK in PATH and JAVA_HOME is not set')
 
 
 def main(argv):
