@@ -48,7 +48,7 @@ class ModuleConfigurationStub(object):
     self.application = application
     self.module_name = module_name
     self.major_version = version
-    self.version_id = '%s.%s' % (version, '12345')
+    self.version_id = '%s:%s.%s' % (module_name, version, '12345')
     self.runtime = 'python27'
     self.threadsafe = False
     self.handlers = []
@@ -437,6 +437,22 @@ class DispatcherTest(unittest.TestCase):
                      self.dispatcher._module_for_request('/other_path'))
     self.assertEqual('default',
                      self.dispatcher._module_for_request('/undispatched'))
+
+  def test_should_use_dispatch_config(self):
+    """Tests the _should_use_dispatch_config method."""
+    self.assertTrue(self.dispatcher._should_use_dispatch_config('/'))
+    self.assertTrue(self.dispatcher._should_use_dispatch_config('/foo/'))
+    self.assertTrue(self.dispatcher._should_use_dispatch_config(
+        '/_ah/queue/deferred'))
+    self.assertTrue(self.dispatcher._should_use_dispatch_config(
+        '/_ah/queue/deferred/blah'))
+
+    self.assertFalse(self.dispatcher._should_use_dispatch_config('/_ah/'))
+    self.assertFalse(self.dispatcher._should_use_dispatch_config('/_ah/foo/'))
+    self.assertFalse(self.dispatcher._should_use_dispatch_config(
+        '/_ah/foo/bar/'))
+    self.assertFalse(self.dispatcher._should_use_dispatch_config(
+        '/_ah/queue/'))
 
   def test_resolve_target(self):
     servr = object()

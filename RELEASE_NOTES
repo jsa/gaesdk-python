@@ -3,6 +3,116 @@ All rights reserved.
 
 App Engine SDK - Release Notes
 
+Version 1.9.0
+
+All
+==============================
+- Modules Service API and application management features are now GA.
+- New App Engine Application Identifiers must now start with a letter,
+  in addition to the existing requirements that the identifier be 6-30
+  characters which are letters, numbers, and hyphens, and not start or end with
+  a hyphen.
+
+Python
+==============================
+- The size limit on the Search API is now computed and enforced on a per-index
+  basis, rather than for the app as a whole. The per-index limit is now 10GB.
+  There is no fixed limit on the number of indexes, or on the total amount of
+  Search API storage an application may use.
+- Newly created App Engine applications now have a Google Cloud Storage bucket
+  created automatically as part of the same Google Cloud Project. For more
+  information please see:
+  https://developers.google.com/appengine/docs/python/
+  googlecloudstorageclient/activate#Using_the_default_Gcs_bucket
+- Users now have the ability to embed images in emails via the Content-Id
+  attachment header.
+    https://code.google.com/p/googleappengine/issues/detail?id=965
+    https://code.google.com/p/googleappengine/issues/detail?id=10503
+- Removed deprecated modules.py methods start_module, start_module_async,
+  stop_module, stop_module_async get_modules_async, get_versions_async,
+  get_default_version_async, get_num_instances_async, and get_hostname_async.
+- Fixed an issue with NDB backup/restore corrupting certain compressed
+  entities.
+    https://code.google.com/p/googleappengine/issues/detail?id=8599
+
+PHP
+==============================
+- The PHP interpreter has been upgraded from PHP 5.4.19 to PHP 5.4.22.
+- Autoloading is now available in the SDK so developers will no longer need to
+  explicitly require SDK files.
+- Expanded php.ini setting google_appengine.allow_include_gs_buckets to allow
+  a path filter to be included for improved security.
+- Newly created App Engine applications now have a Google Cloud Storage bucket
+  created automatically as part of the same Google Cloud Project. For more
+  information please see:
+  https://developers.google.com/appengine/docs/php/googlestorage/
+  #before_you_begin
+- An "E_USER_WARNING" warning message is now triggered if an application moves
+  a user uploaded file to a Google Cloud Storage bucket/path. This is due to
+  the fact that code may be included and lead to a local file inclusion
+  vulnerability.
+- Added API functions CloudStorageTools::getMetadata() and
+  CloudStorageTools::getContentType() for retrieving the metadata and content
+  type of Google Cloud Storage objects.
+    https://code.google.com/p/googleappengine/issues/detail?id=10182
+- Fixed an issue with empty Google Cloud Storage folders not displaying
+  correctly in the Developers Console. New folders are now created using the
+  "/" suffix instead of "_$folder_" so that they are displayed correctly.
+- Fixed an issue with PHP_SELF and SCRIPT_NAME not being implemented correctly.
+    https://code.google.com/p/googleappengine/issues/detail?id=9989
+    https://code.google.com/p/googleappengine/issues/detail?id=10478
+
+Version 1.8.9
+
+All
+==============================
+- Renamed appcfg start to appcfg start_module_version and stop to
+  stop_module_version.
+- Fixed an issue with ID allocation collisions in the Datastore.
+  https://code.google.com/p/googleappengine/issues/detail?id=10134
+- Fixed an issue with Cloud Storage calls failing in the dev_appserver.
+    https://code.google.com/p/googleappengine/issues/detail?id=10181
+    https://code.google.com/p/googleappengine/issues/detail?id=10185
+- Fixed an issue with the dev_appserver not starting on Windows when using
+  versions of Python earlier than 2.7.2.
+    https://code.google.com/p/googleappengine/issues/detail?id=10363
+
+Python
+==============================
+- Deprecated start_module, start_module_async, stop_module, stop_module_async
+  get_modules_async, get_versions_async, get_default_version_async,
+  get_num_instances_async, get_hostname_async and added start_version,
+  start_version_async, stop_version, stop_version_async as replacements in the
+  Modules API.
+- Added verbose_name support for ComputedProperty in NDB.
+    https://code.google.com/p/appengine-ndb-experiment/issues/detail?id=239
+- Fixed an issue with deffered.defer not waiting for async operations.
+    https://code.google.com/p/appengine-ndb-experiment/issues/detail?id=238
+- Fixed an issue with LocalStructureProperty not handling None value in NDB.
+    https://code.google.com/p/appengine-ndb-experiment/issues/detail?id=233
+- Fixed an issue NDB not working with sqlite.
+    https://code.google.com/p/googleappengine/issues/detail?id=8381
+- Fixed an issue with debug not working with PyDev in 1.8.8.
+    https://code.google.com/p/googleappengine/issues/detail?id=10390
+- Fixed an issue with object properties not being retrieved in NDB.
+    https://code.google.com/p/googleappengine/issues/detail?id=10467
+
+PHP
+=============================
+- Renamed startModule, stopModule to startVersion, stopVersion in the Modules
+  API.
+- Added support for the ftp extension.
+- Added support for the zip extension.
+- Added support for the gethostname() function.
+- A proper "billing required" message is now given when users attempt to use
+  Sockets API on free apps.
+- Fixed an issue with header keys and values having whitespaces preventing
+  responses from being compressed.
+- Fixed an issue with content-type and metadata not being updated when renaming
+  Google Cloud Storage objects.
+- Fixed an issue with Cloud Storage rename requests failing when an object has
+  a space in its name.
+
 Version 1.8.8
 
 All

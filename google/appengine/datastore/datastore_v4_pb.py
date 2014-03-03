@@ -177,801 +177,7 @@ class Error(ProtocolBuffer.ProtocolMessage):
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.Error'
   _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9yc3oJRXJyb3JDb2RliwGSAQtCQURfUkVRVUVTVJgBAYwBiwGSARZDT05DVVJSRU5UX1RSQU5TQUNUSU9OmAECjAGLAZIBDklOVEVSTkFMX0VSUk9SmAEDjAGLAZIBCk5FRURfSU5ERViYAQSMAYsBkgEHVElNRU9VVJgBBYwBiwGSARFQRVJNSVNTSU9OX0RFTklFRJgBBowBiwGSAQ5CSUdUQUJMRV9FUlJPUpgBB4wBiwGSARxDT01NSVRURURfQlVUX1NUSUxMX0FQUExZSU5HmAEIjAGLAZIBE0NBUEFCSUxJVFlfRElTQUJMRUSYAQmMAYsBkgEVVFJZX0FMVEVSTkFURV9CQUNLRU5EmAEKjAGLAZIBEVNBRkVfVElNRV9UT09fT0xEmAELjAF0ugH4LQonYXBwaG9zdGluZy9kYXRhc3RvcmUvZGF0YXN0b3JlX3Y0LnByb3RvEhdhcHBob3N0aW5nLmRhdGFzdG9yZS52NBokYXBwaG9zdGluZy9kYXRhc3RvcmUvZW50aXR5X3Y0LnByb3RvIosCCgVFcnJvciKBAgoJRXJyb3JDb2RlEg8KC0JBRF9SRVFVRVNUEAESGgoWQ09OQ1VSUkVOVF9UUkFOU0FDVElPThACEhIKDklOVEVSTkFMX0VSUk9SEAMSDgoKTkVFRF9JTkRFWBAEEgsKB1RJTUVPVVQQBRIVChFQRVJNSVNTSU9OX0RFTklFRBAGEhIKDkJJR1RBQkxFX0VSUk9SEAcSIAocQ09NTUlUVEVEX0JVVF9TVElMTF9BUFBMWUlORxAIEhcKE0NBUEFCSUxJVFlfRElTQUJMRUQQCRIZChVUUllfQUxURVJOQVRFX0JBQ0tFTkQQChIVChFTQUZFX1RJTUVfVE9PX09MRBALIpMCCghNdXRhdGlvbhIvCgZ1cHNlcnQYASADKAsyHy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHkSLwoGdXBkYXRlGAIgAygLMh8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5Ei8KBmluc2VydBgDIAMoCzIfLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eRI3Cg5pbnNlcnRfYXV0b19pZBgEIAMoCzIfLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eRIsCgZkZWxldGUYBSADKAsyHC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXkSDQoFZm9yY2UYBiABKAgi4QEKDk11dGF0aW9uUmVzdWx0EhUKDWluZGV4X3VwZGF0ZXMYASACKAUSOAoSaW5zZXJ0X2F1dG9faWRfa2V5GAIgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5EhYKDnVwc2VydF92ZXJzaW9uGAMgAygDEhYKDnVwZGF0ZV92ZXJzaW9uGAQgAygDEhYKDmluc2VydF92ZXJzaW9uGAUgAygDEh4KFmluc2VydF9hdXRvX2lkX3ZlcnNpb24YBiADKAMSFgoOZGVsZXRlX3ZlcnNpb24YByADKAMihgEKDEVudGl0eVJlc3VsdBIvCgZlbnRpdHkYASACKAsyHy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHkSDwoHdmVyc2lvbhgCIAEoAyI0CgpSZXN1bHRUeXBlEggKBEZVTEwQARIOCgpQUk9KRUNUSU9OEAISDAoIS0VZX09OTFkQAyLxAgoFUXVlcnkSPwoKcHJvamVjdGlvbhgCIAMoCzIrLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5RXhwcmVzc2lvbhI1CgRraW5kGAMgAygLMicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2luZEV4cHJlc3Npb24SLwoGZmlsdGVyGAQgASgLMh8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRmlsdGVyEjUKBW9yZGVyGAUgAygLMiYuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlPcmRlchI8Cghncm91cF9ieRgGIAMoCzIqLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5UmVmZXJlbmNlEhQKDHN0YXJ0X2N1cnNvchgHIAEoDBISCgplbmRfY3Vyc29yGAggASgMEhEKBm9mZnNldBgKIAEoBToBMBINCgVsaW1pdBgLIAEoBSIeCg5LaW5kRXhwcmVzc2lvbhIMCgRuYW1lGAEgAigJIiEKEVByb3BlcnR5UmVmZXJlbmNlEgwKBG5hbWUYAiACKAki0wEKElByb3BlcnR5RXhwcmVzc2lvbhI8Cghwcm9wZXJ0eRgBIAIoCzIqLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5UmVmZXJlbmNlEl0KFGFnZ3JlZ2F0aW9uX2Z1bmN0aW9uGAIgASgOMj8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlFeHByZXNzaW9uLkFnZ3JlZ2F0aW9uRnVuY3Rpb24iIAoTQWdncmVnYXRpb25GdW5jdGlvbhIJCgVGSVJTVBABIskBCg1Qcm9wZXJ0eU9yZGVyEjwKCHByb3BlcnR5GAEgAigLMiouYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlSZWZlcmVuY2USTgoJZGlyZWN0aW9uGAIgASgOMjAuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlPcmRlci5EaXJlY3Rpb246CUFTQ0VORElORyIqCglEaXJlY3Rpb24SDQoJQVNDRU5ESU5HEAESDgoKREVTQ0VORElORxACIo4BCgZGaWx0ZXISQgoQY29tcG9zaXRlX2ZpbHRlchgBIAEoCzIoLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbXBvc2l0ZUZpbHRlchJACg9wcm9wZXJ0eV9maWx0ZXIYAiABKAsyJy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eUZpbHRlciKcAQoPQ29tcG9zaXRlRmlsdGVyEkMKCG9wZXJhdG9yGAEgAigOMjEuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQ29tcG9zaXRlRmlsdGVyLk9wZXJhdG9yEi8KBmZpbHRlchgCIAMoCzIfLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkZpbHRlciITCghPcGVyYXRvchIHCgNBTkQQASK+AgoOUHJvcGVydHlGaWx0ZXISPAoIcHJvcGVydHkYASACKAsyKi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eVJlZmVyZW5jZRJCCghvcGVyYXRvchgCIAIoDjIwLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5RmlsdGVyLk9wZXJhdG9yEi0KBXZhbHVlGAMgAigLMh4uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuVmFsdWUiewoIT3BlcmF0b3ISDQoJTEVTU19USEFOEAESFgoSTEVTU19USEFOX09SX0VRVUFMEAISEAoMR1JFQVRFUl9USEFOEAMSGQoVR1JFQVRFUl9USEFOX09SX0VRVUFMEAQSCQoFRVFVQUwQBRIQCgxIQVNfQU5DRVNUT1IQCyKwAQoIR3FsUXVlcnkSFAoMcXVlcnlfc3RyaW5nGAEgAigJEhwKDWFsbG93X2xpdGVyYWwYAiABKAg6BWZhbHNlEjYKCG5hbWVfYXJnGAMgAygLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuR3FsUXVlcnlBcmcSOAoKbnVtYmVyX2FyZxgEIAMoCzIkLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkdxbFF1ZXJ5QXJnIloKC0dxbFF1ZXJ5QXJnEgwKBG5hbWUYASABKAkSLQoFdmFsdWUYAiABKAsyHi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5WYWx1ZRIOCgZjdXJzb3IYAyABKAwi9wIKEFF1ZXJ5UmVzdWx0QmF0Y2gSTAoSZW50aXR5X3Jlc3VsdF90eXBlGAEgAigOMjAuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5UmVzdWx0LlJlc3VsdFR5cGUSPAoNZW50aXR5X3Jlc3VsdBgCIAMoCzIlLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eVJlc3VsdBISCgplbmRfY3Vyc29yGAQgASgMEk8KDG1vcmVfcmVzdWx0cxgFIAIoDjI5LmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlF1ZXJ5UmVzdWx0QmF0Y2guTW9yZVJlc3VsdHNUeXBlEhoKD3NraXBwZWRfcmVzdWx0cxgGIAEoBToBMCJWCg9Nb3JlUmVzdWx0c1R5cGUSEAoMTk9UX0ZJTklTSEVEEAESHAoYTU9SRV9SRVNVTFRTX0FGVEVSX0xJTUlUEAISEwoPTk9fTU9SRV9SRVNVTFRTEAMitQEKC1JlYWRPcHRpb25zElcKEHJlYWRfY29uc2lzdGVuY3kYASABKA4yNC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5SZWFkT3B0aW9ucy5SZWFkQ29uc2lzdGVuY3k6B0RFRkFVTFQSEwoLdHJhbnNhY3Rpb24YAiABKAwiOAoPUmVhZENvbnNpc3RlbmN5EgsKB0RFRkFVTFQQABIKCgZTVFJPTkcQARIMCghFVkVOVFVBTBACInYKDUxvb2t1cFJlcXVlc3QSOgoMcmVhZF9vcHRpb25zGAEgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUmVhZE9wdGlvbnMSKQoDa2V5GAMgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5Iq4BCg5Mb29rdXBSZXNwb25zZRI0CgVmb3VuZBgBIAMoCzIlLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eVJlc3VsdBI2CgdtaXNzaW5nGAIgAygLMiUuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5UmVzdWx0Ei4KCGRlZmVycmVkGAMgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5IqsCCg9SdW5RdWVyeVJlcXVlc3QSOgoMcmVhZF9vcHRpb25zGAEgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUmVhZE9wdGlvbnMSOgoMcGFydGl0aW9uX2lkGAIgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUGFydGl0aW9uSWQSLQoFcXVlcnkYAyABKAsyHi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5RdWVyeRI0CglncWxfcXVlcnkYByABKAsyIS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5HcWxRdWVyeRIdChVtaW5fc2FmZV90aW1lX3NlY29uZHMYBCABKAMSHAoUc3VnZ2VzdGVkX2JhdGNoX3NpemUYBSABKAUiYgoQUnVuUXVlcnlSZXNwb25zZRI4CgViYXRjaBgBIAIoCzIpLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlF1ZXJ5UmVzdWx0QmF0Y2gSFAoMcXVlcnlfaGFuZGxlGAIgASgMIiwKFENvbnRpbnVlUXVlcnlSZXF1ZXN0EhQKDHF1ZXJ5X2hhbmRsZRgBIAIoDCJRChVDb250aW51ZVF1ZXJ5UmVzcG9uc2USOAoFYmF0Y2gYASACKAsyKS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5RdWVyeVJlc3VsdEJhdGNoIlMKF0JlZ2luVHJhbnNhY3Rpb25SZXF1ZXN0EhoKC2Nyb3NzX2dyb3VwGAEgASgIOgVmYWxzZRIcCg1jcm9zc19yZXF1ZXN0GAIgASgIOgVmYWxzZSIvChhCZWdpblRyYW5zYWN0aW9uUmVzcG9uc2USEwoLdHJhbnNhY3Rpb24YASACKAwiJgoPUm9sbGJhY2tSZXF1ZXN0EhMKC3RyYW5zYWN0aW9uGAEgAigMIhIKEFJvbGxiYWNrUmVzcG9uc2Ui1QEKDUNvbW1pdFJlcXVlc3QSEwoLdHJhbnNhY3Rpb24YASABKAwSMwoIbXV0YXRpb24YAiABKAsyIS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5NdXRhdGlvbhJICgRtb2RlGAQgASgOMisuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQ29tbWl0UmVxdWVzdC5Nb2RlOg1UUkFOU0FDVElPTkFMIjAKBE1vZGUSEQoNVFJBTlNBQ1RJT05BTBABEhUKEU5PTl9UUkFOU0FDVElPTkFMEAIiUgoOQ29tbWl0UmVzcG9uc2USQAoPbXV0YXRpb25fcmVzdWx0GAEgASgLMicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuTXV0YXRpb25SZXN1bHQicwoSQWxsb2NhdGVJZHNSZXF1ZXN0Ei4KCGFsbG9jYXRlGAEgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5Ei0KB3Jlc2VydmUYAiADKAsyHC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXkiRgoTQWxsb2NhdGVJZHNSZXNwb25zZRIvCglhbGxvY2F0ZWQYASADKAsyHC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXkiQwoMV3JpdGVSZXF1ZXN0EjMKCG11dGF0aW9uGAEgAigLMiEuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuTXV0YXRpb24yogcKEkRhdGFzdG9yZVY0U2VydmljZRJ5ChBCZWdpblRyYW5zYWN0aW9uEjAuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQmVnaW5UcmFuc2FjdGlvblJlcXVlc3QaMS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5CZWdpblRyYW5zYWN0aW9uUmVzcG9uc2UiABJhCghSb2xsYmFjaxIoLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlJvbGxiYWNrUmVxdWVzdBopLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlJvbGxiYWNrUmVzcG9uc2UiABJbCgZDb21taXQSJi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db21taXRSZXF1ZXN0GicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQ29tbWl0UmVzcG9uc2UiABJhCghSdW5RdWVyeRIoLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlJ1blF1ZXJ5UmVxdWVzdBopLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlJ1blF1ZXJ5UmVzcG9uc2UiABJwCg1Db250aW51ZVF1ZXJ5Ei0uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQ29udGludWVRdWVyeVJlcXVlc3QaLi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db250aW51ZVF1ZXJ5UmVzcG9uc2UiABJbCgZMb29rdXASJi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Mb29rdXBSZXF1ZXN0GicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuTG9va3VwUmVzcG9uc2UiABJqCgtBbGxvY2F0ZUlkcxIrLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkFsbG9jYXRlSWRzUmVxdWVzdBosLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkFsbG9jYXRlSWRzUmVzcG9uc2UiABJYCgNHZXQSJi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Mb29rdXBSZXF1ZXN0GicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuTG9va3VwUmVzcG9uc2UiABJZCgVXcml0ZRIlLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LldyaXRlUmVxdWVzdBonLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlc3BvbnNlIgBCIQofY29tLmdvb2dsZS5hcHBob3N0aW5nLmRhdGFzdG9yZQ=="))
-  if _net_proto___parse__python is not None:
-    _net_proto___parse__python.RegisterType(
-        _SERIALIZED_DESCRIPTOR.tostring())
-
-class Mutation(ProtocolBuffer.ProtocolMessage):
-  has_force_ = 0
-  force_ = 0
-
-  def __init__(self, contents=None):
-    self.upsert_ = []
-    self.update_ = []
-    self.insert_ = []
-    self.insert_auto_id_ = []
-    self.delete_ = []
-    if contents is not None: self.MergeFromString(contents)
-
-  def upsert_size(self): return len(self.upsert_)
-  def upsert_list(self): return self.upsert_
-
-  def upsert(self, i):
-    return self.upsert_[i]
-
-  def mutable_upsert(self, i):
-    return self.upsert_[i]
-
-  def add_upsert(self):
-    x = google.appengine.datastore.entity_v4_pb.Entity()
-    self.upsert_.append(x)
-    return x
-
-  def clear_upsert(self):
-    self.upsert_ = []
-  def update_size(self): return len(self.update_)
-  def update_list(self): return self.update_
-
-  def update(self, i):
-    return self.update_[i]
-
-  def mutable_update(self, i):
-    return self.update_[i]
-
-  def add_update(self):
-    x = google.appengine.datastore.entity_v4_pb.Entity()
-    self.update_.append(x)
-    return x
-
-  def clear_update(self):
-    self.update_ = []
-  def insert_size(self): return len(self.insert_)
-  def insert_list(self): return self.insert_
-
-  def insert(self, i):
-    return self.insert_[i]
-
-  def mutable_insert(self, i):
-    return self.insert_[i]
-
-  def add_insert(self):
-    x = google.appengine.datastore.entity_v4_pb.Entity()
-    self.insert_.append(x)
-    return x
-
-  def clear_insert(self):
-    self.insert_ = []
-  def insert_auto_id_size(self): return len(self.insert_auto_id_)
-  def insert_auto_id_list(self): return self.insert_auto_id_
-
-  def insert_auto_id(self, i):
-    return self.insert_auto_id_[i]
-
-  def mutable_insert_auto_id(self, i):
-    return self.insert_auto_id_[i]
-
-  def add_insert_auto_id(self):
-    x = google.appengine.datastore.entity_v4_pb.Entity()
-    self.insert_auto_id_.append(x)
-    return x
-
-  def clear_insert_auto_id(self):
-    self.insert_auto_id_ = []
-  def delete_size(self): return len(self.delete_)
-  def delete_list(self): return self.delete_
-
-  def delete(self, i):
-    return self.delete_[i]
-
-  def mutable_delete(self, i):
-    return self.delete_[i]
-
-  def add_delete(self):
-    x = google.appengine.datastore.entity_v4_pb.Key()
-    self.delete_.append(x)
-    return x
-
-  def clear_delete(self):
-    self.delete_ = []
-  def force(self): return self.force_
-
-  def set_force(self, x):
-    self.has_force_ = 1
-    self.force_ = x
-
-  def clear_force(self):
-    if self.has_force_:
-      self.has_force_ = 0
-      self.force_ = 0
-
-  def has_force(self): return self.has_force_
-
-
-  def MergeFrom(self, x):
-    assert x is not self
-    for i in xrange(x.upsert_size()): self.add_upsert().CopyFrom(x.upsert(i))
-    for i in xrange(x.update_size()): self.add_update().CopyFrom(x.update(i))
-    for i in xrange(x.insert_size()): self.add_insert().CopyFrom(x.insert(i))
-    for i in xrange(x.insert_auto_id_size()): self.add_insert_auto_id().CopyFrom(x.insert_auto_id(i))
-    for i in xrange(x.delete_size()): self.add_delete().CopyFrom(x.delete(i))
-    if (x.has_force()): self.set_force(x.force())
-
-  if _net_proto___parse__python is not None:
-    def _CMergeFromString(self, s):
-      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.Mutation', s)
-
-  if _net_proto___parse__python is not None:
-    def _CEncode(self):
-      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.Mutation')
-
-  if _net_proto___parse__python is not None:
-    def _CEncodePartial(self):
-      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.Mutation')
-
-  if _net_proto___parse__python is not None:
-    def _CToASCII(self, output_format):
-      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.Mutation', output_format)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCII(self, s):
-      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.Mutation', s)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCIIIgnoreUnknown(self, s):
-      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.Mutation', s)
-
-
-  def Equals(self, x):
-    if x is self: return 1
-    if len(self.upsert_) != len(x.upsert_): return 0
-    for e1, e2 in zip(self.upsert_, x.upsert_):
-      if e1 != e2: return 0
-    if len(self.update_) != len(x.update_): return 0
-    for e1, e2 in zip(self.update_, x.update_):
-      if e1 != e2: return 0
-    if len(self.insert_) != len(x.insert_): return 0
-    for e1, e2 in zip(self.insert_, x.insert_):
-      if e1 != e2: return 0
-    if len(self.insert_auto_id_) != len(x.insert_auto_id_): return 0
-    for e1, e2 in zip(self.insert_auto_id_, x.insert_auto_id_):
-      if e1 != e2: return 0
-    if len(self.delete_) != len(x.delete_): return 0
-    for e1, e2 in zip(self.delete_, x.delete_):
-      if e1 != e2: return 0
-    if self.has_force_ != x.has_force_: return 0
-    if self.has_force_ and self.force_ != x.force_: return 0
-    return 1
-
-  def IsInitialized(self, debug_strs=None):
-    initialized = 1
-    for p in self.upsert_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    for p in self.update_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    for p in self.insert_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    for p in self.insert_auto_id_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    for p in self.delete_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    return initialized
-
-  def ByteSize(self):
-    n = 0
-    n += 1 * len(self.upsert_)
-    for i in xrange(len(self.upsert_)): n += self.lengthString(self.upsert_[i].ByteSize())
-    n += 1 * len(self.update_)
-    for i in xrange(len(self.update_)): n += self.lengthString(self.update_[i].ByteSize())
-    n += 1 * len(self.insert_)
-    for i in xrange(len(self.insert_)): n += self.lengthString(self.insert_[i].ByteSize())
-    n += 1 * len(self.insert_auto_id_)
-    for i in xrange(len(self.insert_auto_id_)): n += self.lengthString(self.insert_auto_id_[i].ByteSize())
-    n += 1 * len(self.delete_)
-    for i in xrange(len(self.delete_)): n += self.lengthString(self.delete_[i].ByteSize())
-    if (self.has_force_): n += 2
-    return n
-
-  def ByteSizePartial(self):
-    n = 0
-    n += 1 * len(self.upsert_)
-    for i in xrange(len(self.upsert_)): n += self.lengthString(self.upsert_[i].ByteSizePartial())
-    n += 1 * len(self.update_)
-    for i in xrange(len(self.update_)): n += self.lengthString(self.update_[i].ByteSizePartial())
-    n += 1 * len(self.insert_)
-    for i in xrange(len(self.insert_)): n += self.lengthString(self.insert_[i].ByteSizePartial())
-    n += 1 * len(self.insert_auto_id_)
-    for i in xrange(len(self.insert_auto_id_)): n += self.lengthString(self.insert_auto_id_[i].ByteSizePartial())
-    n += 1 * len(self.delete_)
-    for i in xrange(len(self.delete_)): n += self.lengthString(self.delete_[i].ByteSizePartial())
-    if (self.has_force_): n += 2
-    return n
-
-  def Clear(self):
-    self.clear_upsert()
-    self.clear_update()
-    self.clear_insert()
-    self.clear_insert_auto_id()
-    self.clear_delete()
-    self.clear_force()
-
-  def OutputUnchecked(self, out):
-    for i in xrange(len(self.upsert_)):
-      out.putVarInt32(10)
-      out.putVarInt32(self.upsert_[i].ByteSize())
-      self.upsert_[i].OutputUnchecked(out)
-    for i in xrange(len(self.update_)):
-      out.putVarInt32(18)
-      out.putVarInt32(self.update_[i].ByteSize())
-      self.update_[i].OutputUnchecked(out)
-    for i in xrange(len(self.insert_)):
-      out.putVarInt32(26)
-      out.putVarInt32(self.insert_[i].ByteSize())
-      self.insert_[i].OutputUnchecked(out)
-    for i in xrange(len(self.insert_auto_id_)):
-      out.putVarInt32(34)
-      out.putVarInt32(self.insert_auto_id_[i].ByteSize())
-      self.insert_auto_id_[i].OutputUnchecked(out)
-    for i in xrange(len(self.delete_)):
-      out.putVarInt32(42)
-      out.putVarInt32(self.delete_[i].ByteSize())
-      self.delete_[i].OutputUnchecked(out)
-    if (self.has_force_):
-      out.putVarInt32(48)
-      out.putBoolean(self.force_)
-
-  def OutputPartial(self, out):
-    for i in xrange(len(self.upsert_)):
-      out.putVarInt32(10)
-      out.putVarInt32(self.upsert_[i].ByteSizePartial())
-      self.upsert_[i].OutputPartial(out)
-    for i in xrange(len(self.update_)):
-      out.putVarInt32(18)
-      out.putVarInt32(self.update_[i].ByteSizePartial())
-      self.update_[i].OutputPartial(out)
-    for i in xrange(len(self.insert_)):
-      out.putVarInt32(26)
-      out.putVarInt32(self.insert_[i].ByteSizePartial())
-      self.insert_[i].OutputPartial(out)
-    for i in xrange(len(self.insert_auto_id_)):
-      out.putVarInt32(34)
-      out.putVarInt32(self.insert_auto_id_[i].ByteSizePartial())
-      self.insert_auto_id_[i].OutputPartial(out)
-    for i in xrange(len(self.delete_)):
-      out.putVarInt32(42)
-      out.putVarInt32(self.delete_[i].ByteSizePartial())
-      self.delete_[i].OutputPartial(out)
-    if (self.has_force_):
-      out.putVarInt32(48)
-      out.putBoolean(self.force_)
-
-  def TryMerge(self, d):
-    while d.avail() > 0:
-      tt = d.getVarInt32()
-      if tt == 10:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_upsert().TryMerge(tmp)
-        continue
-      if tt == 18:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_update().TryMerge(tmp)
-        continue
-      if tt == 26:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_insert().TryMerge(tmp)
-        continue
-      if tt == 34:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_insert_auto_id().TryMerge(tmp)
-        continue
-      if tt == 42:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_delete().TryMerge(tmp)
-        continue
-      if tt == 48:
-        self.set_force(d.getBoolean())
-        continue
-
-
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
-      d.skipData(tt)
-
-
-  def __str__(self, prefix="", printElemNumber=0):
-    res=""
-    cnt=0
-    for e in self.upsert_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("upsert%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    cnt=0
-    for e in self.update_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("update%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    cnt=0
-    for e in self.insert_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("insert%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    cnt=0
-    for e in self.insert_auto_id_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("insert_auto_id%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    cnt=0
-    for e in self.delete_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("delete%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    if self.has_force_: res+=prefix+("force: %s\n" % self.DebugFormatBool(self.force_))
-    return res
-
-
-  def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
-
-  kupsert = 1
-  kupdate = 2
-  kinsert = 3
-  kinsert_auto_id = 4
-  kdelete = 5
-  kforce = 6
-
-  _TEXT = _BuildTagLookupTable({
-    0: "ErrorCode",
-    1: "upsert",
-    2: "update",
-    3: "insert",
-    4: "insert_auto_id",
-    5: "delete",
-    6: "force",
-  }, 6)
-
-  _TYPES = _BuildTagLookupTable({
-    0: ProtocolBuffer.Encoder.NUMERIC,
-    1: ProtocolBuffer.Encoder.STRING,
-    2: ProtocolBuffer.Encoder.STRING,
-    3: ProtocolBuffer.Encoder.STRING,
-    4: ProtocolBuffer.Encoder.STRING,
-    5: ProtocolBuffer.Encoder.STRING,
-    6: ProtocolBuffer.Encoder.NUMERIC,
-  }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
-
-
-  _STYLE = """"""
-  _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.Mutation'
-  _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KIGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uExoGdXBzZXJ0IAEoAjALOANKHmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eaMBqgEFY3R5cGWyAQZwcm90bzKkARQTGgZ1cGRhdGUgAigCMAs4A0oeYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaBmluc2VydCADKAIwCzgDSh5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHmjAaoBBWN0eXBlsgEGcHJvdG8ypAEUExoOaW5zZXJ0X2F1dG9faWQgBCgCMAs4A0oeYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaBmRlbGV0ZSAFKAIwCzgDShthcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXmjAaoBBWN0eXBlsgEGcHJvdG8ypAEUExoFZm9yY2UgBigAMAg4ARTCAR1hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FcnJvcg=="))
-  if _net_proto___parse__python is not None:
-    _net_proto___parse__python.RegisterType(
-        _SERIALIZED_DESCRIPTOR.tostring())
-
-class MutationResult(ProtocolBuffer.ProtocolMessage):
-  has_index_updates_ = 0
-  index_updates_ = 0
-
-  def __init__(self, contents=None):
-    self.insert_auto_id_key_ = []
-    self.upsert_version_ = []
-    self.update_version_ = []
-    self.insert_version_ = []
-    self.insert_auto_id_version_ = []
-    self.delete_version_ = []
-    if contents is not None: self.MergeFromString(contents)
-
-  def index_updates(self): return self.index_updates_
-
-  def set_index_updates(self, x):
-    self.has_index_updates_ = 1
-    self.index_updates_ = x
-
-  def clear_index_updates(self):
-    if self.has_index_updates_:
-      self.has_index_updates_ = 0
-      self.index_updates_ = 0
-
-  def has_index_updates(self): return self.has_index_updates_
-
-  def insert_auto_id_key_size(self): return len(self.insert_auto_id_key_)
-  def insert_auto_id_key_list(self): return self.insert_auto_id_key_
-
-  def insert_auto_id_key(self, i):
-    return self.insert_auto_id_key_[i]
-
-  def mutable_insert_auto_id_key(self, i):
-    return self.insert_auto_id_key_[i]
-
-  def add_insert_auto_id_key(self):
-    x = google.appengine.datastore.entity_v4_pb.Key()
-    self.insert_auto_id_key_.append(x)
-    return x
-
-  def clear_insert_auto_id_key(self):
-    self.insert_auto_id_key_ = []
-  def upsert_version_size(self): return len(self.upsert_version_)
-  def upsert_version_list(self): return self.upsert_version_
-
-  def upsert_version(self, i):
-    return self.upsert_version_[i]
-
-  def set_upsert_version(self, i, x):
-    self.upsert_version_[i] = x
-
-  def add_upsert_version(self, x):
-    self.upsert_version_.append(x)
-
-  def clear_upsert_version(self):
-    self.upsert_version_ = []
-
-  def update_version_size(self): return len(self.update_version_)
-  def update_version_list(self): return self.update_version_
-
-  def update_version(self, i):
-    return self.update_version_[i]
-
-  def set_update_version(self, i, x):
-    self.update_version_[i] = x
-
-  def add_update_version(self, x):
-    self.update_version_.append(x)
-
-  def clear_update_version(self):
-    self.update_version_ = []
-
-  def insert_version_size(self): return len(self.insert_version_)
-  def insert_version_list(self): return self.insert_version_
-
-  def insert_version(self, i):
-    return self.insert_version_[i]
-
-  def set_insert_version(self, i, x):
-    self.insert_version_[i] = x
-
-  def add_insert_version(self, x):
-    self.insert_version_.append(x)
-
-  def clear_insert_version(self):
-    self.insert_version_ = []
-
-  def insert_auto_id_version_size(self): return len(self.insert_auto_id_version_)
-  def insert_auto_id_version_list(self): return self.insert_auto_id_version_
-
-  def insert_auto_id_version(self, i):
-    return self.insert_auto_id_version_[i]
-
-  def set_insert_auto_id_version(self, i, x):
-    self.insert_auto_id_version_[i] = x
-
-  def add_insert_auto_id_version(self, x):
-    self.insert_auto_id_version_.append(x)
-
-  def clear_insert_auto_id_version(self):
-    self.insert_auto_id_version_ = []
-
-  def delete_version_size(self): return len(self.delete_version_)
-  def delete_version_list(self): return self.delete_version_
-
-  def delete_version(self, i):
-    return self.delete_version_[i]
-
-  def set_delete_version(self, i, x):
-    self.delete_version_[i] = x
-
-  def add_delete_version(self, x):
-    self.delete_version_.append(x)
-
-  def clear_delete_version(self):
-    self.delete_version_ = []
-
-
-  def MergeFrom(self, x):
-    assert x is not self
-    if (x.has_index_updates()): self.set_index_updates(x.index_updates())
-    for i in xrange(x.insert_auto_id_key_size()): self.add_insert_auto_id_key().CopyFrom(x.insert_auto_id_key(i))
-    for i in xrange(x.upsert_version_size()): self.add_upsert_version(x.upsert_version(i))
-    for i in xrange(x.update_version_size()): self.add_update_version(x.update_version(i))
-    for i in xrange(x.insert_version_size()): self.add_insert_version(x.insert_version(i))
-    for i in xrange(x.insert_auto_id_version_size()): self.add_insert_auto_id_version(x.insert_auto_id_version(i))
-    for i in xrange(x.delete_version_size()): self.add_delete_version(x.delete_version(i))
-
-  if _net_proto___parse__python is not None:
-    def _CMergeFromString(self, s):
-      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.MutationResult', s)
-
-  if _net_proto___parse__python is not None:
-    def _CEncode(self):
-      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.MutationResult')
-
-  if _net_proto___parse__python is not None:
-    def _CEncodePartial(self):
-      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.MutationResult')
-
-  if _net_proto___parse__python is not None:
-    def _CToASCII(self, output_format):
-      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.MutationResult', output_format)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCII(self, s):
-      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.MutationResult', s)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCIIIgnoreUnknown(self, s):
-      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.MutationResult', s)
-
-
-  def Equals(self, x):
-    if x is self: return 1
-    if self.has_index_updates_ != x.has_index_updates_: return 0
-    if self.has_index_updates_ and self.index_updates_ != x.index_updates_: return 0
-    if len(self.insert_auto_id_key_) != len(x.insert_auto_id_key_): return 0
-    for e1, e2 in zip(self.insert_auto_id_key_, x.insert_auto_id_key_):
-      if e1 != e2: return 0
-    if len(self.upsert_version_) != len(x.upsert_version_): return 0
-    for e1, e2 in zip(self.upsert_version_, x.upsert_version_):
-      if e1 != e2: return 0
-    if len(self.update_version_) != len(x.update_version_): return 0
-    for e1, e2 in zip(self.update_version_, x.update_version_):
-      if e1 != e2: return 0
-    if len(self.insert_version_) != len(x.insert_version_): return 0
-    for e1, e2 in zip(self.insert_version_, x.insert_version_):
-      if e1 != e2: return 0
-    if len(self.insert_auto_id_version_) != len(x.insert_auto_id_version_): return 0
-    for e1, e2 in zip(self.insert_auto_id_version_, x.insert_auto_id_version_):
-      if e1 != e2: return 0
-    if len(self.delete_version_) != len(x.delete_version_): return 0
-    for e1, e2 in zip(self.delete_version_, x.delete_version_):
-      if e1 != e2: return 0
-    return 1
-
-  def IsInitialized(self, debug_strs=None):
-    initialized = 1
-    if (not self.has_index_updates_):
-      initialized = 0
-      if debug_strs is not None:
-        debug_strs.append('Required field: index_updates not set.')
-    for p in self.insert_auto_id_key_:
-      if not p.IsInitialized(debug_strs): initialized=0
-    return initialized
-
-  def ByteSize(self):
-    n = 0
-    n += self.lengthVarInt64(self.index_updates_)
-    n += 1 * len(self.insert_auto_id_key_)
-    for i in xrange(len(self.insert_auto_id_key_)): n += self.lengthString(self.insert_auto_id_key_[i].ByteSize())
-    n += 1 * len(self.upsert_version_)
-    for i in xrange(len(self.upsert_version_)): n += self.lengthVarInt64(self.upsert_version_[i])
-    n += 1 * len(self.update_version_)
-    for i in xrange(len(self.update_version_)): n += self.lengthVarInt64(self.update_version_[i])
-    n += 1 * len(self.insert_version_)
-    for i in xrange(len(self.insert_version_)): n += self.lengthVarInt64(self.insert_version_[i])
-    n += 1 * len(self.insert_auto_id_version_)
-    for i in xrange(len(self.insert_auto_id_version_)): n += self.lengthVarInt64(self.insert_auto_id_version_[i])
-    n += 1 * len(self.delete_version_)
-    for i in xrange(len(self.delete_version_)): n += self.lengthVarInt64(self.delete_version_[i])
-    return n + 1
-
-  def ByteSizePartial(self):
-    n = 0
-    if (self.has_index_updates_):
-      n += 1
-      n += self.lengthVarInt64(self.index_updates_)
-    n += 1 * len(self.insert_auto_id_key_)
-    for i in xrange(len(self.insert_auto_id_key_)): n += self.lengthString(self.insert_auto_id_key_[i].ByteSizePartial())
-    n += 1 * len(self.upsert_version_)
-    for i in xrange(len(self.upsert_version_)): n += self.lengthVarInt64(self.upsert_version_[i])
-    n += 1 * len(self.update_version_)
-    for i in xrange(len(self.update_version_)): n += self.lengthVarInt64(self.update_version_[i])
-    n += 1 * len(self.insert_version_)
-    for i in xrange(len(self.insert_version_)): n += self.lengthVarInt64(self.insert_version_[i])
-    n += 1 * len(self.insert_auto_id_version_)
-    for i in xrange(len(self.insert_auto_id_version_)): n += self.lengthVarInt64(self.insert_auto_id_version_[i])
-    n += 1 * len(self.delete_version_)
-    for i in xrange(len(self.delete_version_)): n += self.lengthVarInt64(self.delete_version_[i])
-    return n
-
-  def Clear(self):
-    self.clear_index_updates()
-    self.clear_insert_auto_id_key()
-    self.clear_upsert_version()
-    self.clear_update_version()
-    self.clear_insert_version()
-    self.clear_insert_auto_id_version()
-    self.clear_delete_version()
-
-  def OutputUnchecked(self, out):
-    out.putVarInt32(8)
-    out.putVarInt32(self.index_updates_)
-    for i in xrange(len(self.insert_auto_id_key_)):
-      out.putVarInt32(18)
-      out.putVarInt32(self.insert_auto_id_key_[i].ByteSize())
-      self.insert_auto_id_key_[i].OutputUnchecked(out)
-    for i in xrange(len(self.upsert_version_)):
-      out.putVarInt32(24)
-      out.putVarInt64(self.upsert_version_[i])
-    for i in xrange(len(self.update_version_)):
-      out.putVarInt32(32)
-      out.putVarInt64(self.update_version_[i])
-    for i in xrange(len(self.insert_version_)):
-      out.putVarInt32(40)
-      out.putVarInt64(self.insert_version_[i])
-    for i in xrange(len(self.insert_auto_id_version_)):
-      out.putVarInt32(48)
-      out.putVarInt64(self.insert_auto_id_version_[i])
-    for i in xrange(len(self.delete_version_)):
-      out.putVarInt32(56)
-      out.putVarInt64(self.delete_version_[i])
-
-  def OutputPartial(self, out):
-    if (self.has_index_updates_):
-      out.putVarInt32(8)
-      out.putVarInt32(self.index_updates_)
-    for i in xrange(len(self.insert_auto_id_key_)):
-      out.putVarInt32(18)
-      out.putVarInt32(self.insert_auto_id_key_[i].ByteSizePartial())
-      self.insert_auto_id_key_[i].OutputPartial(out)
-    for i in xrange(len(self.upsert_version_)):
-      out.putVarInt32(24)
-      out.putVarInt64(self.upsert_version_[i])
-    for i in xrange(len(self.update_version_)):
-      out.putVarInt32(32)
-      out.putVarInt64(self.update_version_[i])
-    for i in xrange(len(self.insert_version_)):
-      out.putVarInt32(40)
-      out.putVarInt64(self.insert_version_[i])
-    for i in xrange(len(self.insert_auto_id_version_)):
-      out.putVarInt32(48)
-      out.putVarInt64(self.insert_auto_id_version_[i])
-    for i in xrange(len(self.delete_version_)):
-      out.putVarInt32(56)
-      out.putVarInt64(self.delete_version_[i])
-
-  def TryMerge(self, d):
-    while d.avail() > 0:
-      tt = d.getVarInt32()
-      if tt == 8:
-        self.set_index_updates(d.getVarInt32())
-        continue
-      if tt == 18:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.add_insert_auto_id_key().TryMerge(tmp)
-        continue
-      if tt == 24:
-        self.add_upsert_version(d.getVarInt64())
-        continue
-      if tt == 32:
-        self.add_update_version(d.getVarInt64())
-        continue
-      if tt == 40:
-        self.add_insert_version(d.getVarInt64())
-        continue
-      if tt == 48:
-        self.add_insert_auto_id_version(d.getVarInt64())
-        continue
-      if tt == 56:
-        self.add_delete_version(d.getVarInt64())
-        continue
-
-
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
-      d.skipData(tt)
-
-
-  def __str__(self, prefix="", printElemNumber=0):
-    res=""
-    if self.has_index_updates_: res+=prefix+("index_updates: %s\n" % self.DebugFormatInt32(self.index_updates_))
-    cnt=0
-    for e in self.insert_auto_id_key_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("insert_auto_id_key%s <\n" % elm)
-      res+=e.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
-      cnt+=1
-    cnt=0
-    for e in self.upsert_version_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("upsert_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
-      cnt+=1
-    cnt=0
-    for e in self.update_version_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("update_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
-      cnt+=1
-    cnt=0
-    for e in self.insert_version_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("insert_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
-      cnt+=1
-    cnt=0
-    for e in self.insert_auto_id_version_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("insert_auto_id_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
-      cnt+=1
-    cnt=0
-    for e in self.delete_version_:
-      elm=""
-      if printElemNumber: elm="(%d)" % cnt
-      res+=prefix+("delete_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
-      cnt+=1
-    return res
-
-
-  def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
-
-  kindex_updates = 1
-  kinsert_auto_id_key = 2
-  kupsert_version = 3
-  kupdate_version = 4
-  kinsert_version = 5
-  kinsert_auto_id_version = 6
-  kdelete_version = 7
-
-  _TEXT = _BuildTagLookupTable({
-    0: "ErrorCode",
-    1: "index_updates",
-    2: "insert_auto_id_key",
-    3: "upsert_version",
-    4: "update_version",
-    5: "insert_version",
-    6: "insert_auto_id_version",
-    7: "delete_version",
-  }, 7)
-
-  _TYPES = _BuildTagLookupTable({
-    0: ProtocolBuffer.Encoder.NUMERIC,
-    1: ProtocolBuffer.Encoder.NUMERIC,
-    2: ProtocolBuffer.Encoder.STRING,
-    3: ProtocolBuffer.Encoder.NUMERIC,
-    4: ProtocolBuffer.Encoder.NUMERIC,
-    5: ProtocolBuffer.Encoder.NUMERIC,
-    6: ProtocolBuffer.Encoder.NUMERIC,
-    7: ProtocolBuffer.Encoder.NUMERIC,
-  }, 7, ProtocolBuffer.Encoder.MAX_TYPE)
-
-
-  _STYLE = """"""
-  _STYLE_CONTENT_TYPE = """"""
-  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.MutationResult'
-  _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uUmVzdWx0ExoNaW5kZXhfdXBkYXRlcyABKAAwBTgCFBMaEmluc2VydF9hdXRvX2lkX2tleSACKAIwCzgDShthcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXmjAaoBBWN0eXBlsgEGcHJvdG8ypAEUExoOdXBzZXJ0X3ZlcnNpb24gAygAMAM4AxQTGg51cGRhdGVfdmVyc2lvbiAEKAAwAzgDFBMaDmluc2VydF92ZXJzaW9uIAUoADADOAMUExoWaW5zZXJ0X2F1dG9faWRfdmVyc2lvbiAGKAAwAzgDFBMaDmRlbGV0ZV92ZXJzaW9uIAcoADADOAMUwgEdYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRXJyb3I="))
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9yc3oJRXJyb3JDb2RliwGSAQtCQURfUkVRVUVTVJgBAYwBiwGSARZDT05DVVJSRU5UX1RSQU5TQUNUSU9OmAECjAGLAZIBDklOVEVSTkFMX0VSUk9SmAEDjAGLAZIBCk5FRURfSU5ERViYAQSMAYsBkgEHVElNRU9VVJgBBYwBiwGSARFQRVJNSVNTSU9OX0RFTklFRJgBBowBiwGSAQ5CSUdUQUJMRV9FUlJPUpgBB4wBiwGSARxDT01NSVRURURfQlVUX1NUSUxMX0FQUExZSU5HmAEIjAGLAZIBE0NBUEFCSUxJVFlfRElTQUJMRUSYAQmMAYsBkgEVVFJZX0FMVEVSTkFURV9CQUNLRU5EmAEKjAGLAZIBEVNBRkVfVElNRV9UT09fT0xEmAELjAF0ugHPMgonYXBwaG9zdGluZy9kYXRhc3RvcmUvZGF0YXN0b3JlX3Y0LnByb3RvEhdhcHBob3N0aW5nLmRhdGFzdG9yZS52NBokYXBwaG9zdGluZy9kYXRhc3RvcmUvZW50aXR5X3Y0LnByb3RvIosCCgVFcnJvciKBAgoJRXJyb3JDb2RlEg8KC0JBRF9SRVFVRVNUEAESGgoWQ09OQ1VSUkVOVF9UUkFOU0FDVElPThACEhIKDklOVEVSTkFMX0VSUk9SEAMSDgoKTkVFRF9JTkRFWBAEEgsKB1RJTUVPVVQQBRIVChFQRVJNSVNTSU9OX0RFTklFRBAGEhIKDkJJR1RBQkxFX0VSUk9SEAcSIAocQ09NTUlUVEVEX0JVVF9TVElMTF9BUFBMWUlORxAIEhcKE0NBUEFCSUxJVFlfRElTQUJMRUQQCRIZChVUUllfQUxURVJOQVRFX0JBQ0tFTkQQChIVChFTQUZFX1RJTUVfVE9PX09MRBALIoYBCgxFbnRpdHlSZXN1bHQSLwoGZW50aXR5GAEgAigLMh8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5Eg8KB3ZlcnNpb24YAiABKAMiNAoKUmVzdWx0VHlwZRIICgRGVUxMEAESDgoKUFJPSkVDVElPThACEgwKCEtFWV9PTkxZEAMi8QIKBVF1ZXJ5Ej8KCnByb2plY3Rpb24YAiADKAsyKy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eUV4cHJlc3Npb24SNQoEa2luZBgDIAMoCzInLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LktpbmRFeHByZXNzaW9uEi8KBmZpbHRlchgEIAEoCzIfLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkZpbHRlchI1CgVvcmRlchgFIAMoCzImLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5T3JkZXISPAoIZ3JvdXBfYnkYBiADKAsyKi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eVJlZmVyZW5jZRIUCgxzdGFydF9jdXJzb3IYByABKAwSEgoKZW5kX2N1cnNvchgIIAEoDBIRCgZvZmZzZXQYCiABKAU6ATASDQoFbGltaXQYCyABKAUiHgoOS2luZEV4cHJlc3Npb24SDAoEbmFtZRgBIAIoCSIhChFQcm9wZXJ0eVJlZmVyZW5jZRIMCgRuYW1lGAIgAigJItMBChJQcm9wZXJ0eUV4cHJlc3Npb24SPAoIcHJvcGVydHkYASACKAsyKi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eVJlZmVyZW5jZRJdChRhZ2dyZWdhdGlvbl9mdW5jdGlvbhgCIAEoDjI/LmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5RXhwcmVzc2lvbi5BZ2dyZWdhdGlvbkZ1bmN0aW9uIiAKE0FnZ3JlZ2F0aW9uRnVuY3Rpb24SCQoFRklSU1QQASLJAQoNUHJvcGVydHlPcmRlchI8Cghwcm9wZXJ0eRgBIAIoCzIqLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5UmVmZXJlbmNlEk4KCWRpcmVjdGlvbhgCIAEoDjIwLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlByb3BlcnR5T3JkZXIuRGlyZWN0aW9uOglBU0NFTkRJTkciKgoJRGlyZWN0aW9uEg0KCUFTQ0VORElORxABEg4KCkRFU0NFTkRJTkcQAiKOAQoGRmlsdGVyEkIKEGNvbXBvc2l0ZV9maWx0ZXIYASABKAsyKC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db21wb3NpdGVGaWx0ZXISQAoPcHJvcGVydHlfZmlsdGVyGAIgASgLMicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlGaWx0ZXIinAEKD0NvbXBvc2l0ZUZpbHRlchJDCghvcGVyYXRvchgBIAIoDjIxLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbXBvc2l0ZUZpbHRlci5PcGVyYXRvchIvCgZmaWx0ZXIYAiADKAsyHy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5GaWx0ZXIiEwoIT3BlcmF0b3ISBwoDQU5EEAEivgIKDlByb3BlcnR5RmlsdGVyEjwKCHByb3BlcnR5GAEgAigLMiouYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUHJvcGVydHlSZWZlcmVuY2USQgoIb3BlcmF0b3IYAiACKA4yMC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Qcm9wZXJ0eUZpbHRlci5PcGVyYXRvchItCgV2YWx1ZRgDIAIoCzIeLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlZhbHVlInsKCE9wZXJhdG9yEg0KCUxFU1NfVEhBThABEhYKEkxFU1NfVEhBTl9PUl9FUVVBTBACEhAKDEdSRUFURVJfVEhBThADEhkKFUdSRUFURVJfVEhBTl9PUl9FUVVBTBAEEgkKBUVRVUFMEAUSEAoMSEFTX0FOQ0VTVE9SEAsisAEKCEdxbFF1ZXJ5EhQKDHF1ZXJ5X3N0cmluZxgBIAIoCRIcCg1hbGxvd19saXRlcmFsGAIgASgIOgVmYWxzZRI2CghuYW1lX2FyZxgDIAMoCzIkLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkdxbFF1ZXJ5QXJnEjgKCm51bWJlcl9hcmcYBCADKAsyJC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5HcWxRdWVyeUFyZyJaCgtHcWxRdWVyeUFyZxIMCgRuYW1lGAEgASgJEi0KBXZhbHVlGAIgASgLMh4uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuVmFsdWUSDgoGY3Vyc29yGAMgASgMIvcCChBRdWVyeVJlc3VsdEJhdGNoEkwKEmVudGl0eV9yZXN1bHRfdHlwZRgBIAIoDjIwLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eVJlc3VsdC5SZXN1bHRUeXBlEjwKDWVudGl0eV9yZXN1bHQYAiADKAsyJS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHlSZXN1bHQSEgoKZW5kX2N1cnNvchgEIAEoDBJPCgxtb3JlX3Jlc3VsdHMYBSACKA4yOS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5RdWVyeVJlc3VsdEJhdGNoLk1vcmVSZXN1bHRzVHlwZRIaCg9za2lwcGVkX3Jlc3VsdHMYBiABKAU6ATAiVgoPTW9yZVJlc3VsdHNUeXBlEhAKDE5PVF9GSU5JU0hFRBABEhwKGE1PUkVfUkVTVUxUU19BRlRFUl9MSU1JVBACEhMKD05PX01PUkVfUkVTVUxUUxADIvUBCghNdXRhdGlvbhI3CgJvcBgBIAIoDjIrLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uLk9wZXJhdGlvbhIpCgNrZXkYAiABKAsyHC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXkSLwoGZW50aXR5GAMgASgLMh8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5IlQKCU9wZXJhdGlvbhIKCgZJTlNFUlQQARIKCgZVUERBVEUQAhIKCgZVUFNFUlQQAxIKCgZERUxFVEUQBBIXChNJTlNFUlRfV0lUSF9BVVRPX0lEEGMiUwoOTXV0YXRpb25SZXN1bHQSKQoDa2V5GAMgASgLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5EhYKC25ld192ZXJzaW9uGAQgASgDOgEwIqQCChJEZXByZWNhdGVkTXV0YXRpb24SLwoGdXBzZXJ0GAEgAygLMh8uYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5Ei8KBnVwZGF0ZRgCIAMoCzIfLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eRIvCgZpbnNlcnQYAyADKAsyHy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHkSNwoOaW5zZXJ0X2F1dG9faWQYBCADKAsyHy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHkSLAoGZGVsZXRlGAUgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5EhQKBWZvcmNlGAYgASgIOgVmYWxzZSLrAQoYRGVwcmVjYXRlZE11dGF0aW9uUmVzdWx0EhUKDWluZGV4X3VwZGF0ZXMYASACKAUSOAoSaW5zZXJ0X2F1dG9faWRfa2V5GAIgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5EhYKDnVwc2VydF92ZXJzaW9uGAMgAygDEhYKDnVwZGF0ZV92ZXJzaW9uGAQgAygDEhYKDmluc2VydF92ZXJzaW9uGAUgAygDEh4KFmluc2VydF9hdXRvX2lkX3ZlcnNpb24YBiADKAMSFgoOZGVsZXRlX3ZlcnNpb24YByADKAMitQEKC1JlYWRPcHRpb25zElcKEHJlYWRfY29uc2lzdGVuY3kYASABKA4yNC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5SZWFkT3B0aW9ucy5SZWFkQ29uc2lzdGVuY3k6B0RFRkFVTFQSEwoLdHJhbnNhY3Rpb24YAiABKAwiOAoPUmVhZENvbnNpc3RlbmN5EgsKB0RFRkFVTFQQABIKCgZTVFJPTkcQARIMCghFVkVOVFVBTBACInYKDUxvb2t1cFJlcXVlc3QSOgoMcmVhZF9vcHRpb25zGAEgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUmVhZE9wdGlvbnMSKQoDa2V5GAMgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5Iq4BCg5Mb29rdXBSZXNwb25zZRI0CgVmb3VuZBgBIAMoCzIlLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eVJlc3VsdBI2CgdtaXNzaW5nGAIgAygLMiUuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5UmVzdWx0Ei4KCGRlZmVycmVkGAMgAygLMhwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5IqsCCg9SdW5RdWVyeVJlcXVlc3QSOgoMcmVhZF9vcHRpb25zGAEgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUmVhZE9wdGlvbnMSOgoMcGFydGl0aW9uX2lkGAIgASgLMiQuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUGFydGl0aW9uSWQSLQoFcXVlcnkYAyABKAsyHi5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5RdWVyeRI0CglncWxfcXVlcnkYByABKAsyIS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5HcWxRdWVyeRIdChVtaW5fc2FmZV90aW1lX3NlY29uZHMYBCABKAMSHAoUc3VnZ2VzdGVkX2JhdGNoX3NpemUYBSABKAUiYgoQUnVuUXVlcnlSZXNwb25zZRI4CgViYXRjaBgBIAIoCzIpLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LlF1ZXJ5UmVzdWx0QmF0Y2gSFAoMcXVlcnlfaGFuZGxlGAIgASgMIiwKFENvbnRpbnVlUXVlcnlSZXF1ZXN0EhQKDHF1ZXJ5X2hhbmRsZRgBIAIoDCJRChVDb250aW51ZVF1ZXJ5UmVzcG9uc2USOAoFYmF0Y2gYASACKAsyKS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5RdWVyeVJlc3VsdEJhdGNoIlMKF0JlZ2luVHJhbnNhY3Rpb25SZXF1ZXN0EhoKC2Nyb3NzX2dyb3VwGAEgASgIOgVmYWxzZRIcCg1jcm9zc19yZXF1ZXN0GAIgASgIOgVmYWxzZSIvChhCZWdpblRyYW5zYWN0aW9uUmVzcG9uc2USEwoLdHJhbnNhY3Rpb24YASACKAwiJgoPUm9sbGJhY2tSZXF1ZXN0EhMKC3RyYW5zYWN0aW9uGAEgAigMIhIKEFJvbGxiYWNrUmVzcG9uc2UiwAIKDUNvbW1pdFJlcXVlc3QSEwoLdHJhbnNhY3Rpb24YASABKAwSMwoIbXV0YXRpb24YBSADKAsyIS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5NdXRhdGlvbhJIChNkZXByZWNhdGVkX211dGF0aW9uGAIgASgLMisuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRGVwcmVjYXRlZE11dGF0aW9uEkgKBG1vZGUYBCABKA4yKy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db21taXRSZXF1ZXN0Lk1vZGU6DVRSQU5TQUNUSU9OQUwSHwoQaWdub3JlX3JlYWRfb25seRgGIAEoCDoFZmFsc2UiMAoETW9kZRIRCg1UUkFOU0FDVElPTkFMEAESFQoRTk9OX1RSQU5TQUNUSU9OQUwQAiLAAQoOQ29tbWl0UmVzcG9uc2USQAoPbXV0YXRpb25fcmVzdWx0GAMgAygLMicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuTXV0YXRpb25SZXN1bHQSVQoaZGVwcmVjYXRlZF9tdXRhdGlvbl9yZXN1bHQYASABKAsyMS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5EZXByZWNhdGVkTXV0YXRpb25SZXN1bHQSFQoNaW5kZXhfdXBkYXRlcxgEIAEoBSJzChJBbGxvY2F0ZUlkc1JlcXVlc3QSLgoIYWxsb2NhdGUYASADKAsyHC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXkSLQoHcmVzZXJ2ZRgCIAMoCzIcLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LktleSJGChNBbGxvY2F0ZUlkc1Jlc3BvbnNlEi8KCWFsbG9jYXRlZBgBIAMoCzIcLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LktleSJYCgxXcml0ZVJlcXVlc3QSSAoTZGVwcmVjYXRlZF9tdXRhdGlvbhgBIAIoCzIrLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkRlcHJlY2F0ZWRNdXRhdGlvbjKiBwoSRGF0YXN0b3JlVjRTZXJ2aWNlEnkKEEJlZ2luVHJhbnNhY3Rpb24SMC5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5CZWdpblRyYW5zYWN0aW9uUmVxdWVzdBoxLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkJlZ2luVHJhbnNhY3Rpb25SZXNwb25zZSIAEmEKCFJvbGxiYWNrEiguYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUm9sbGJhY2tSZXF1ZXN0GikuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUm9sbGJhY2tSZXNwb25zZSIAElsKBkNvbW1pdBImLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlcXVlc3QaJy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db21taXRSZXNwb25zZSIAEmEKCFJ1blF1ZXJ5EiguYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUnVuUXVlcnlSZXF1ZXN0GikuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuUnVuUXVlcnlSZXNwb25zZSIAEnAKDUNvbnRpbnVlUXVlcnkSLS5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Db250aW51ZVF1ZXJ5UmVxdWVzdBouLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbnRpbnVlUXVlcnlSZXNwb25zZSIAElsKBkxvb2t1cBImLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lkxvb2t1cFJlcXVlc3QaJy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Mb29rdXBSZXNwb25zZSIAEmoKC0FsbG9jYXRlSWRzEisuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQWxsb2NhdGVJZHNSZXF1ZXN0GiwuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQWxsb2NhdGVJZHNSZXNwb25zZSIAElgKA0dldBImLmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lkxvb2t1cFJlcXVlc3QaJy5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5Mb29rdXBSZXNwb25zZSIAElkKBVdyaXRlEiUuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuV3JpdGVSZXF1ZXN0GicuYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuQ29tbWl0UmVzcG9uc2UiAEIhCh9jb20uZ29vZ2xlLmFwcGhvc3RpbmcuZGF0YXN0b3Jl"))
   if _net_proto___parse__python is not None:
     _net_proto___parse__python.RegisterType(
         _SERIALIZED_DESCRIPTOR.tostring())
@@ -3709,6 +2915,1229 @@ class QueryResultBatch(ProtocolBuffer.ProtocolMessage):
     _net_proto___parse__python.RegisterType(
         _SERIALIZED_DESCRIPTOR.tostring())
 
+class Mutation(ProtocolBuffer.ProtocolMessage):
+
+
+  INSERT       =    1
+  UPDATE       =    2
+  UPSERT       =    3
+  DELETE       =    4
+  INSERT_WITH_AUTO_ID =   99
+
+  _Operation_NAMES = {
+    1: "INSERT",
+    2: "UPDATE",
+    3: "UPSERT",
+    4: "DELETE",
+    99: "INSERT_WITH_AUTO_ID",
+  }
+
+  def Operation_Name(cls, x): return cls._Operation_NAMES.get(x, "")
+  Operation_Name = classmethod(Operation_Name)
+
+  has_op_ = 0
+  op_ = 0
+  has_key_ = 0
+  key_ = None
+  has_entity_ = 0
+  entity_ = None
+
+  def __init__(self, contents=None):
+    self.lazy_init_lock_ = thread.allocate_lock()
+    if contents is not None: self.MergeFromString(contents)
+
+  def op(self): return self.op_
+
+  def set_op(self, x):
+    self.has_op_ = 1
+    self.op_ = x
+
+  def clear_op(self):
+    if self.has_op_:
+      self.has_op_ = 0
+      self.op_ = 0
+
+  def has_op(self): return self.has_op_
+
+  def key(self):
+    if self.key_ is None:
+      self.lazy_init_lock_.acquire()
+      try:
+        if self.key_ is None: self.key_ = google.appengine.datastore.entity_v4_pb.Key()
+      finally:
+        self.lazy_init_lock_.release()
+    return self.key_
+
+  def mutable_key(self): self.has_key_ = 1; return self.key()
+
+  def clear_key(self):
+
+    if self.has_key_:
+      self.has_key_ = 0;
+      if self.key_ is not None: self.key_.Clear()
+
+  def has_key(self): return self.has_key_
+
+  def entity(self):
+    if self.entity_ is None:
+      self.lazy_init_lock_.acquire()
+      try:
+        if self.entity_ is None: self.entity_ = google.appengine.datastore.entity_v4_pb.Entity()
+      finally:
+        self.lazy_init_lock_.release()
+    return self.entity_
+
+  def mutable_entity(self): self.has_entity_ = 1; return self.entity()
+
+  def clear_entity(self):
+
+    if self.has_entity_:
+      self.has_entity_ = 0;
+      if self.entity_ is not None: self.entity_.Clear()
+
+  def has_entity(self): return self.has_entity_
+
+
+  def MergeFrom(self, x):
+    assert x is not self
+    if (x.has_op()): self.set_op(x.op())
+    if (x.has_key()): self.mutable_key().MergeFrom(x.key())
+    if (x.has_entity()): self.mutable_entity().MergeFrom(x.entity())
+
+  if _net_proto___parse__python is not None:
+    def _CMergeFromString(self, s):
+      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.Mutation', s)
+
+  if _net_proto___parse__python is not None:
+    def _CEncode(self):
+      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.Mutation')
+
+  if _net_proto___parse__python is not None:
+    def _CEncodePartial(self):
+      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.Mutation')
+
+  if _net_proto___parse__python is not None:
+    def _CToASCII(self, output_format):
+      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.Mutation', output_format)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCII(self, s):
+      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.Mutation', s)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCIIIgnoreUnknown(self, s):
+      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.Mutation', s)
+
+
+  def Equals(self, x):
+    if x is self: return 1
+    if self.has_op_ != x.has_op_: return 0
+    if self.has_op_ and self.op_ != x.op_: return 0
+    if self.has_key_ != x.has_key_: return 0
+    if self.has_key_ and self.key_ != x.key_: return 0
+    if self.has_entity_ != x.has_entity_: return 0
+    if self.has_entity_ and self.entity_ != x.entity_: return 0
+    return 1
+
+  def IsInitialized(self, debug_strs=None):
+    initialized = 1
+    if (not self.has_op_):
+      initialized = 0
+      if debug_strs is not None:
+        debug_strs.append('Required field: op not set.')
+    if (self.has_key_ and not self.key_.IsInitialized(debug_strs)): initialized = 0
+    if (self.has_entity_ and not self.entity_.IsInitialized(debug_strs)): initialized = 0
+    return initialized
+
+  def ByteSize(self):
+    n = 0
+    n += self.lengthVarInt64(self.op_)
+    if (self.has_key_): n += 1 + self.lengthString(self.key_.ByteSize())
+    if (self.has_entity_): n += 1 + self.lengthString(self.entity_.ByteSize())
+    return n + 1
+
+  def ByteSizePartial(self):
+    n = 0
+    if (self.has_op_):
+      n += 1
+      n += self.lengthVarInt64(self.op_)
+    if (self.has_key_): n += 1 + self.lengthString(self.key_.ByteSizePartial())
+    if (self.has_entity_): n += 1 + self.lengthString(self.entity_.ByteSizePartial())
+    return n
+
+  def Clear(self):
+    self.clear_op()
+    self.clear_key()
+    self.clear_entity()
+
+  def OutputUnchecked(self, out):
+    out.putVarInt32(8)
+    out.putVarInt32(self.op_)
+    if (self.has_key_):
+      out.putVarInt32(18)
+      out.putVarInt32(self.key_.ByteSize())
+      self.key_.OutputUnchecked(out)
+    if (self.has_entity_):
+      out.putVarInt32(26)
+      out.putVarInt32(self.entity_.ByteSize())
+      self.entity_.OutputUnchecked(out)
+
+  def OutputPartial(self, out):
+    if (self.has_op_):
+      out.putVarInt32(8)
+      out.putVarInt32(self.op_)
+    if (self.has_key_):
+      out.putVarInt32(18)
+      out.putVarInt32(self.key_.ByteSizePartial())
+      self.key_.OutputPartial(out)
+    if (self.has_entity_):
+      out.putVarInt32(26)
+      out.putVarInt32(self.entity_.ByteSizePartial())
+      self.entity_.OutputPartial(out)
+
+  def TryMerge(self, d):
+    while d.avail() > 0:
+      tt = d.getVarInt32()
+      if tt == 8:
+        self.set_op(d.getVarInt32())
+        continue
+      if tt == 18:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.mutable_key().TryMerge(tmp)
+        continue
+      if tt == 26:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.mutable_entity().TryMerge(tmp)
+        continue
+
+
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      d.skipData(tt)
+
+
+  def __str__(self, prefix="", printElemNumber=0):
+    res=""
+    if self.has_op_: res+=prefix+("op: %s\n" % self.DebugFormatInt32(self.op_))
+    if self.has_key_:
+      res+=prefix+"key <\n"
+      res+=self.key_.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+    if self.has_entity_:
+      res+=prefix+"entity <\n"
+      res+=self.entity_.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+    return res
+
+
+  def _BuildTagLookupTable(sparse, maxtag, default=None):
+    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+
+  kop = 1
+  kkey = 2
+  kentity = 3
+
+  _TEXT = _BuildTagLookupTable({
+    0: "ErrorCode",
+    1: "op",
+    2: "key",
+    3: "entity",
+  }, 3)
+
+  _TYPES = _BuildTagLookupTable({
+    0: ProtocolBuffer.Encoder.NUMERIC,
+    1: ProtocolBuffer.Encoder.NUMERIC,
+    2: ProtocolBuffer.Encoder.STRING,
+    3: ProtocolBuffer.Encoder.STRING,
+  }, 3, ProtocolBuffer.Encoder.MAX_TYPE)
+
+
+  _STYLE = """"""
+  _STYLE_CONTENT_TYPE = """"""
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.Mutation'
+  _SERIALIZED_DESCRIPTOR = array.array('B')
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KIGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uExoCb3AgASgAMAU4AmgAFBMaA2tleSACKAIwCzgBShthcHBob3N0aW5nLmRhdGFzdG9yZS52NC5LZXmjAaoBBWN0eXBlsgEGcHJvdG8ypAEUExoGZW50aXR5IAMoAjALOAFKHmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eaMBqgEFY3R5cGWyAQZwcm90bzKkARRzeglPcGVyYXRpb26LAZIBBklOU0VSVJgBAYwBiwGSAQZVUERBVEWYAQKMAYsBkgEGVVBTRVJUmAEDjAGLAZIBBkRFTEVURZgBBIwBiwGSARNJTlNFUlRfV0lUSF9BVVRPX0lEmAFjjAF0wgEdYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRXJyb3I="))
+  if _net_proto___parse__python is not None:
+    _net_proto___parse__python.RegisterType(
+        _SERIALIZED_DESCRIPTOR.tostring())
+
+class MutationResult(ProtocolBuffer.ProtocolMessage):
+  has_key_ = 0
+  key_ = None
+  has_new_version_ = 0
+  new_version_ = 0
+
+  def __init__(self, contents=None):
+    self.lazy_init_lock_ = thread.allocate_lock()
+    if contents is not None: self.MergeFromString(contents)
+
+  def key(self):
+    if self.key_ is None:
+      self.lazy_init_lock_.acquire()
+      try:
+        if self.key_ is None: self.key_ = google.appengine.datastore.entity_v4_pb.Key()
+      finally:
+        self.lazy_init_lock_.release()
+    return self.key_
+
+  def mutable_key(self): self.has_key_ = 1; return self.key()
+
+  def clear_key(self):
+
+    if self.has_key_:
+      self.has_key_ = 0;
+      if self.key_ is not None: self.key_.Clear()
+
+  def has_key(self): return self.has_key_
+
+  def new_version(self): return self.new_version_
+
+  def set_new_version(self, x):
+    self.has_new_version_ = 1
+    self.new_version_ = x
+
+  def clear_new_version(self):
+    if self.has_new_version_:
+      self.has_new_version_ = 0
+      self.new_version_ = 0
+
+  def has_new_version(self): return self.has_new_version_
+
+
+  def MergeFrom(self, x):
+    assert x is not self
+    if (x.has_key()): self.mutable_key().MergeFrom(x.key())
+    if (x.has_new_version()): self.set_new_version(x.new_version())
+
+  if _net_proto___parse__python is not None:
+    def _CMergeFromString(self, s):
+      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.MutationResult', s)
+
+  if _net_proto___parse__python is not None:
+    def _CEncode(self):
+      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.MutationResult')
+
+  if _net_proto___parse__python is not None:
+    def _CEncodePartial(self):
+      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.MutationResult')
+
+  if _net_proto___parse__python is not None:
+    def _CToASCII(self, output_format):
+      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.MutationResult', output_format)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCII(self, s):
+      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.MutationResult', s)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCIIIgnoreUnknown(self, s):
+      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.MutationResult', s)
+
+
+  def Equals(self, x):
+    if x is self: return 1
+    if self.has_key_ != x.has_key_: return 0
+    if self.has_key_ and self.key_ != x.key_: return 0
+    if self.has_new_version_ != x.has_new_version_: return 0
+    if self.has_new_version_ and self.new_version_ != x.new_version_: return 0
+    return 1
+
+  def IsInitialized(self, debug_strs=None):
+    initialized = 1
+    if (self.has_key_ and not self.key_.IsInitialized(debug_strs)): initialized = 0
+    return initialized
+
+  def ByteSize(self):
+    n = 0
+    if (self.has_key_): n += 1 + self.lengthString(self.key_.ByteSize())
+    if (self.has_new_version_): n += 1 + self.lengthVarInt64(self.new_version_)
+    return n
+
+  def ByteSizePartial(self):
+    n = 0
+    if (self.has_key_): n += 1 + self.lengthString(self.key_.ByteSizePartial())
+    if (self.has_new_version_): n += 1 + self.lengthVarInt64(self.new_version_)
+    return n
+
+  def Clear(self):
+    self.clear_key()
+    self.clear_new_version()
+
+  def OutputUnchecked(self, out):
+    if (self.has_key_):
+      out.putVarInt32(26)
+      out.putVarInt32(self.key_.ByteSize())
+      self.key_.OutputUnchecked(out)
+    if (self.has_new_version_):
+      out.putVarInt32(32)
+      out.putVarInt64(self.new_version_)
+
+  def OutputPartial(self, out):
+    if (self.has_key_):
+      out.putVarInt32(26)
+      out.putVarInt32(self.key_.ByteSizePartial())
+      self.key_.OutputPartial(out)
+    if (self.has_new_version_):
+      out.putVarInt32(32)
+      out.putVarInt64(self.new_version_)
+
+  def TryMerge(self, d):
+    while d.avail() > 0:
+      tt = d.getVarInt32()
+      if tt == 26:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.mutable_key().TryMerge(tmp)
+        continue
+      if tt == 32:
+        self.set_new_version(d.getVarInt64())
+        continue
+
+
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      d.skipData(tt)
+
+
+  def __str__(self, prefix="", printElemNumber=0):
+    res=""
+    if self.has_key_:
+      res+=prefix+"key <\n"
+      res+=self.key_.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+    if self.has_new_version_: res+=prefix+("new_version: %s\n" % self.DebugFormatInt64(self.new_version_))
+    return res
+
+
+  def _BuildTagLookupTable(sparse, maxtag, default=None):
+    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+
+  kkey = 3
+  knew_version = 4
+
+  _TEXT = _BuildTagLookupTable({
+    0: "ErrorCode",
+    3: "key",
+    4: "new_version",
+  }, 4)
+
+  _TYPES = _BuildTagLookupTable({
+    0: ProtocolBuffer.Encoder.NUMERIC,
+    3: ProtocolBuffer.Encoder.STRING,
+    4: ProtocolBuffer.Encoder.NUMERIC,
+  }, 4, ProtocolBuffer.Encoder.MAX_TYPE)
+
+
+  _STYLE = """"""
+  _STYLE_CONTENT_TYPE = """"""
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.MutationResult'
+  _SERIALIZED_DESCRIPTOR = array.array('B')
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uUmVzdWx0ExoDa2V5IAMoAjALOAFKG2FwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LktleaMBqgEFY3R5cGWyAQZwcm90bzKkARQTGgtuZXdfdmVyc2lvbiAEKAAwAzgBQgEwowGqAQdkZWZhdWx0sgEBMKQBFMIBHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9y"))
+  if _net_proto___parse__python is not None:
+    _net_proto___parse__python.RegisterType(
+        _SERIALIZED_DESCRIPTOR.tostring())
+
+class DeprecatedMutation(ProtocolBuffer.ProtocolMessage):
+  has_force_ = 0
+  force_ = 0
+
+  def __init__(self, contents=None):
+    self.upsert_ = []
+    self.update_ = []
+    self.insert_ = []
+    self.insert_auto_id_ = []
+    self.delete_ = []
+    if contents is not None: self.MergeFromString(contents)
+
+  def upsert_size(self): return len(self.upsert_)
+  def upsert_list(self): return self.upsert_
+
+  def upsert(self, i):
+    return self.upsert_[i]
+
+  def mutable_upsert(self, i):
+    return self.upsert_[i]
+
+  def add_upsert(self):
+    x = google.appengine.datastore.entity_v4_pb.Entity()
+    self.upsert_.append(x)
+    return x
+
+  def clear_upsert(self):
+    self.upsert_ = []
+  def update_size(self): return len(self.update_)
+  def update_list(self): return self.update_
+
+  def update(self, i):
+    return self.update_[i]
+
+  def mutable_update(self, i):
+    return self.update_[i]
+
+  def add_update(self):
+    x = google.appengine.datastore.entity_v4_pb.Entity()
+    self.update_.append(x)
+    return x
+
+  def clear_update(self):
+    self.update_ = []
+  def insert_size(self): return len(self.insert_)
+  def insert_list(self): return self.insert_
+
+  def insert(self, i):
+    return self.insert_[i]
+
+  def mutable_insert(self, i):
+    return self.insert_[i]
+
+  def add_insert(self):
+    x = google.appengine.datastore.entity_v4_pb.Entity()
+    self.insert_.append(x)
+    return x
+
+  def clear_insert(self):
+    self.insert_ = []
+  def insert_auto_id_size(self): return len(self.insert_auto_id_)
+  def insert_auto_id_list(self): return self.insert_auto_id_
+
+  def insert_auto_id(self, i):
+    return self.insert_auto_id_[i]
+
+  def mutable_insert_auto_id(self, i):
+    return self.insert_auto_id_[i]
+
+  def add_insert_auto_id(self):
+    x = google.appengine.datastore.entity_v4_pb.Entity()
+    self.insert_auto_id_.append(x)
+    return x
+
+  def clear_insert_auto_id(self):
+    self.insert_auto_id_ = []
+  def delete_size(self): return len(self.delete_)
+  def delete_list(self): return self.delete_
+
+  def delete(self, i):
+    return self.delete_[i]
+
+  def mutable_delete(self, i):
+    return self.delete_[i]
+
+  def add_delete(self):
+    x = google.appengine.datastore.entity_v4_pb.Key()
+    self.delete_.append(x)
+    return x
+
+  def clear_delete(self):
+    self.delete_ = []
+  def force(self): return self.force_
+
+  def set_force(self, x):
+    self.has_force_ = 1
+    self.force_ = x
+
+  def clear_force(self):
+    if self.has_force_:
+      self.has_force_ = 0
+      self.force_ = 0
+
+  def has_force(self): return self.has_force_
+
+
+  def MergeFrom(self, x):
+    assert x is not self
+    for i in xrange(x.upsert_size()): self.add_upsert().CopyFrom(x.upsert(i))
+    for i in xrange(x.update_size()): self.add_update().CopyFrom(x.update(i))
+    for i in xrange(x.insert_size()): self.add_insert().CopyFrom(x.insert(i))
+    for i in xrange(x.insert_auto_id_size()): self.add_insert_auto_id().CopyFrom(x.insert_auto_id(i))
+    for i in xrange(x.delete_size()): self.add_delete().CopyFrom(x.delete(i))
+    if (x.has_force()): self.set_force(x.force())
+
+  if _net_proto___parse__python is not None:
+    def _CMergeFromString(self, s):
+      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.DeprecatedMutation', s)
+
+  if _net_proto___parse__python is not None:
+    def _CEncode(self):
+      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.DeprecatedMutation')
+
+  if _net_proto___parse__python is not None:
+    def _CEncodePartial(self):
+      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.DeprecatedMutation')
+
+  if _net_proto___parse__python is not None:
+    def _CToASCII(self, output_format):
+      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.DeprecatedMutation', output_format)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCII(self, s):
+      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.DeprecatedMutation', s)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCIIIgnoreUnknown(self, s):
+      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.DeprecatedMutation', s)
+
+
+  def Equals(self, x):
+    if x is self: return 1
+    if len(self.upsert_) != len(x.upsert_): return 0
+    for e1, e2 in zip(self.upsert_, x.upsert_):
+      if e1 != e2: return 0
+    if len(self.update_) != len(x.update_): return 0
+    for e1, e2 in zip(self.update_, x.update_):
+      if e1 != e2: return 0
+    if len(self.insert_) != len(x.insert_): return 0
+    for e1, e2 in zip(self.insert_, x.insert_):
+      if e1 != e2: return 0
+    if len(self.insert_auto_id_) != len(x.insert_auto_id_): return 0
+    for e1, e2 in zip(self.insert_auto_id_, x.insert_auto_id_):
+      if e1 != e2: return 0
+    if len(self.delete_) != len(x.delete_): return 0
+    for e1, e2 in zip(self.delete_, x.delete_):
+      if e1 != e2: return 0
+    if self.has_force_ != x.has_force_: return 0
+    if self.has_force_ and self.force_ != x.force_: return 0
+    return 1
+
+  def IsInitialized(self, debug_strs=None):
+    initialized = 1
+    for p in self.upsert_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    for p in self.update_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    for p in self.insert_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    for p in self.insert_auto_id_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    for p in self.delete_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    return initialized
+
+  def ByteSize(self):
+    n = 0
+    n += 1 * len(self.upsert_)
+    for i in xrange(len(self.upsert_)): n += self.lengthString(self.upsert_[i].ByteSize())
+    n += 1 * len(self.update_)
+    for i in xrange(len(self.update_)): n += self.lengthString(self.update_[i].ByteSize())
+    n += 1 * len(self.insert_)
+    for i in xrange(len(self.insert_)): n += self.lengthString(self.insert_[i].ByteSize())
+    n += 1 * len(self.insert_auto_id_)
+    for i in xrange(len(self.insert_auto_id_)): n += self.lengthString(self.insert_auto_id_[i].ByteSize())
+    n += 1 * len(self.delete_)
+    for i in xrange(len(self.delete_)): n += self.lengthString(self.delete_[i].ByteSize())
+    if (self.has_force_): n += 2
+    return n
+
+  def ByteSizePartial(self):
+    n = 0
+    n += 1 * len(self.upsert_)
+    for i in xrange(len(self.upsert_)): n += self.lengthString(self.upsert_[i].ByteSizePartial())
+    n += 1 * len(self.update_)
+    for i in xrange(len(self.update_)): n += self.lengthString(self.update_[i].ByteSizePartial())
+    n += 1 * len(self.insert_)
+    for i in xrange(len(self.insert_)): n += self.lengthString(self.insert_[i].ByteSizePartial())
+    n += 1 * len(self.insert_auto_id_)
+    for i in xrange(len(self.insert_auto_id_)): n += self.lengthString(self.insert_auto_id_[i].ByteSizePartial())
+    n += 1 * len(self.delete_)
+    for i in xrange(len(self.delete_)): n += self.lengthString(self.delete_[i].ByteSizePartial())
+    if (self.has_force_): n += 2
+    return n
+
+  def Clear(self):
+    self.clear_upsert()
+    self.clear_update()
+    self.clear_insert()
+    self.clear_insert_auto_id()
+    self.clear_delete()
+    self.clear_force()
+
+  def OutputUnchecked(self, out):
+    for i in xrange(len(self.upsert_)):
+      out.putVarInt32(10)
+      out.putVarInt32(self.upsert_[i].ByteSize())
+      self.upsert_[i].OutputUnchecked(out)
+    for i in xrange(len(self.update_)):
+      out.putVarInt32(18)
+      out.putVarInt32(self.update_[i].ByteSize())
+      self.update_[i].OutputUnchecked(out)
+    for i in xrange(len(self.insert_)):
+      out.putVarInt32(26)
+      out.putVarInt32(self.insert_[i].ByteSize())
+      self.insert_[i].OutputUnchecked(out)
+    for i in xrange(len(self.insert_auto_id_)):
+      out.putVarInt32(34)
+      out.putVarInt32(self.insert_auto_id_[i].ByteSize())
+      self.insert_auto_id_[i].OutputUnchecked(out)
+    for i in xrange(len(self.delete_)):
+      out.putVarInt32(42)
+      out.putVarInt32(self.delete_[i].ByteSize())
+      self.delete_[i].OutputUnchecked(out)
+    if (self.has_force_):
+      out.putVarInt32(48)
+      out.putBoolean(self.force_)
+
+  def OutputPartial(self, out):
+    for i in xrange(len(self.upsert_)):
+      out.putVarInt32(10)
+      out.putVarInt32(self.upsert_[i].ByteSizePartial())
+      self.upsert_[i].OutputPartial(out)
+    for i in xrange(len(self.update_)):
+      out.putVarInt32(18)
+      out.putVarInt32(self.update_[i].ByteSizePartial())
+      self.update_[i].OutputPartial(out)
+    for i in xrange(len(self.insert_)):
+      out.putVarInt32(26)
+      out.putVarInt32(self.insert_[i].ByteSizePartial())
+      self.insert_[i].OutputPartial(out)
+    for i in xrange(len(self.insert_auto_id_)):
+      out.putVarInt32(34)
+      out.putVarInt32(self.insert_auto_id_[i].ByteSizePartial())
+      self.insert_auto_id_[i].OutputPartial(out)
+    for i in xrange(len(self.delete_)):
+      out.putVarInt32(42)
+      out.putVarInt32(self.delete_[i].ByteSizePartial())
+      self.delete_[i].OutputPartial(out)
+    if (self.has_force_):
+      out.putVarInt32(48)
+      out.putBoolean(self.force_)
+
+  def TryMerge(self, d):
+    while d.avail() > 0:
+      tt = d.getVarInt32()
+      if tt == 10:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_upsert().TryMerge(tmp)
+        continue
+      if tt == 18:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_update().TryMerge(tmp)
+        continue
+      if tt == 26:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_insert().TryMerge(tmp)
+        continue
+      if tt == 34:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_insert_auto_id().TryMerge(tmp)
+        continue
+      if tt == 42:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_delete().TryMerge(tmp)
+        continue
+      if tt == 48:
+        self.set_force(d.getBoolean())
+        continue
+
+
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      d.skipData(tt)
+
+
+  def __str__(self, prefix="", printElemNumber=0):
+    res=""
+    cnt=0
+    for e in self.upsert_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("upsert%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    cnt=0
+    for e in self.update_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("update%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    cnt=0
+    for e in self.insert_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("insert%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    cnt=0
+    for e in self.insert_auto_id_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("insert_auto_id%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    cnt=0
+    for e in self.delete_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("delete%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    if self.has_force_: res+=prefix+("force: %s\n" % self.DebugFormatBool(self.force_))
+    return res
+
+
+  def _BuildTagLookupTable(sparse, maxtag, default=None):
+    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+
+  kupsert = 1
+  kupdate = 2
+  kinsert = 3
+  kinsert_auto_id = 4
+  kdelete = 5
+  kforce = 6
+
+  _TEXT = _BuildTagLookupTable({
+    0: "ErrorCode",
+    1: "upsert",
+    2: "update",
+    3: "insert",
+    4: "insert_auto_id",
+    5: "delete",
+    6: "force",
+  }, 6)
+
+  _TYPES = _BuildTagLookupTable({
+    0: ProtocolBuffer.Encoder.NUMERIC,
+    1: ProtocolBuffer.Encoder.STRING,
+    2: ProtocolBuffer.Encoder.STRING,
+    3: ProtocolBuffer.Encoder.STRING,
+    4: ProtocolBuffer.Encoder.STRING,
+    5: ProtocolBuffer.Encoder.STRING,
+    6: ProtocolBuffer.Encoder.NUMERIC,
+  }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
+
+
+  _STYLE = """"""
+  _STYLE_CONTENT_TYPE = """"""
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.DeprecatedMutation'
+  _SERIALIZED_DESCRIPTOR = array.array('B')
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KKmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkRlcHJlY2F0ZWRNdXRhdGlvbhMaBnVwc2VydCABKAIwCzgDSh5hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FbnRpdHmjAaoBBWN0eXBlsgEGcHJvdG8ypAEUExoGdXBkYXRlIAIoAjALOANKHmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eaMBqgEFY3R5cGWyAQZwcm90bzKkARQTGgZpbnNlcnQgAygCMAs4A0oeYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRW50aXR5owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaDmluc2VydF9hdXRvX2lkIAQoAjALOANKHmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVudGl0eaMBqgEFY3R5cGWyAQZwcm90bzKkARQTGgZkZWxldGUgBSgCMAs4A0obYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaBWZvcmNlIAYoADAIOAFCBWZhbHNlowGqAQdkZWZhdWx0sgEFZmFsc2WkARTCAR1hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FcnJvcg=="))
+  if _net_proto___parse__python is not None:
+    _net_proto___parse__python.RegisterType(
+        _SERIALIZED_DESCRIPTOR.tostring())
+
+class DeprecatedMutationResult(ProtocolBuffer.ProtocolMessage):
+  has_index_updates_ = 0
+  index_updates_ = 0
+
+  def __init__(self, contents=None):
+    self.insert_auto_id_key_ = []
+    self.upsert_version_ = []
+    self.update_version_ = []
+    self.insert_version_ = []
+    self.insert_auto_id_version_ = []
+    self.delete_version_ = []
+    if contents is not None: self.MergeFromString(contents)
+
+  def index_updates(self): return self.index_updates_
+
+  def set_index_updates(self, x):
+    self.has_index_updates_ = 1
+    self.index_updates_ = x
+
+  def clear_index_updates(self):
+    if self.has_index_updates_:
+      self.has_index_updates_ = 0
+      self.index_updates_ = 0
+
+  def has_index_updates(self): return self.has_index_updates_
+
+  def insert_auto_id_key_size(self): return len(self.insert_auto_id_key_)
+  def insert_auto_id_key_list(self): return self.insert_auto_id_key_
+
+  def insert_auto_id_key(self, i):
+    return self.insert_auto_id_key_[i]
+
+  def mutable_insert_auto_id_key(self, i):
+    return self.insert_auto_id_key_[i]
+
+  def add_insert_auto_id_key(self):
+    x = google.appengine.datastore.entity_v4_pb.Key()
+    self.insert_auto_id_key_.append(x)
+    return x
+
+  def clear_insert_auto_id_key(self):
+    self.insert_auto_id_key_ = []
+  def upsert_version_size(self): return len(self.upsert_version_)
+  def upsert_version_list(self): return self.upsert_version_
+
+  def upsert_version(self, i):
+    return self.upsert_version_[i]
+
+  def set_upsert_version(self, i, x):
+    self.upsert_version_[i] = x
+
+  def add_upsert_version(self, x):
+    self.upsert_version_.append(x)
+
+  def clear_upsert_version(self):
+    self.upsert_version_ = []
+
+  def update_version_size(self): return len(self.update_version_)
+  def update_version_list(self): return self.update_version_
+
+  def update_version(self, i):
+    return self.update_version_[i]
+
+  def set_update_version(self, i, x):
+    self.update_version_[i] = x
+
+  def add_update_version(self, x):
+    self.update_version_.append(x)
+
+  def clear_update_version(self):
+    self.update_version_ = []
+
+  def insert_version_size(self): return len(self.insert_version_)
+  def insert_version_list(self): return self.insert_version_
+
+  def insert_version(self, i):
+    return self.insert_version_[i]
+
+  def set_insert_version(self, i, x):
+    self.insert_version_[i] = x
+
+  def add_insert_version(self, x):
+    self.insert_version_.append(x)
+
+  def clear_insert_version(self):
+    self.insert_version_ = []
+
+  def insert_auto_id_version_size(self): return len(self.insert_auto_id_version_)
+  def insert_auto_id_version_list(self): return self.insert_auto_id_version_
+
+  def insert_auto_id_version(self, i):
+    return self.insert_auto_id_version_[i]
+
+  def set_insert_auto_id_version(self, i, x):
+    self.insert_auto_id_version_[i] = x
+
+  def add_insert_auto_id_version(self, x):
+    self.insert_auto_id_version_.append(x)
+
+  def clear_insert_auto_id_version(self):
+    self.insert_auto_id_version_ = []
+
+  def delete_version_size(self): return len(self.delete_version_)
+  def delete_version_list(self): return self.delete_version_
+
+  def delete_version(self, i):
+    return self.delete_version_[i]
+
+  def set_delete_version(self, i, x):
+    self.delete_version_[i] = x
+
+  def add_delete_version(self, x):
+    self.delete_version_.append(x)
+
+  def clear_delete_version(self):
+    self.delete_version_ = []
+
+
+  def MergeFrom(self, x):
+    assert x is not self
+    if (x.has_index_updates()): self.set_index_updates(x.index_updates())
+    for i in xrange(x.insert_auto_id_key_size()): self.add_insert_auto_id_key().CopyFrom(x.insert_auto_id_key(i))
+    for i in xrange(x.upsert_version_size()): self.add_upsert_version(x.upsert_version(i))
+    for i in xrange(x.update_version_size()): self.add_update_version(x.update_version(i))
+    for i in xrange(x.insert_version_size()): self.add_insert_version(x.insert_version(i))
+    for i in xrange(x.insert_auto_id_version_size()): self.add_insert_auto_id_version(x.insert_auto_id_version(i))
+    for i in xrange(x.delete_version_size()): self.add_delete_version(x.delete_version(i))
+
+  if _net_proto___parse__python is not None:
+    def _CMergeFromString(self, s):
+      _net_proto___parse__python.MergeFromString(self, 'apphosting.datastore.v4.DeprecatedMutationResult', s)
+
+  if _net_proto___parse__python is not None:
+    def _CEncode(self):
+      return _net_proto___parse__python.Encode(self, 'apphosting.datastore.v4.DeprecatedMutationResult')
+
+  if _net_proto___parse__python is not None:
+    def _CEncodePartial(self):
+      return _net_proto___parse__python.EncodePartial(self, 'apphosting.datastore.v4.DeprecatedMutationResult')
+
+  if _net_proto___parse__python is not None:
+    def _CToASCII(self, output_format):
+      return _net_proto___parse__python.ToASCII(self, 'apphosting.datastore.v4.DeprecatedMutationResult', output_format)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCII(self, s):
+      _net_proto___parse__python.ParseASCII(self, 'apphosting.datastore.v4.DeprecatedMutationResult', s)
+
+
+  if _net_proto___parse__python is not None:
+    def ParseASCIIIgnoreUnknown(self, s):
+      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.datastore.v4.DeprecatedMutationResult', s)
+
+
+  def Equals(self, x):
+    if x is self: return 1
+    if self.has_index_updates_ != x.has_index_updates_: return 0
+    if self.has_index_updates_ and self.index_updates_ != x.index_updates_: return 0
+    if len(self.insert_auto_id_key_) != len(x.insert_auto_id_key_): return 0
+    for e1, e2 in zip(self.insert_auto_id_key_, x.insert_auto_id_key_):
+      if e1 != e2: return 0
+    if len(self.upsert_version_) != len(x.upsert_version_): return 0
+    for e1, e2 in zip(self.upsert_version_, x.upsert_version_):
+      if e1 != e2: return 0
+    if len(self.update_version_) != len(x.update_version_): return 0
+    for e1, e2 in zip(self.update_version_, x.update_version_):
+      if e1 != e2: return 0
+    if len(self.insert_version_) != len(x.insert_version_): return 0
+    for e1, e2 in zip(self.insert_version_, x.insert_version_):
+      if e1 != e2: return 0
+    if len(self.insert_auto_id_version_) != len(x.insert_auto_id_version_): return 0
+    for e1, e2 in zip(self.insert_auto_id_version_, x.insert_auto_id_version_):
+      if e1 != e2: return 0
+    if len(self.delete_version_) != len(x.delete_version_): return 0
+    for e1, e2 in zip(self.delete_version_, x.delete_version_):
+      if e1 != e2: return 0
+    return 1
+
+  def IsInitialized(self, debug_strs=None):
+    initialized = 1
+    if (not self.has_index_updates_):
+      initialized = 0
+      if debug_strs is not None:
+        debug_strs.append('Required field: index_updates not set.')
+    for p in self.insert_auto_id_key_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    return initialized
+
+  def ByteSize(self):
+    n = 0
+    n += self.lengthVarInt64(self.index_updates_)
+    n += 1 * len(self.insert_auto_id_key_)
+    for i in xrange(len(self.insert_auto_id_key_)): n += self.lengthString(self.insert_auto_id_key_[i].ByteSize())
+    n += 1 * len(self.upsert_version_)
+    for i in xrange(len(self.upsert_version_)): n += self.lengthVarInt64(self.upsert_version_[i])
+    n += 1 * len(self.update_version_)
+    for i in xrange(len(self.update_version_)): n += self.lengthVarInt64(self.update_version_[i])
+    n += 1 * len(self.insert_version_)
+    for i in xrange(len(self.insert_version_)): n += self.lengthVarInt64(self.insert_version_[i])
+    n += 1 * len(self.insert_auto_id_version_)
+    for i in xrange(len(self.insert_auto_id_version_)): n += self.lengthVarInt64(self.insert_auto_id_version_[i])
+    n += 1 * len(self.delete_version_)
+    for i in xrange(len(self.delete_version_)): n += self.lengthVarInt64(self.delete_version_[i])
+    return n + 1
+
+  def ByteSizePartial(self):
+    n = 0
+    if (self.has_index_updates_):
+      n += 1
+      n += self.lengthVarInt64(self.index_updates_)
+    n += 1 * len(self.insert_auto_id_key_)
+    for i in xrange(len(self.insert_auto_id_key_)): n += self.lengthString(self.insert_auto_id_key_[i].ByteSizePartial())
+    n += 1 * len(self.upsert_version_)
+    for i in xrange(len(self.upsert_version_)): n += self.lengthVarInt64(self.upsert_version_[i])
+    n += 1 * len(self.update_version_)
+    for i in xrange(len(self.update_version_)): n += self.lengthVarInt64(self.update_version_[i])
+    n += 1 * len(self.insert_version_)
+    for i in xrange(len(self.insert_version_)): n += self.lengthVarInt64(self.insert_version_[i])
+    n += 1 * len(self.insert_auto_id_version_)
+    for i in xrange(len(self.insert_auto_id_version_)): n += self.lengthVarInt64(self.insert_auto_id_version_[i])
+    n += 1 * len(self.delete_version_)
+    for i in xrange(len(self.delete_version_)): n += self.lengthVarInt64(self.delete_version_[i])
+    return n
+
+  def Clear(self):
+    self.clear_index_updates()
+    self.clear_insert_auto_id_key()
+    self.clear_upsert_version()
+    self.clear_update_version()
+    self.clear_insert_version()
+    self.clear_insert_auto_id_version()
+    self.clear_delete_version()
+
+  def OutputUnchecked(self, out):
+    out.putVarInt32(8)
+    out.putVarInt32(self.index_updates_)
+    for i in xrange(len(self.insert_auto_id_key_)):
+      out.putVarInt32(18)
+      out.putVarInt32(self.insert_auto_id_key_[i].ByteSize())
+      self.insert_auto_id_key_[i].OutputUnchecked(out)
+    for i in xrange(len(self.upsert_version_)):
+      out.putVarInt32(24)
+      out.putVarInt64(self.upsert_version_[i])
+    for i in xrange(len(self.update_version_)):
+      out.putVarInt32(32)
+      out.putVarInt64(self.update_version_[i])
+    for i in xrange(len(self.insert_version_)):
+      out.putVarInt32(40)
+      out.putVarInt64(self.insert_version_[i])
+    for i in xrange(len(self.insert_auto_id_version_)):
+      out.putVarInt32(48)
+      out.putVarInt64(self.insert_auto_id_version_[i])
+    for i in xrange(len(self.delete_version_)):
+      out.putVarInt32(56)
+      out.putVarInt64(self.delete_version_[i])
+
+  def OutputPartial(self, out):
+    if (self.has_index_updates_):
+      out.putVarInt32(8)
+      out.putVarInt32(self.index_updates_)
+    for i in xrange(len(self.insert_auto_id_key_)):
+      out.putVarInt32(18)
+      out.putVarInt32(self.insert_auto_id_key_[i].ByteSizePartial())
+      self.insert_auto_id_key_[i].OutputPartial(out)
+    for i in xrange(len(self.upsert_version_)):
+      out.putVarInt32(24)
+      out.putVarInt64(self.upsert_version_[i])
+    for i in xrange(len(self.update_version_)):
+      out.putVarInt32(32)
+      out.putVarInt64(self.update_version_[i])
+    for i in xrange(len(self.insert_version_)):
+      out.putVarInt32(40)
+      out.putVarInt64(self.insert_version_[i])
+    for i in xrange(len(self.insert_auto_id_version_)):
+      out.putVarInt32(48)
+      out.putVarInt64(self.insert_auto_id_version_[i])
+    for i in xrange(len(self.delete_version_)):
+      out.putVarInt32(56)
+      out.putVarInt64(self.delete_version_[i])
+
+  def TryMerge(self, d):
+    while d.avail() > 0:
+      tt = d.getVarInt32()
+      if tt == 8:
+        self.set_index_updates(d.getVarInt32())
+        continue
+      if tt == 18:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_insert_auto_id_key().TryMerge(tmp)
+        continue
+      if tt == 24:
+        self.add_upsert_version(d.getVarInt64())
+        continue
+      if tt == 32:
+        self.add_update_version(d.getVarInt64())
+        continue
+      if tt == 40:
+        self.add_insert_version(d.getVarInt64())
+        continue
+      if tt == 48:
+        self.add_insert_auto_id_version(d.getVarInt64())
+        continue
+      if tt == 56:
+        self.add_delete_version(d.getVarInt64())
+        continue
+
+
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      d.skipData(tt)
+
+
+  def __str__(self, prefix="", printElemNumber=0):
+    res=""
+    if self.has_index_updates_: res+=prefix+("index_updates: %s\n" % self.DebugFormatInt32(self.index_updates_))
+    cnt=0
+    for e in self.insert_auto_id_key_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("insert_auto_id_key%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    cnt=0
+    for e in self.upsert_version_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("upsert_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
+      cnt+=1
+    cnt=0
+    for e in self.update_version_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("update_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
+      cnt+=1
+    cnt=0
+    for e in self.insert_version_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("insert_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
+      cnt+=1
+    cnt=0
+    for e in self.insert_auto_id_version_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("insert_auto_id_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
+      cnt+=1
+    cnt=0
+    for e in self.delete_version_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("delete_version%s: %s\n" % (elm, self.DebugFormatInt64(e)))
+      cnt+=1
+    return res
+
+
+  def _BuildTagLookupTable(sparse, maxtag, default=None):
+    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+
+  kindex_updates = 1
+  kinsert_auto_id_key = 2
+  kupsert_version = 3
+  kupdate_version = 4
+  kinsert_version = 5
+  kinsert_auto_id_version = 6
+  kdelete_version = 7
+
+  _TEXT = _BuildTagLookupTable({
+    0: "ErrorCode",
+    1: "index_updates",
+    2: "insert_auto_id_key",
+    3: "upsert_version",
+    4: "update_version",
+    5: "insert_version",
+    6: "insert_auto_id_version",
+    7: "delete_version",
+  }, 7)
+
+  _TYPES = _BuildTagLookupTable({
+    0: ProtocolBuffer.Encoder.NUMERIC,
+    1: ProtocolBuffer.Encoder.NUMERIC,
+    2: ProtocolBuffer.Encoder.STRING,
+    3: ProtocolBuffer.Encoder.NUMERIC,
+    4: ProtocolBuffer.Encoder.NUMERIC,
+    5: ProtocolBuffer.Encoder.NUMERIC,
+    6: ProtocolBuffer.Encoder.NUMERIC,
+    7: ProtocolBuffer.Encoder.NUMERIC,
+  }, 7, ProtocolBuffer.Encoder.MAX_TYPE)
+
+
+  _STYLE = """"""
+  _STYLE_CONTENT_TYPE = """"""
+  _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.DeprecatedMutationResult'
+  _SERIALIZED_DESCRIPTOR = array.array('B')
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KMGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkRlcHJlY2F0ZWRNdXRhdGlvblJlc3VsdBMaDWluZGV4X3VwZGF0ZXMgASgAMAU4AhQTGhJpbnNlcnRfYXV0b19pZF9rZXkgAigCMAs4A0obYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuS2V5owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaDnVwc2VydF92ZXJzaW9uIAMoADADOAMUExoOdXBkYXRlX3ZlcnNpb24gBCgAMAM4AxQTGg5pbnNlcnRfdmVyc2lvbiAFKAAwAzgDFBMaFmluc2VydF9hdXRvX2lkX3ZlcnNpb24gBigAMAM4AxQTGg5kZWxldGVfdmVyc2lvbiAHKAAwAzgDFMIBHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9y"))
+  if _net_proto___parse__python is not None:
+    _net_proto___parse__python.RegisterType(
+        _SERIALIZED_DESCRIPTOR.tostring())
+
 class ReadOptions(ProtocolBuffer.ProtocolMessage):
 
 
@@ -5678,12 +6107,15 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
 
   has_transaction_ = 0
   transaction_ = ""
-  has_mutation_ = 0
-  mutation_ = None
+  has_deprecated_mutation_ = 0
+  deprecated_mutation_ = None
   has_mode_ = 0
   mode_ = 1
+  has_ignore_read_only_ = 0
+  ignore_read_only_ = 0
 
   def __init__(self, contents=None):
+    self.mutation_ = []
     self.lazy_init_lock_ = thread.allocate_lock()
     if contents is not None: self.MergeFromString(contents)
 
@@ -5700,24 +6132,40 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
 
   def has_transaction(self): return self.has_transaction_
 
-  def mutation(self):
-    if self.mutation_ is None:
-      self.lazy_init_lock_.acquire()
-      try:
-        if self.mutation_ is None: self.mutation_ = Mutation()
-      finally:
-        self.lazy_init_lock_.release()
-    return self.mutation_
+  def mutation_size(self): return len(self.mutation_)
+  def mutation_list(self): return self.mutation_
 
-  def mutable_mutation(self): self.has_mutation_ = 1; return self.mutation()
+  def mutation(self, i):
+    return self.mutation_[i]
+
+  def mutable_mutation(self, i):
+    return self.mutation_[i]
+
+  def add_mutation(self):
+    x = Mutation()
+    self.mutation_.append(x)
+    return x
 
   def clear_mutation(self):
+    self.mutation_ = []
+  def deprecated_mutation(self):
+    if self.deprecated_mutation_ is None:
+      self.lazy_init_lock_.acquire()
+      try:
+        if self.deprecated_mutation_ is None: self.deprecated_mutation_ = DeprecatedMutation()
+      finally:
+        self.lazy_init_lock_.release()
+    return self.deprecated_mutation_
 
-    if self.has_mutation_:
-      self.has_mutation_ = 0;
-      if self.mutation_ is not None: self.mutation_.Clear()
+  def mutable_deprecated_mutation(self): self.has_deprecated_mutation_ = 1; return self.deprecated_mutation()
 
-  def has_mutation(self): return self.has_mutation_
+  def clear_deprecated_mutation(self):
+
+    if self.has_deprecated_mutation_:
+      self.has_deprecated_mutation_ = 0;
+      if self.deprecated_mutation_ is not None: self.deprecated_mutation_.Clear()
+
+  def has_deprecated_mutation(self): return self.has_deprecated_mutation_
 
   def mode(self): return self.mode_
 
@@ -5732,12 +6180,27 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
 
   def has_mode(self): return self.has_mode_
 
+  def ignore_read_only(self): return self.ignore_read_only_
+
+  def set_ignore_read_only(self, x):
+    self.has_ignore_read_only_ = 1
+    self.ignore_read_only_ = x
+
+  def clear_ignore_read_only(self):
+    if self.has_ignore_read_only_:
+      self.has_ignore_read_only_ = 0
+      self.ignore_read_only_ = 0
+
+  def has_ignore_read_only(self): return self.has_ignore_read_only_
+
 
   def MergeFrom(self, x):
     assert x is not self
     if (x.has_transaction()): self.set_transaction(x.transaction())
-    if (x.has_mutation()): self.mutable_mutation().MergeFrom(x.mutation())
+    for i in xrange(x.mutation_size()): self.add_mutation().CopyFrom(x.mutation(i))
+    if (x.has_deprecated_mutation()): self.mutable_deprecated_mutation().MergeFrom(x.deprecated_mutation())
     if (x.has_mode()): self.set_mode(x.mode())
+    if (x.has_ignore_read_only()): self.set_ignore_read_only(x.ignore_read_only())
 
   if _net_proto___parse__python is not None:
     def _CMergeFromString(self, s):
@@ -5770,59 +6233,88 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
     if x is self: return 1
     if self.has_transaction_ != x.has_transaction_: return 0
     if self.has_transaction_ and self.transaction_ != x.transaction_: return 0
-    if self.has_mutation_ != x.has_mutation_: return 0
-    if self.has_mutation_ and self.mutation_ != x.mutation_: return 0
+    if len(self.mutation_) != len(x.mutation_): return 0
+    for e1, e2 in zip(self.mutation_, x.mutation_):
+      if e1 != e2: return 0
+    if self.has_deprecated_mutation_ != x.has_deprecated_mutation_: return 0
+    if self.has_deprecated_mutation_ and self.deprecated_mutation_ != x.deprecated_mutation_: return 0
     if self.has_mode_ != x.has_mode_: return 0
     if self.has_mode_ and self.mode_ != x.mode_: return 0
+    if self.has_ignore_read_only_ != x.has_ignore_read_only_: return 0
+    if self.has_ignore_read_only_ and self.ignore_read_only_ != x.ignore_read_only_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
     initialized = 1
-    if (self.has_mutation_ and not self.mutation_.IsInitialized(debug_strs)): initialized = 0
+    for p in self.mutation_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    if (self.has_deprecated_mutation_ and not self.deprecated_mutation_.IsInitialized(debug_strs)): initialized = 0
     return initialized
 
   def ByteSize(self):
     n = 0
     if (self.has_transaction_): n += 1 + self.lengthString(len(self.transaction_))
-    if (self.has_mutation_): n += 1 + self.lengthString(self.mutation_.ByteSize())
+    n += 1 * len(self.mutation_)
+    for i in xrange(len(self.mutation_)): n += self.lengthString(self.mutation_[i].ByteSize())
+    if (self.has_deprecated_mutation_): n += 1 + self.lengthString(self.deprecated_mutation_.ByteSize())
     if (self.has_mode_): n += 1 + self.lengthVarInt64(self.mode_)
+    if (self.has_ignore_read_only_): n += 2
     return n
 
   def ByteSizePartial(self):
     n = 0
     if (self.has_transaction_): n += 1 + self.lengthString(len(self.transaction_))
-    if (self.has_mutation_): n += 1 + self.lengthString(self.mutation_.ByteSizePartial())
+    n += 1 * len(self.mutation_)
+    for i in xrange(len(self.mutation_)): n += self.lengthString(self.mutation_[i].ByteSizePartial())
+    if (self.has_deprecated_mutation_): n += 1 + self.lengthString(self.deprecated_mutation_.ByteSizePartial())
     if (self.has_mode_): n += 1 + self.lengthVarInt64(self.mode_)
+    if (self.has_ignore_read_only_): n += 2
     return n
 
   def Clear(self):
     self.clear_transaction()
     self.clear_mutation()
+    self.clear_deprecated_mutation()
     self.clear_mode()
+    self.clear_ignore_read_only()
 
   def OutputUnchecked(self, out):
     if (self.has_transaction_):
       out.putVarInt32(10)
       out.putPrefixedString(self.transaction_)
-    if (self.has_mutation_):
+    if (self.has_deprecated_mutation_):
       out.putVarInt32(18)
-      out.putVarInt32(self.mutation_.ByteSize())
-      self.mutation_.OutputUnchecked(out)
+      out.putVarInt32(self.deprecated_mutation_.ByteSize())
+      self.deprecated_mutation_.OutputUnchecked(out)
     if (self.has_mode_):
       out.putVarInt32(32)
       out.putVarInt32(self.mode_)
+    for i in xrange(len(self.mutation_)):
+      out.putVarInt32(42)
+      out.putVarInt32(self.mutation_[i].ByteSize())
+      self.mutation_[i].OutputUnchecked(out)
+    if (self.has_ignore_read_only_):
+      out.putVarInt32(48)
+      out.putBoolean(self.ignore_read_only_)
 
   def OutputPartial(self, out):
     if (self.has_transaction_):
       out.putVarInt32(10)
       out.putPrefixedString(self.transaction_)
-    if (self.has_mutation_):
+    if (self.has_deprecated_mutation_):
       out.putVarInt32(18)
-      out.putVarInt32(self.mutation_.ByteSizePartial())
-      self.mutation_.OutputPartial(out)
+      out.putVarInt32(self.deprecated_mutation_.ByteSizePartial())
+      self.deprecated_mutation_.OutputPartial(out)
     if (self.has_mode_):
       out.putVarInt32(32)
       out.putVarInt32(self.mode_)
+    for i in xrange(len(self.mutation_)):
+      out.putVarInt32(42)
+      out.putVarInt32(self.mutation_[i].ByteSizePartial())
+      self.mutation_[i].OutputPartial(out)
+    if (self.has_ignore_read_only_):
+      out.putVarInt32(48)
+      out.putBoolean(self.ignore_read_only_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -5834,10 +6326,19 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
         length = d.getVarInt32()
         tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
         d.skip(length)
-        self.mutable_mutation().TryMerge(tmp)
+        self.mutable_deprecated_mutation().TryMerge(tmp)
         continue
       if tt == 32:
         self.set_mode(d.getVarInt32())
+        continue
+      if tt == 42:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_mutation().TryMerge(tmp)
+        continue
+      if tt == 48:
+        self.set_ignore_read_only(d.getBoolean())
         continue
 
 
@@ -5848,11 +6349,20 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
   def __str__(self, prefix="", printElemNumber=0):
     res=""
     if self.has_transaction_: res+=prefix+("transaction: %s\n" % self.DebugFormatString(self.transaction_))
-    if self.has_mutation_:
-      res+=prefix+"mutation <\n"
-      res+=self.mutation_.__str__(prefix + "  ", printElemNumber)
+    cnt=0
+    for e in self.mutation_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("mutation%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+      cnt+=1
+    if self.has_deprecated_mutation_:
+      res+=prefix+"deprecated_mutation <\n"
+      res+=self.deprecated_mutation_.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
     if self.has_mode_: res+=prefix+("mode: %s\n" % self.DebugFormatInt32(self.mode_))
+    if self.has_ignore_read_only_: res+=prefix+("ignore_read_only: %s\n" % self.DebugFormatBool(self.ignore_read_only_))
     return res
 
 
@@ -5860,64 +6370,104 @@ class CommitRequest(ProtocolBuffer.ProtocolMessage):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
   ktransaction = 1
-  kmutation = 2
+  kmutation = 5
+  kdeprecated_mutation = 2
   kmode = 4
+  kignore_read_only = 6
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
     1: "transaction",
-    2: "mutation",
+    2: "deprecated_mutation",
     4: "mode",
-  }, 4)
+    5: "mutation",
+    6: "ignore_read_only",
+  }, 6)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.STRING,
     2: ProtocolBuffer.Encoder.STRING,
     4: ProtocolBuffer.Encoder.NUMERIC,
-  }, 4, ProtocolBuffer.Encoder.MAX_TYPE)
+    5: ProtocolBuffer.Encoder.STRING,
+    6: ProtocolBuffer.Encoder.NUMERIC,
+  }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.CommitRequest'
   _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlcXVlc3QTGgt0cmFuc2FjdGlvbiABKAIwCTgBFBMaCG11dGF0aW9uIAIoAjALOAFKIGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uowGqAQVjdHlwZbIBBnByb3RvMqQBFBMaBG1vZGUgBCgAMAU4AUIBMWgAowGqAQdkZWZhdWx0sgENVFJBTlNBQ1RJT05BTKQBFHN6BE1vZGWLAZIBDVRSQU5TQUNUSU9OQUyYAQGMAYsBkgERTk9OX1RSQU5TQUNUSU9OQUyYAQKMAXTCAR1hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FcnJvcg=="))
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlcXVlc3QTGgt0cmFuc2FjdGlvbiABKAIwCTgBFBMaCG11dGF0aW9uIAUoAjALOANKIGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uowGqAQVjdHlwZbIBBnByb3RvMqQBFBMaE2RlcHJlY2F0ZWRfbXV0YXRpb24gAigCMAs4AUoqYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRGVwcmVjYXRlZE11dGF0aW9uowGqAQVjdHlwZbIBBnByb3RvMqQBFBMaBG1vZGUgBCgAMAU4AUIBMWgAowGqAQdkZWZhdWx0sgENVFJBTlNBQ1RJT05BTKQBFBMaEGlnbm9yZV9yZWFkX29ubHkgBigAMAg4AUIFZmFsc2WjAaoBB2RlZmF1bHSyAQVmYWxzZaQBFHN6BE1vZGWLAZIBDVRSQU5TQUNUSU9OQUyYAQGMAYsBkgERTk9OX1RSQU5TQUNUSU9OQUyYAQKMAXTCAR1hcHBob3N0aW5nLmRhdGFzdG9yZS52NC5FcnJvcg=="))
   if _net_proto___parse__python is not None:
     _net_proto___parse__python.RegisterType(
         _SERIALIZED_DESCRIPTOR.tostring())
 
 class CommitResponse(ProtocolBuffer.ProtocolMessage):
-  has_mutation_result_ = 0
-  mutation_result_ = None
+  has_deprecated_mutation_result_ = 0
+  deprecated_mutation_result_ = None
+  has_index_updates_ = 0
+  index_updates_ = 0
 
   def __init__(self, contents=None):
+    self.mutation_result_ = []
     self.lazy_init_lock_ = thread.allocate_lock()
     if contents is not None: self.MergeFromString(contents)
 
-  def mutation_result(self):
-    if self.mutation_result_ is None:
-      self.lazy_init_lock_.acquire()
-      try:
-        if self.mutation_result_ is None: self.mutation_result_ = MutationResult()
-      finally:
-        self.lazy_init_lock_.release()
-    return self.mutation_result_
+  def mutation_result_size(self): return len(self.mutation_result_)
+  def mutation_result_list(self): return self.mutation_result_
 
-  def mutable_mutation_result(self): self.has_mutation_result_ = 1; return self.mutation_result()
+  def mutation_result(self, i):
+    return self.mutation_result_[i]
+
+  def mutable_mutation_result(self, i):
+    return self.mutation_result_[i]
+
+  def add_mutation_result(self):
+    x = MutationResult()
+    self.mutation_result_.append(x)
+    return x
 
   def clear_mutation_result(self):
+    self.mutation_result_ = []
+  def deprecated_mutation_result(self):
+    if self.deprecated_mutation_result_ is None:
+      self.lazy_init_lock_.acquire()
+      try:
+        if self.deprecated_mutation_result_ is None: self.deprecated_mutation_result_ = DeprecatedMutationResult()
+      finally:
+        self.lazy_init_lock_.release()
+    return self.deprecated_mutation_result_
 
-    if self.has_mutation_result_:
-      self.has_mutation_result_ = 0;
-      if self.mutation_result_ is not None: self.mutation_result_.Clear()
+  def mutable_deprecated_mutation_result(self): self.has_deprecated_mutation_result_ = 1; return self.deprecated_mutation_result()
 
-  def has_mutation_result(self): return self.has_mutation_result_
+  def clear_deprecated_mutation_result(self):
+
+    if self.has_deprecated_mutation_result_:
+      self.has_deprecated_mutation_result_ = 0;
+      if self.deprecated_mutation_result_ is not None: self.deprecated_mutation_result_.Clear()
+
+  def has_deprecated_mutation_result(self): return self.has_deprecated_mutation_result_
+
+  def index_updates(self): return self.index_updates_
+
+  def set_index_updates(self, x):
+    self.has_index_updates_ = 1
+    self.index_updates_ = x
+
+  def clear_index_updates(self):
+    if self.has_index_updates_:
+      self.has_index_updates_ = 0
+      self.index_updates_ = 0
+
+  def has_index_updates(self): return self.has_index_updates_
 
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_mutation_result()): self.mutable_mutation_result().MergeFrom(x.mutation_result())
+    for i in xrange(x.mutation_result_size()): self.add_mutation_result().CopyFrom(x.mutation_result(i))
+    if (x.has_deprecated_mutation_result()): self.mutable_deprecated_mutation_result().MergeFrom(x.deprecated_mutation_result())
+    if (x.has_index_updates()): self.set_index_updates(x.index_updates())
 
   if _net_proto___parse__python is not None:
     def _CMergeFromString(self, s):
@@ -5948,39 +6498,68 @@ class CommitResponse(ProtocolBuffer.ProtocolMessage):
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_mutation_result_ != x.has_mutation_result_: return 0
-    if self.has_mutation_result_ and self.mutation_result_ != x.mutation_result_: return 0
+    if len(self.mutation_result_) != len(x.mutation_result_): return 0
+    for e1, e2 in zip(self.mutation_result_, x.mutation_result_):
+      if e1 != e2: return 0
+    if self.has_deprecated_mutation_result_ != x.has_deprecated_mutation_result_: return 0
+    if self.has_deprecated_mutation_result_ and self.deprecated_mutation_result_ != x.deprecated_mutation_result_: return 0
+    if self.has_index_updates_ != x.has_index_updates_: return 0
+    if self.has_index_updates_ and self.index_updates_ != x.index_updates_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
     initialized = 1
-    if (self.has_mutation_result_ and not self.mutation_result_.IsInitialized(debug_strs)): initialized = 0
+    for p in self.mutation_result_:
+      if not p.IsInitialized(debug_strs): initialized=0
+    if (self.has_deprecated_mutation_result_ and not self.deprecated_mutation_result_.IsInitialized(debug_strs)): initialized = 0
     return initialized
 
   def ByteSize(self):
     n = 0
-    if (self.has_mutation_result_): n += 1 + self.lengthString(self.mutation_result_.ByteSize())
+    n += 1 * len(self.mutation_result_)
+    for i in xrange(len(self.mutation_result_)): n += self.lengthString(self.mutation_result_[i].ByteSize())
+    if (self.has_deprecated_mutation_result_): n += 1 + self.lengthString(self.deprecated_mutation_result_.ByteSize())
+    if (self.has_index_updates_): n += 1 + self.lengthVarInt64(self.index_updates_)
     return n
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_mutation_result_): n += 1 + self.lengthString(self.mutation_result_.ByteSizePartial())
+    n += 1 * len(self.mutation_result_)
+    for i in xrange(len(self.mutation_result_)): n += self.lengthString(self.mutation_result_[i].ByteSizePartial())
+    if (self.has_deprecated_mutation_result_): n += 1 + self.lengthString(self.deprecated_mutation_result_.ByteSizePartial())
+    if (self.has_index_updates_): n += 1 + self.lengthVarInt64(self.index_updates_)
     return n
 
   def Clear(self):
     self.clear_mutation_result()
+    self.clear_deprecated_mutation_result()
+    self.clear_index_updates()
 
   def OutputUnchecked(self, out):
-    if (self.has_mutation_result_):
+    if (self.has_deprecated_mutation_result_):
       out.putVarInt32(10)
-      out.putVarInt32(self.mutation_result_.ByteSize())
-      self.mutation_result_.OutputUnchecked(out)
+      out.putVarInt32(self.deprecated_mutation_result_.ByteSize())
+      self.deprecated_mutation_result_.OutputUnchecked(out)
+    for i in xrange(len(self.mutation_result_)):
+      out.putVarInt32(26)
+      out.putVarInt32(self.mutation_result_[i].ByteSize())
+      self.mutation_result_[i].OutputUnchecked(out)
+    if (self.has_index_updates_):
+      out.putVarInt32(32)
+      out.putVarInt32(self.index_updates_)
 
   def OutputPartial(self, out):
-    if (self.has_mutation_result_):
+    if (self.has_deprecated_mutation_result_):
       out.putVarInt32(10)
-      out.putVarInt32(self.mutation_result_.ByteSizePartial())
-      self.mutation_result_.OutputPartial(out)
+      out.putVarInt32(self.deprecated_mutation_result_.ByteSizePartial())
+      self.deprecated_mutation_result_.OutputPartial(out)
+    for i in xrange(len(self.mutation_result_)):
+      out.putVarInt32(26)
+      out.putVarInt32(self.mutation_result_[i].ByteSizePartial())
+      self.mutation_result_[i].OutputPartial(out)
+    if (self.has_index_updates_):
+      out.putVarInt32(32)
+      out.putVarInt32(self.index_updates_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -5989,7 +6568,16 @@ class CommitResponse(ProtocolBuffer.ProtocolMessage):
         length = d.getVarInt32()
         tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
         d.skip(length)
-        self.mutable_mutation_result().TryMerge(tmp)
+        self.mutable_deprecated_mutation_result().TryMerge(tmp)
+        continue
+      if tt == 26:
+        length = d.getVarInt32()
+        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
+        d.skip(length)
+        self.add_mutation_result().TryMerge(tmp)
+        continue
+      if tt == 32:
+        self.set_index_updates(d.getVarInt32())
         continue
 
 
@@ -5999,34 +6587,49 @@ class CommitResponse(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_mutation_result_:
-      res+=prefix+"mutation_result <\n"
-      res+=self.mutation_result_.__str__(prefix + "  ", printElemNumber)
+    cnt=0
+    for e in self.mutation_result_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("mutation_result%s <\n" % elm)
+      res+=e.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
+      cnt+=1
+    if self.has_deprecated_mutation_result_:
+      res+=prefix+"deprecated_mutation_result <\n"
+      res+=self.deprecated_mutation_result_.__str__(prefix + "  ", printElemNumber)
+      res+=prefix+">\n"
+    if self.has_index_updates_: res+=prefix+("index_updates: %s\n" % self.DebugFormatInt32(self.index_updates_))
     return res
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kmutation_result = 1
+  kmutation_result = 3
+  kdeprecated_mutation_result = 1
+  kindex_updates = 4
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "mutation_result",
-  }, 1)
+    1: "deprecated_mutation_result",
+    3: "mutation_result",
+    4: "index_updates",
+  }, 4)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.STRING,
-  }, 1, ProtocolBuffer.Encoder.MAX_TYPE)
+    3: ProtocolBuffer.Encoder.STRING,
+    4: ProtocolBuffer.Encoder.NUMERIC,
+  }, 4, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.CommitResponse'
   _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlc3BvbnNlExoPbXV0YXRpb25fcmVzdWx0IAEoAjALOAFKJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uUmVzdWx0owGqAQVjdHlwZbIBBnByb3RvMqQBFMIBHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9y"))
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkNvbW1pdFJlc3BvbnNlExoPbXV0YXRpb25fcmVzdWx0IAMoAjALOANKJmFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uUmVzdWx0owGqAQVjdHlwZbIBBnByb3RvMqQBFBMaGmRlcHJlY2F0ZWRfbXV0YXRpb25fcmVzdWx0IAEoAjALOAFKMGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkRlcHJlY2F0ZWRNdXRhdGlvblJlc3VsdKMBqgEFY3R5cGWyAQZwcm90bzKkARQTGg1pbmRleF91cGRhdGVzIAQoADAFOAEUwgEdYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRXJyb3I="))
   if _net_proto___parse__python is not None:
     _net_proto___parse__python.RegisterType(
         _SERIALIZED_DESCRIPTOR.tostring())
@@ -6379,24 +6982,24 @@ class AllocateIdsResponse(ProtocolBuffer.ProtocolMessage):
         _SERIALIZED_DESCRIPTOR.tostring())
 
 class WriteRequest(ProtocolBuffer.ProtocolMessage):
-  has_mutation_ = 0
+  has_deprecated_mutation_ = 0
 
   def __init__(self, contents=None):
-    self.mutation_ = Mutation()
+    self.deprecated_mutation_ = DeprecatedMutation()
     if contents is not None: self.MergeFromString(contents)
 
-  def mutation(self): return self.mutation_
+  def deprecated_mutation(self): return self.deprecated_mutation_
 
-  def mutable_mutation(self): self.has_mutation_ = 1; return self.mutation_
+  def mutable_deprecated_mutation(self): self.has_deprecated_mutation_ = 1; return self.deprecated_mutation_
 
-  def clear_mutation(self):self.has_mutation_ = 0; self.mutation_.Clear()
+  def clear_deprecated_mutation(self):self.has_deprecated_mutation_ = 0; self.deprecated_mutation_.Clear()
 
-  def has_mutation(self): return self.has_mutation_
+  def has_deprecated_mutation(self): return self.has_deprecated_mutation_
 
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_mutation()): self.mutable_mutation().MergeFrom(x.mutation())
+    if (x.has_deprecated_mutation()): self.mutable_deprecated_mutation().MergeFrom(x.deprecated_mutation())
 
   if _net_proto___parse__python is not None:
     def _CMergeFromString(self, s):
@@ -6427,44 +7030,44 @@ class WriteRequest(ProtocolBuffer.ProtocolMessage):
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_mutation_ != x.has_mutation_: return 0
-    if self.has_mutation_ and self.mutation_ != x.mutation_: return 0
+    if self.has_deprecated_mutation_ != x.has_deprecated_mutation_: return 0
+    if self.has_deprecated_mutation_ and self.deprecated_mutation_ != x.deprecated_mutation_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
     initialized = 1
-    if (not self.has_mutation_):
+    if (not self.has_deprecated_mutation_):
       initialized = 0
       if debug_strs is not None:
-        debug_strs.append('Required field: mutation not set.')
-    elif not self.mutation_.IsInitialized(debug_strs): initialized = 0
+        debug_strs.append('Required field: deprecated_mutation not set.')
+    elif not self.deprecated_mutation_.IsInitialized(debug_strs): initialized = 0
     return initialized
 
   def ByteSize(self):
     n = 0
-    n += self.lengthString(self.mutation_.ByteSize())
+    n += self.lengthString(self.deprecated_mutation_.ByteSize())
     return n + 1
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_mutation_):
+    if (self.has_deprecated_mutation_):
       n += 1
-      n += self.lengthString(self.mutation_.ByteSizePartial())
+      n += self.lengthString(self.deprecated_mutation_.ByteSizePartial())
     return n
 
   def Clear(self):
-    self.clear_mutation()
+    self.clear_deprecated_mutation()
 
   def OutputUnchecked(self, out):
     out.putVarInt32(10)
-    out.putVarInt32(self.mutation_.ByteSize())
-    self.mutation_.OutputUnchecked(out)
+    out.putVarInt32(self.deprecated_mutation_.ByteSize())
+    self.deprecated_mutation_.OutputUnchecked(out)
 
   def OutputPartial(self, out):
-    if (self.has_mutation_):
+    if (self.has_deprecated_mutation_):
       out.putVarInt32(10)
-      out.putVarInt32(self.mutation_.ByteSizePartial())
-      self.mutation_.OutputPartial(out)
+      out.putVarInt32(self.deprecated_mutation_.ByteSizePartial())
+      self.deprecated_mutation_.OutputPartial(out)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -6473,7 +7076,7 @@ class WriteRequest(ProtocolBuffer.ProtocolMessage):
         length = d.getVarInt32()
         tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
         d.skip(length)
-        self.mutable_mutation().TryMerge(tmp)
+        self.mutable_deprecated_mutation().TryMerge(tmp)
         continue
 
 
@@ -6483,9 +7086,9 @@ class WriteRequest(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_mutation_:
-      res+=prefix+"mutation <\n"
-      res+=self.mutation_.__str__(prefix + "  ", printElemNumber)
+    if self.has_deprecated_mutation_:
+      res+=prefix+"deprecated_mutation <\n"
+      res+=self.deprecated_mutation_.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
     return res
 
@@ -6493,11 +7096,11 @@ class WriteRequest(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  kmutation = 1
+  kdeprecated_mutation = 1
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
-    1: "mutation",
+    1: "deprecated_mutation",
   }, 1)
 
   _TYPES = _BuildTagLookupTable({
@@ -6510,7 +7113,7 @@ class WriteRequest(ProtocolBuffer.ProtocolMessage):
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.datastore.v4.WriteRequest'
   _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LldyaXRlUmVxdWVzdBMaCG11dGF0aW9uIAEoAjALOAJKIGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0Lk11dGF0aW9uowGqAQVjdHlwZbIBBnByb3RvMqQBFMIBHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9y"))
+  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WidhcHBob3N0aW5nL2RhdGFzdG9yZS9kYXRhc3RvcmVfdjQucHJvdG8KJGFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LldyaXRlUmVxdWVzdBMaE2RlcHJlY2F0ZWRfbXV0YXRpb24gASgCMAs4AkoqYXBwaG9zdGluZy5kYXRhc3RvcmUudjQuRGVwcmVjYXRlZE11dGF0aW9uowGqAQVjdHlwZbIBBnByb3RvMqQBFMIBHWFwcGhvc3RpbmcuZGF0YXN0b3JlLnY0LkVycm9y"))
   if _net_proto___parse__python is not None:
     _net_proto___parse__python.RegisterType(
         _SERIALIZED_DESCRIPTOR.tostring())
@@ -6826,6 +7429,7 @@ class DatastoreV4Service(_server_stub_base_class):
 
   @classmethod
   def _MethodSignatures(cls):
+    """Returns a dict of {<method-name>: (<request-type>, <response-type>)}."""
     return {
       'BeginTransaction': (BeginTransactionRequest, BeginTransactionResponse),
       'Rollback': (RollbackRequest, RollbackResponse),
@@ -6836,6 +7440,12 @@ class DatastoreV4Service(_server_stub_base_class):
       'AllocateIds': (AllocateIdsRequest, AllocateIdsResponse),
       'Get': (LookupRequest, LookupResponse),
       'Write': (WriteRequest, CommitResponse),
+      }
+
+  @classmethod
+  def _StreamMethodSignatures(cls):
+    """Returns a dict of {<method-name>: (<request-type>, <stream-type>, <response-type>)}."""
+    return {
       }
 
   def __init__(self, *args, **kwargs):
@@ -6984,57 +7594,57 @@ class DatastoreV4Service(_server_stub_base_class):
         BeginTransactionRequest,
         BeginTransactionResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.Rollback.im_func,
         RollbackRequest,
         RollbackResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.Commit.im_func,
         CommitRequest,
         CommitResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.RunQuery.im_func,
         RunQueryRequest,
         RunQueryResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.ContinueQuery.im_func,
         ContinueQueryRequest,
         ContinueQueryResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.Lookup.im_func,
         LookupRequest,
         LookupResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.AllocateIds.im_func,
         AllocateIdsRequest,
         AllocateIdsResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.Get.im_func,
         LookupRequest,
         LookupResponse,
         None,
-        'none')
+        'INTEGRITY')
     rpcserver._GetHandlerDecorator(
         self.Write.im_func,
         WriteRequest,
         CommitResponse,
         None,
-        'none')
+        'INTEGRITY')
 
 if _extension_runtime:
   pass
 
-__all__ = ['Error','Mutation','MutationResult','EntityResult','Query','KindExpression','PropertyReference','PropertyExpression','PropertyOrder','Filter','CompositeFilter','PropertyFilter','GqlQuery','GqlQueryArg','QueryResultBatch','ReadOptions','LookupRequest','LookupResponse','RunQueryRequest','RunQueryResponse','ContinueQueryRequest','ContinueQueryResponse','BeginTransactionRequest','BeginTransactionResponse','RollbackRequest','RollbackResponse','CommitRequest','CommitResponse','AllocateIdsRequest','AllocateIdsResponse','WriteRequest','DatastoreV4Service']
+__all__ = ['Error','EntityResult','Query','KindExpression','PropertyReference','PropertyExpression','PropertyOrder','Filter','CompositeFilter','PropertyFilter','GqlQuery','GqlQueryArg','QueryResultBatch','Mutation','MutationResult','DeprecatedMutation','DeprecatedMutationResult','ReadOptions','LookupRequest','LookupResponse','RunQueryRequest','RunQueryResponse','ContinueQueryRequest','ContinueQueryResponse','BeginTransactionRequest','BeginTransactionResponse','RollbackRequest','RollbackResponse','CommitRequest','CommitResponse','AllocateIdsRequest','AllocateIdsResponse','WriteRequest','DatastoreV4Service']

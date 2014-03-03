@@ -27,6 +27,7 @@ import sys
 import tempfile
 import time
 
+from google.appengine.api import appinfo
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.tools import boolean_action
 from google.appengine.tools.devappserver2.admin import admin_server
@@ -65,6 +66,9 @@ _LOG_LEVEL_TO_PYTHON_CONSTANT = {
     'error': logging.ERROR,
     'critical': logging.CRITICAL,
 }
+
+# The default encoding used by the production interpreter.
+_PROD_DEFAULT_ENCODING = 'ascii'
 
 
 def _generate_storage_paths(app_id):
@@ -218,7 +222,7 @@ def parse_per_module_option(
       else:
         module_name = module_name.strip()
         if not module_name:
-          module_name = 'default'
+          module_name = appinfo.DEFAULT_MODULE
         if module_name in module_to_value:
           raise argparse.ArgumentTypeError(
               multiple_duplicate_module_error % module_name)
@@ -363,6 +367,17 @@ def create_command_line_parser():
                          const=True,
                          default=False,
                          help='enable XDebug remote debugging')
+
+  # App Identity
+  appidentity_group = parser.add_argument_group('Application Identity')
+  appidentity_group.add_argument(
+      '--appidentity_email_address',
+      help='email address associated with a service account that has a '
+      'downloadable key. May be None for no local application identity.')
+  appidentity_group.add_argument(
+      '--appidentity_private_key_path',
+      help='path to private key file associated with service account '
+      '(.pem format). Must be set if appidentity_email_address is set.')
 
   # Python
   python_group = parser.add_argument_group('Python')
@@ -661,6 +676,17 @@ class DevelopmentServer(object):
     else:
       update_checker.check_for_updates(configuration)
 
+    # There is no good way to set the default encoding from application code
+    # (it needs to be done during interpreter initialization in site.py or
+    # sitecustomize.py) so just warn developers if they have a different
+    # encoding than production.
+    if sys.getdefaultencoding() != _PROD_DEFAULT_ENCODING:
+      logging.warning(
+          'The default encoding of your local Python interpreter is set to %r '
+          'while App Engine\'s production environment uses %r; as a result '
+          'your code may behave differently when deployed.',
+          sys.getdefaultencoding(), _PROD_DEFAULT_ENCODING)
+
     if options.port == 0:
       logging.warn('DEFAULT_VERSION_HOSTNAME will not be set correctly with '
                    '--port=0')
@@ -762,6 +788,10 @@ class DevelopmentServer(object):
         # The "trusted" flag is only relevant for Google administrative
         # applications.
         trusted=getattr(options, 'trusted', False),
+        appidentity_email_address=options.appidentity_email_address,
+        appidentity_private_key_path=os.path.abspath(
+            options.appidentity_private_key_path)
+        if options.appidentity_private_key_path else None,
         blobstore_path=blobstore_path,
         datastore_path=datastore_path,
         datastore_consistency=consistency,

@@ -506,7 +506,6 @@ class _EntityValidator(object):
                                 datastore_pbs.MAX_PARTITION_ID_LENGTH, desc)
     if not constraint.reserved_key_allowed:
       _assert_string_not_reserved(partition_dimension, desc)
-
     _assert_condition(_PARTITION_ID_RE.match(partition_dimension),
                       'Illegal string "%s" in %s.' % (partition_dimension,
                                                       desc))
@@ -1044,7 +1043,7 @@ class _ServiceValidator(object):
     else:
       _assert_condition(False,
                         'Unknown commit mode: %d.' % req.mode())
-    self.__validate_mutation(req.mutation())
+    self.__validate_deprecated_mutation(req.deprecated_mutation())
 
   def validate_run_query_req(self, req):
     """Validates a normalized RunQueryRequest.
@@ -1054,10 +1053,11 @@ class _ServiceValidator(object):
 
     Raises:
       ValidationError: if the request is invalid
-      ValueError: if the request contains a GQL query
     """
-    if req.has_gql_query():
-      raise ValueError('RunQueryRequest not normalized.')
+
+
+
+    _assert_condition(not req.has_gql_query(), 'GQL not supported.')
     _assert_initialized(req)
     self.validate_read_options(req.read_options())
     self.__entity_validator.validate_partition_id(READ,
@@ -1109,17 +1109,18 @@ class _ServiceValidator(object):
                       ('Cannot specify both a read consistency and'
                        ' a transaction.'))
 
-  def __validate_mutation(self, mutation):
+  def __validate_deprecated_mutation(self, deprecated_mutation):
     self.__entity_validator.validate_entities(WRITE,
-                                              mutation.upsert_list())
+                                              deprecated_mutation.upsert_list())
     self.__entity_validator.validate_entities(WRITE,
-                                              mutation.update_list())
+                                              deprecated_mutation.update_list())
     self.__entity_validator.validate_entities(WRITE,
-                                              mutation.insert_list())
-    self.__entity_validator.validate_entities(WRITE_AUTO_ID,
-                                              mutation.insert_auto_id_list())
+                                              deprecated_mutation.insert_list())
+    self.__entity_validator.validate_entities(
+        WRITE_AUTO_ID,
+        deprecated_mutation.insert_auto_id_list())
     self.__entity_validator.validate_keys(WRITE,
-                                          mutation.delete_list())
+                                          deprecated_mutation.delete_list())
 
 
 
