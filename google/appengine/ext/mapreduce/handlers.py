@@ -59,8 +59,11 @@ from google.appengine.ext.mapreduce import errors
 from google.appengine.ext.mapreduce import input_readers
 from google.appengine.ext.mapreduce import model
 from google.appengine.ext.mapreduce import operation
+from google.appengine.ext.mapreduce import output_writers
 from google.appengine.ext.mapreduce import parameters
 from google.appengine.ext.mapreduce import util
+from google.appengine.ext.mapreduce.api import map_job
+from google.appengine.ext.mapreduce.api.map_job import shard_life_cycle
 from google.appengine.runtime import apiproxy_errors
 
 
@@ -115,11 +118,16 @@ def _run_task_hook(hooks, method, task, queue_name):
 class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
   """Callback handler for mapreduce worker task."""
 
+
   _TASK_DIRECTIVE = util._enum(
 
       PROCEED_TASK="proceed_task",
 
+
       RETRY_TASK="retry_task",
+
+
+      RETRY_SLICE="retry_slice",
 
       DROP_TASK="drop_task",
 
@@ -127,7 +135,9 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
       RETRY_SHARD="retry_shard",
 
-      FAIL_TASK="fail_task")
+      FAIL_TASK="fail_task",
+
+      ABORT_SHARD="abort_shard")
 
   def __init__(self, *args):
     """Constructor."""
@@ -219,8 +229,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
     if shard_state.slice_start_time:
       countdown = self._wait_time(shard_state,
-                                  parameters.config._LEASE_GRACE_PERIOD +
-                                  parameters.config._SLICE_DURATION_SEC)
+                                  parameters._LEASE_DURATION_SEC)
       if countdown > 0:
         logging.warning(
             "Last retry of slice %s-%s may be still running."
@@ -234,7 +243,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
       else:
         if self._wait_time(shard_state,
-                           parameters.config._REQUEST_EVENTUAL_TIMEOUT):
+                           parameters._MAX_LEASE_DURATION_SEC):
           if not self._has_old_request_ended(shard_state):
             logging.warning(
                 "Last retry of slice %s-%s is still in flight with request_id "
@@ -246,7 +255,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
               "Last retry of slice %s-%s has no log entry and has"
               "timed out after %s seconds",
               tstate.shard_id, tstate.slice_id,
-              parameters.config._REQUEST_EVENTUAL_TIMEOUT)
+              parameters._MAX_LEASE_DURATION_SEC)
 
 
     config = util.create_datastore_write_config(tstate.mapreduce_spec)
@@ -256,6 +265,9 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
       If failed for any reason, raise error to retry the task (hence all
       the previous validation code). The task would die naturally eventually.
+
+      Raises:
+        Rollback: If the shard state is missing.
 
       Returns:
         A _TASK_DIRECTIVE enum.
@@ -367,6 +379,34 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
           "Release lock for shard %s failed. Wait for lease to expire.",
           shard_state.shard_id)
 
+  def _maintain_LC(self, obj, slice_id, last_slice=False, begin_slice=True,
+                   shard_ctx=None, slice_ctx=None):
+    """Makes sure shard life cycle interface are respected.
+
+    Args:
+      obj: the obj that may have implemented _ShardLifeCycle.
+      slice_id: current slice_id
+      last_slice: whether this is the last slice.
+      begin_slice: whether this is the beginning or the end of a slice.
+      shard_ctx: shard ctx for dependency injection. If None, it will be read
+        from self.
+      slice_ctx: slice ctx for dependency injection. If None, it will be read
+        from self.
+    """
+    if obj is None or not isinstance(obj, shard_life_cycle._ShardLifeCycle):
+      return
+
+    shard_context = shard_ctx or self.shard_context
+    slice_context = slice_ctx or self.slice_context
+    if begin_slice:
+      if slice_id == 0:
+        obj.begin_shard(shard_context)
+      obj.begin_slice(slice_context)
+    else:
+      obj.end_slice(slice_context)
+      if last_slice:
+        obj.end_shard(shard_context)
+
   def handle(self):
     """Handle request.
 
@@ -400,47 +440,65 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
     if shard_state:
       is_this_a_retry = shard_state.acquired_once
     task_directive = self._try_acquire_lease(shard_state, tstate)
-    if task_directive == self._TASK_DIRECTIVE.RETRY_TASK:
-      return self.retry_task()
-    if task_directive == self._TASK_DIRECTIVE.DROP_TASK:
-      return
+    if task_directive in (self._TASK_DIRECTIVE.RETRY_TASK,
+                          self._TASK_DIRECTIVE.DROP_TASK):
+      return self.__return(shard_state, tstate, task_directive)
     assert task_directive == self._TASK_DIRECTIVE.PROCEED_TASK
 
 
     if control and control.command == model.MapreduceControl.ABORT:
-      logging.info("Abort command received by shard %d of job '%s'",
-                   shard_state.shard_number, shard_state.mapreduce_id)
+      task_directive = self._TASK_DIRECTIVE.ABORT_SHARD
+      return self.__return(shard_state, tstate, task_directive)
 
 
-      shard_state.set_for_abort()
-      shard_state.put(config=util.create_datastore_write_config(spec))
-      return
+    if (is_this_a_retry and
+        parameters.config.TASK_MAX_DATA_PROCESSING_ATTEMPTS <= 1):
+      task_directive = self._TASK_DIRECTIVE.RETRY_SHARD
+      return self.__return(shard_state, tstate, task_directive)
 
 
 
     util._set_ndb_cache_policy()
-    if cloudstorage:
-      cloudstorage.set_default_retry_params(
-          cloudstorage.RetryParams(
-              urlfetch_timeout=parameters._GCS_URLFETCH_TIMEOUT_SEC))
 
+    job_config = map_job.JobConfig._to_map_job_config(
+        spec,
+        os.environ.get("HTTP_X_APPENGINE_QUEUENAME"))
+    job_context = map_job.JobContext(job_config)
+    self.shard_context = map_job.ShardContext(job_context, shard_state)
+    self.slice_context = map_job.SliceContext(self.shard_context,
+                                              shard_state,
+                                              tstate)
     try:
+      slice_id = tstate.slice_id
+      self._maintain_LC(tstate.handler, slice_id)
+      self._maintain_LC(tstate.input_reader, slice_id)
+      self._maintain_LC(tstate.output_writer, slice_id)
+
       if is_this_a_retry:
         task_directive = self._attempt_slice_recovery(shard_state, tstate)
+        if task_directive != self._TASK_DIRECTIVE.PROCEED_TASK:
+          return self.__return(shard_state, tstate, task_directive)
 
-      if task_directive == self._TASK_DIRECTIVE.PROCEED_TASK:
-        finished_shard = self._process_inputs(
-            tstate.input_reader, shard_state, tstate, ctx)
-        if finished_shard:
+      last_slice = self._process_inputs(
+          tstate.input_reader, shard_state, tstate, ctx)
+
+      self._maintain_LC(tstate.handler, slice_id, last_slice, False)
+      self._maintain_LC(tstate.input_reader, slice_id, last_slice, False)
+      self._maintain_LC(tstate.output_writer, slice_id, last_slice, False)
+
+      ctx.flush()
+
+      if last_slice:
 
 
-          if tstate.output_writer:
+        if (tstate.output_writer and
+            isinstance(tstate.output_writer, output_writers.OutputWriter)):
 
 
 
 
-            tstate.output_writer.finalize(ctx, shard_state)
-          shard_state.set_for_success()
+          tstate.output_writer.finalize(ctx, shard_state)
+        shard_state.set_for_success()
 
     except Exception, e:
       logging.warning("Shard %s got error.", shard_state.shard_id)
@@ -451,8 +509,12 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
         logging.error("Got FailJobError.")
         task_directive = self._TASK_DIRECTIVE.FAIL_TASK
       else:
-        task_directive = self._TASK_DIRECTIVE.RETRY_TASK
+        task_directive = self._TASK_DIRECTIVE.RETRY_SLICE
 
+    self.__return(shard_state, tstate, task_directive)
+
+  def __return(self, shard_state, tstate, task_directive):
+    """Handler should always call this as the last statement."""
     task_directive = self._set_state(shard_state, tstate, task_directive)
     self._save_state_and_schedule_next(shard_state, tstate, task_directive)
 
@@ -523,10 +585,9 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
         break
 
 
-    operation.counters.Increment(
+    self.slice_context.incr(
         context.COUNTER_MAPPER_WALLTIME_MS,
-        int((self._time() - self._start_time)*1000))(ctx)
-    ctx.flush()
+        int((self._time() - self._start_time)*1000))
 
     return finished_shard
 
@@ -545,26 +606,29 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
       True if scan should be continued, False if scan should be stopped.
     """
     if data is not input_readers.ALLOW_CHECKPOINT:
-      ctx.counters.increment(context.COUNTER_MAPPER_CALLS)
+      self.slice_context.incr(context.COUNTER_MAPPER_CALLS)
 
       handler = transient_shard_state.handler
 
-      if input_reader.expand_parameters:
-        result = handler(*data)
+      if isinstance(handler, map_job.Mapper):
+        handler(self.slice_context, data)
       else:
-        result = handler(data)
+        if input_reader.expand_parameters:
+          result = handler(*data)
+        else:
+          result = handler(data)
 
-      if util.is_generator(result):
-        for output in result:
-          if isinstance(output, operation.Operation):
-            output(ctx)
-          else:
-            output_writer = transient_shard_state.output_writer
-            if not output_writer:
-              logging.warning(
-                  "Handler yielded %s, but no output writer is set.", output)
+        if util.is_generator(result):
+          for output in result:
+            if isinstance(output, operation.Operation):
+              output(ctx)
             else:
-              output_writer.write(output)
+              output_writer = transient_shard_state.output_writer
+              if not output_writer:
+                logging.warning(
+                    "Handler yielded %s, but no output writer is set.", output)
+              else:
+                output_writer.write(output)
 
     if self._time() - self._start_time >= parameters.config._SLICE_DURATION_SEC:
       return False
@@ -579,11 +643,24 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
       task_directive: self._TASK_DIRECTIVE for current shard.
 
     Returns:
-      A _TASK_DIRECTIVE enum. PROCEED_TASK if task should proceed normally.
-    RETRY_SHARD if shard should be retried. RETRY_TASK if slice should be
-    retried. FAIL_TASK if task should. RECOVER_SLICE if slice should be
-    recovered.
+      A _TASK_DIRECTIVE enum.
+      PROCEED_TASK if task should proceed normally.
+      RETRY_SHARD if shard should be retried.
+      RETRY_SLICE if slice should be retried.
+      FAIL_TASK if sahrd should fail.
+      RECOVER_SLICE if slice should be recovered.
+      ABORT_SHARD if shard should be aborted.
+      RETRY_TASK if task should be retried.
+      DROP_TASK if task should be dropped.
     """
+    if task_directive in (self._TASK_DIRECTIVE.RETRY_TASK,
+                          self._TASK_DIRECTIVE.DROP_TASK):
+      return task_directive
+
+    if task_directive == self._TASK_DIRECTIVE.ABORT_SHARD:
+      shard_state.set_for_abort()
+      return task_directive
+
     if task_directive == self._TASK_DIRECTIVE.PROCEED_TASK:
       shard_state.advance_for_next_slice()
       tstate.advance_for_next_slice()
@@ -594,12 +671,13 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
       shard_state.advance_for_next_slice(recovery_slice=True)
       return task_directive
 
-    if task_directive == self._TASK_DIRECTIVE.RETRY_TASK:
+    if task_directive == self._TASK_DIRECTIVE.RETRY_SLICE:
       task_directive = self._attempt_slice_retry(shard_state, tstate)
     if task_directive == self._TASK_DIRECTIVE.RETRY_SHARD:
       task_directive = self._attempt_shard_retry(shard_state, tstate)
     if task_directive == self._TASK_DIRECTIVE.FAIL_TASK:
       shard_state.set_for_failure()
+
     return task_directive
 
   def _save_state_and_schedule_next(self, shard_state, tstate, task_directive):
@@ -614,12 +692,22 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
       shard_state: model.ShardState for current shard.
       tstate: model.TransientShardState for current shard.
       task_directive: enum _TASK_DIRECTIVE.
+
+    Returns:
+      The task to retry if applicable.
     """
     spec = tstate.mapreduce_spec
 
-    if task_directive == self._TASK_DIRECTIVE.RETRY_TASK:
+    if task_directive == self._TASK_DIRECTIVE.DROP_TASK:
+      return
+    if task_directive in (self._TASK_DIRECTIVE.RETRY_SLICE,
+                          self._TASK_DIRECTIVE.RETRY_TASK):
 
       return self.retry_task()
+    elif task_directive == self._TASK_DIRECTIVE.ABORT_SHARD:
+      logging.info("Aborting shard %d of job '%s'",
+                   shard_state.shard_number, shard_state.mapreduce_id)
+      task = None
     elif task_directive == self._TASK_DIRECTIVE.FAIL_TASK:
       logging.critical("Shard %s failed permanently.", shard_state.shard_id)
       task = None
@@ -647,6 +735,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
     @db.transactional(retries=5)
     def _tx():
+      """The Transaction helper."""
       fresh_shard_state = model.ShardState.get_by_shard_id(tstate.shard_id)
       if not fresh_shard_state:
         raise db.Rollback()
@@ -771,7 +860,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
       tstate: model.TransientShardState for current shard.
 
     Returns:
-      A _TASK_DIRECTIVE enum. RETRY_TASK if slice should be retried.
+      A _TASK_DIRECTIVE enum. RETRY_SLICE if slice should be retried.
     RETRY_SHARD if shard retry should be attempted.
     """
     if (shard_state.slice_retries + 1 <
@@ -791,7 +880,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
 
       sys.exc_clear()
       self._try_free_lease(shard_state, slice_retry=True)
-      return self._TASK_DIRECTIVE.RETRY_TASK
+      return self._TASK_DIRECTIVE.RETRY_SLICE
 
     if parameters.config.TASK_MAX_DATA_PROCESSING_ATTEMPTS > 0:
       logging.warning("Slice attempt %s exceeded %s max attempts.",
@@ -861,7 +950,7 @@ class MapperWorkerCallbackHandler(base_handler.HugeTaskHandler):
         tstate.slice_id,
         tstate.retries)
 
-    headers = util._get_task_headers(tstate.mapreduce_spec)
+    headers = util._get_task_headers(tstate.mapreduce_spec.mapreduce_id)
     headers[util._MR_SHARD_ID_TASK_HEADER] = tstate.shard_id
 
     worker_task = model.HugeTask(
@@ -1085,6 +1174,7 @@ class ControllerCallbackHandler(base_handler.HugeTaskHandler):
     else:
       @db.transactional(retries=5)
       def _put_state():
+        """The helper for storing the state."""
         fresh_state = model.MapreduceState.get_by_job_id(spec.mapreduce_id)
 
 
@@ -1139,12 +1229,13 @@ class ControllerCallbackHandler(base_handler.HugeTaskHandler):
     if done_callback:
       done_task = taskqueue.Task(
           url=done_callback,
-          headers=util._get_task_headers(mapreduce_spec,
+          headers=util._get_task_headers(mapreduce_spec.mapreduce_id,
                                          util.CALLBACK_MR_ID_TASK_HEADER),
           method=mapreduce_spec.params.get("done_callback_method", "POST"))
 
     @db.transactional(retries=5)
     def _put_state():
+      """Helper to store state."""
       fresh_state = model.MapreduceState.get_by_job_id(
           mapreduce_spec.mapreduce_id)
       if not fresh_state.active:
@@ -1175,7 +1266,8 @@ class ControllerCallbackHandler(base_handler.HugeTaskHandler):
     """Compute single controller task name.
 
     Args:
-      transient_shard_state: an instance of TransientShardState.
+      mapreduce_spec: specification of the mapreduce.
+      serial_id: id of the invocation as int.
 
     Returns:
       task name which should be used to process specified shard/slice.
@@ -1230,7 +1322,7 @@ class ControllerCallbackHandler(base_handler.HugeTaskHandler):
         name=task_name, params=task_params,
         countdown=parameters.config._CONTROLLER_PERIOD_SEC,
         parent=mapreduce_state,
-        headers=util._get_task_headers(mapreduce_spec))
+        headers=util._get_task_headers(mapreduce_spec.mapreduce_id))
 
     if not _run_task_hook(mapreduce_spec.get_hooks(),
                           "enqueue_controller_task",
@@ -1301,6 +1393,24 @@ class KickOffJobHandler(base_handler.TaskQueueHandler):
     ControllerCallbackHandler.reschedule(
         state, state.mapreduce_spec, serial_id=0, queue_name=queue_name)
 
+  def _drop_gracefully(self):
+    """See parent."""
+    mr_id = self.request.get("mapreduce_id")
+    logging.error("Failed to kick off job %s", mr_id)
+
+    state = model.MapreduceState.get_by_job_id(mr_id)
+    if not self._check_mr_state(state, mr_id):
+      return
+
+
+    config = util.create_datastore_write_config(state.mapreduce_spec)
+    model.MapreduceControl.abort(mr_id, config=config)
+
+
+    state.active = False
+    state.result_status = model.MapreduceState.RESULT_FAILED
+    ControllerCallbackHandler._finalize_job(state.mapreduce_spec, state)
+
   def _get_input_readers(self, state):
     """Get input readers.
 
@@ -1319,9 +1429,13 @@ class KickOffJobHandler(base_handler.TaskQueueHandler):
 
 
     input_reader_class = state.mapreduce_spec.mapper.input_reader_class()
+    split_param = state.mapreduce_spec.mapper
+    if issubclass(input_reader_class, map_job.InputReader):
+      split_param = map_job.JobConfig._to_map_job_config(
+          state.mapreduce_spec,
+          os.environ.get("HTTP_X_APPENGINE_QUEUENAME"))
     if serialized_input_readers is None:
-      readers = input_reader_class.split_input(
-          state.mapreduce_spec.mapper)
+      readers = input_reader_class.split_input(split_param)
     else:
       readers = [input_reader_class.from_json_str(json) for json in
                  simplejson.loads(serialized_input_readers.payload)]
@@ -1483,14 +1597,16 @@ class StartJobHandler(base_handler.PostJsonHandler):
         "mapper_params_validator", "mapper_params.")
     params = self._get_params(
         "params_validator", "params.")
-    if "base_path" not in params:
-      params["base_path"] = parameters.config.BASE_PATH
+
+
+    mr_params = map_job.JobConfig._get_default_mr_params()
+    mr_params.update(params)
+    if "queue_name" in mapper_params:
+      mr_params["queue_name"] = mapper_params["queue_name"]
 
 
     mapper_params["processing_rate"] = int(mapper_params.get(
         "processing_rate") or parameters.config.PROCESSING_RATE_PER_SEC)
-    queue_name = mapper_params["queue_name"] = util.get_queue_name(
-        mapper_params.get("queue_name", None))
 
 
     mapper_spec = model.MapperSpec(
@@ -1500,11 +1616,11 @@ class StartJobHandler(base_handler.PostJsonHandler):
         int(mapper_params.get("shard_count", parameters.config.SHARD_COUNT)),
         output_writer_spec=mapper_output_writer_spec)
 
-    mapreduce_id = type(self)._start_map(
+    mapreduce_id = self._start_map(
         mapreduce_name,
         mapper_spec,
-        params,
-        queue_name=queue_name,
+        mr_params,
+        queue_name=mr_params["queue_name"],
         _app=mapper_params.get("_app"))
     self.json_response["mapreduce_id"] = mapreduce_id
 
@@ -1519,6 +1635,9 @@ class StartJobHandler(base_handler.PostJsonHandler):
     Raises:
       Any exception raised by the 'params_validator' request parameter if
       the params fail to validate.
+
+    Returns:
+      The user parameters.
     """
     params_validator = self.request.get(validator_parameter)
 
@@ -1650,11 +1769,12 @@ class StartJobHandler(base_handler.PostJsonHandler):
                         eta,
                         countdown,
                         queue_name):
+    """Enqueues a new kickoff task."""
     params = {"mapreduce_id": mapreduce_spec.mapreduce_id}
 
     kickoff_task = taskqueue.Task(
         url=base_path + "/kickoffjob_callback/" + mapreduce_spec.mapreduce_id,
-        headers=util._get_task_headers(mapreduce_spec),
+        headers=util._get_task_headers(mapreduce_spec.mapreduce_id),
         params=params,
         eta=eta,
         countdown=countdown)
@@ -1675,7 +1795,8 @@ class FinalizeJobHandler(base_handler.TaskQueueHandler):
     mapreduce_id = self.request.get("mapreduce_id")
     mapreduce_state = model.MapreduceState.get_by_job_id(mapreduce_id)
     if mapreduce_state:
-      config=util.create_datastore_write_config(mapreduce_state.mapreduce_spec)
+      config = (
+          util.create_datastore_write_config(mapreduce_state.mapreduce_spec))
       keys = [model.MapreduceControl.get_key_by_job_id(mapreduce_id)]
       for ss in model.ShardState.find_all_by_mapreduce_state(mapreduce_state):
         keys.extend(list(
@@ -1697,7 +1818,7 @@ class FinalizeJobHandler(base_handler.TaskQueueHandler):
         url=(mapreduce_spec.params["base_path"] + "/finalizejob_callback/" +
              mapreduce_spec.mapreduce_id),
         params={"mapreduce_id": mapreduce_spec.mapreduce_id},
-        headers=util._get_task_headers(mapreduce_spec))
+        headers=util._get_task_headers(mapreduce_spec.mapreduce_id))
     queue_name = util.get_queue_name(None)
     if not _run_task_hook(mapreduce_spec.get_hooks(),
                           "enqueue_controller_task",

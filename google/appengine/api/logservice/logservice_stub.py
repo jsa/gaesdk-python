@@ -158,6 +158,8 @@ class LogServiceStub(apiproxy_stub.APIProxyStub):
     """
     if module is None:
       module = appinfo.DEFAULT_MODULE
+    if version_id is None:
+      version_id = 'NO-VERSION'
     major_version_id = version_id.split('.', 1)[0]
     if start_time is None:
       start_time = self._get_time_usec()
@@ -344,8 +346,9 @@ class LogServiceStub(apiproxy_stub.APIProxyStub):
       if module_version.has_module_id():
         module = module_version.module_id()
       module_values.append(module)
-    filters.append('(' + ' or '.join(module_filters) + ')')
-    values += module_values
+    if module_filters:
+      filters.append('(' + ' or '.join(module_filters) + ')')
+      values += module_values
 
     if request.has_offset():
       filters.append('RequestLogs.id < ?')

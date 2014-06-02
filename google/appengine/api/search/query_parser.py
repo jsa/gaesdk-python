@@ -26,6 +26,7 @@ from google.appengine.api.search import QueryParser
 
 COMPARISON_TYPES = [
     QueryParser.EQ,
+    QueryParser.HAS,
     QueryParser.NE,
     QueryParser.GT,
     QueryParser.GE,
@@ -100,8 +101,6 @@ def CreateParser(query):
 def ParseAndSimplify(query):
   """Parses a query and performs all necessary transformations on the tree."""
   node = Parse(query).tree
-  node = _ColonToEquals(node)
-  node = SequenceToConjunction(node)
   try:
     node = SimplifyNode(node)
   except QueryTreeException, e:
@@ -172,6 +171,8 @@ def Simplify(parser_return):
 def SimplifyNode(tree, restriction=None):
   if tree.getType() == QueryLexer.VALUE:
     return tree
+  elif tree.getType() == QueryParser.SEQUENCE and tree.getChildCount() == 1:
+    return SimplifyNode(tree.children[0], restriction)
   elif tree.getType() == QueryParser.CONJUNCTION and tree.getChildCount() == 1:
     return SimplifyNode(tree.children[0], restriction)
   elif tree.getType() == QueryParser.DISJUNCTION and tree.getChildCount() == 1:

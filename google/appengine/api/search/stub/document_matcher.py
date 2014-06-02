@@ -47,7 +47,7 @@ class DistanceMatcher(object):
     self._distance = distance
 
   def _CheckOp(self, op):
-    if op == QueryParser.EQ:
+    if op == QueryParser.EQ or op == QueryParser.HAS:
       raise ExpressionTreeException('Equality comparison not available for Geo type')
     if op == QueryParser.NE:
       raise ExpressionTreeException('!= comparison operator is not available')
@@ -77,14 +77,7 @@ class DistanceMatcher(object):
         return True
 
 
-
-    if field_values:
-      return False
-
-
-
-
-    return op == QueryParser.GT or op == QueryParser.GE
+    return False
 
 
 class DocumentMatcher(object):
@@ -105,6 +98,13 @@ class DocumentMatcher(object):
     return self._PostingsForToken(
         tokens.Token(chars=value, field_name=field))
 
+  def _MatchRawPhraseWithRawAtom(self, field_text, phrase_text):
+    tokenized_phrase = self._parser.TokenizeText(
+        phrase_text, input_field_type=document_pb.FieldValue.ATOM)
+    tokenized_field_text = self._parser.TokenizeText(
+        field_text, input_field_type=document_pb.FieldValue.ATOM)
+    return tokenized_phrase == tokenized_field_text
+
   def _MatchPhrase(self, field, match, document):
     """Match a textual field with a phrase query node."""
     field_text = field.value().string_value()
@@ -112,7 +112,11 @@ class DocumentMatcher(object):
 
 
     if field.value().type() == document_pb.FieldValue.ATOM:
-      return (field_text == phrase_text)
+      return self._MatchRawPhraseWithRawAtom(field_text, phrase_text)
+
+
+    if not phrase_text:
+      return False
 
     phrase = self._parser.TokenizeText(phrase_text)
     field_text = self._parser.TokenizeText(field_text)
@@ -152,6 +156,9 @@ class DocumentMatcher(object):
   def _MatchTextField(self, field, match, document):
     """Check if a textual field matches a query tree node."""
 
+    if match.getType() == QueryParser.FUZZY:
+      return self._MatchTextField(field, match.getChild(0), document)
+
     if match.getType() == QueryParser.VALUE:
       if query_parser.IsPhrase(match):
         return self._MatchPhrase(field, match, document)
@@ -184,7 +191,9 @@ class DocumentMatcher(object):
       return document.id() in matching_docids
 
     def ExtractGlobalEq(node):
-      if node.getType() == QueryParser.EQ and len(node.children) >= 2:
+      op = node.getType()
+      if ((op == QueryParser.EQ or op == QueryParser.HAS) and
+          len(node.children) >= 2):
         if node.children[0].getType() == QueryParser.GLOBAL:
           return node.children[1]
       return node
@@ -198,8 +207,8 @@ class DocumentMatcher(object):
                  for child in match.children)
 
     if match.getType() == QueryParser.NEGATION:
-      return not self._MatchTextField(
-          field, ExtractGlobalEq(match.children[0]), document)
+      raise ExpressionTreeException('Unable to compare \"' + field.name() +
+                                    '\" with negation')
 
 
     return False
@@ -264,7 +273,7 @@ class DocumentMatcher(object):
     else:
       return False
 
-    if op == QueryParser.EQ:
+    if op == QueryParser.EQ or op == QueryParser.HAS:
       return field_val == match_val
     if op == QueryParser.NE:
       raise ExpressionTreeException('!= comparison operator is not available')
@@ -308,7 +317,7 @@ class DocumentMatcher(object):
     """
 
     if field.value().type() in search_util.TEXT_DOCUMENT_FIELD_TYPES:
-      if operator != QueryParser.EQ:
+      if operator != QueryParser.EQ and operator != QueryParser.HAS:
         return False
       return self._MatchTextField(field, match, document)
 
@@ -366,8 +375,33 @@ class DocumentMatcher(object):
         return self._MatchGeoField(x, matcher, operator, document)
     return False
 
+  def _IsHasGlobalValue(self, node):
+    if node.getType() == QueryParser.HAS and len(node.children) == 2:
+      if (node.children[0].getType() == QueryParser.GLOBAL and
+          node.children[1].getType() == QueryParser.VALUE):
+        return True
+    return False
+
+  def _MatchGlobalPhrase(self, node, document):
+    """Check if a document matches a parsed global phrase."""
+    if not all(self._IsHasGlobalValue(child) for child in node.children):
+      return False
+
+    value_nodes = (child.children[1] for child in node.children)
+    phrase_text = ' '.join(
+        (query_parser.GetQueryNodeText(node) for node in value_nodes))
+    for field in document.field_list():
+      if self._MatchRawPhraseWithRawAtom(field.value().string_value(),
+                                         phrase_text):
+        return True
+    return False
+
   def _CheckMatch(self, node, document):
     """Check if a document matches a query tree."""
+
+    if node.getType() == QueryParser.SEQUENCE:
+      result = all(self._CheckMatch(child, document) for child in node.children)
+      return result or self._MatchGlobalPhrase(node, document)
 
     if node.getType() == QueryParser.CONJUNCTION:
       return all(self._CheckMatch(child, document) for child in node.children)
