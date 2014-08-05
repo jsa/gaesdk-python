@@ -71,7 +71,6 @@ from google.appengine.api import queueinfo
 from google.appengine.api import yaml_errors
 from google.appengine.api import yaml_object
 from google.appengine.datastore import datastore_index
-from google.appengine.tools import appcfg_java
 from google.appengine.tools import appengine_rpc
 
 try:
@@ -80,6 +79,15 @@ try:
   from google.appengine.tools import appengine_rpc_httplib2
 except ImportError:
   appengine_rpc_httplib2 = None
+if sys.version_info[:2] >= (2, 7):
+
+
+
+  from google.appengine.tools import appcfg_java
+else:
+  appcfg_java = None
+
+from google.appengine.tools import augment_mimetypes
 from google.appengine.tools import bulkloader
 from google.appengine.tools import sdk_update_checker
 
@@ -122,7 +130,8 @@ DAY = 24*3600
 SUNDAY = 6
 
 SUPPORTED_RUNTIMES = (
-    'go', 'php', 'python', 'python27', 'java', 'java7', 'vm', 'custom')
+    'contrib-dart', 'dart', 'go', 'php', 'python', 'python27', 'java', 'java7',
+    'vm', 'custom')
 
 
 
@@ -145,7 +154,8 @@ DEFAULT_RESOURCE_LIMITS = {
 
 APPCFG_CLIENT_ID = '550516889912.apps.googleusercontent.com'
 APPCFG_CLIENT_NOTSOSECRET = 'ykPq-0UYfKNprLRjVx1hBBar'
-APPCFG_SCOPES = ('https://www.googleapis.com/auth/appengine.admin',)
+APPCFG_SCOPES = ('https://www.googleapis.com/auth/appengine.admin',
+                 'https://www.googleapis.com/auth/cloud-platform')
 
 
 STATIC_FILE_PREFIX = '__static__'
@@ -165,6 +175,9 @@ APP_YAML_FILENAME = 'app.yaml'
 GO_APP_BUILDER = os.path.join('goroot', 'bin', 'go-app-builder')
 if sys.platform.startswith('win'):
   GO_APP_BUILDER += '.exe'
+
+
+augment_mimetypes.init()
 
 
 class Error(Exception):
@@ -231,6 +244,14 @@ def _PrintErrorAndExit(stream, msg, exit_code=2):
   """
   stream.write(msg)
   sys.exit(exit_code)
+
+
+def JavaSupported():
+  """True if Java is supported by this SDK."""
+
+
+  tools_java_dir = os.path.join(os.path.dirname(appcfg_java.__file__), 'java')
+  return os.path.isdir(tools_java_dir)
 
 
 @contextlib.contextmanager
@@ -476,7 +497,7 @@ def RetryWithBackoff(callable_func, retry_notify_func,
 
   Args:
     callable_func: A function that performs some operation that should be
-      retried a number of times up on failure.  Signature: () -> (done, value)
+      retried a number of times upon failure.  Signature: () -> (done, value)
       If 'done' is True, we'll immediately return (True, value)
       If 'done' is False, we'll delay a bit and try again, unless we've
       hit the 'max_tries' limit, in which case we'll return (False, value).
@@ -515,6 +536,43 @@ def RetryWithBackoff(callable_func, retry_notify_func,
     retry_notify_func(opaque_value, delay)
     time.sleep(delay)
     delay = min(delay * backoff_factor, max_delay)
+
+
+def RetryNoBackoff(callable_func,
+                   retry_notify_func,
+                   delay=5,
+                   max_tries=200):
+  """Calls a function multiple times, with the same delay each time.
+
+  Args:
+    callable_func: A function that performs some operation that should be
+      retried a number of times upon failure.  Signature: () -> (done, value)
+      If 'done' is True, we'll immediately return (True, value)
+      If 'done' is False, we'll delay a bit and try again, unless we've
+      hit the 'max_tries' limit, in which case we'll return (False, value).
+    retry_notify_func: This function will be called immediately before the
+      next retry delay.  Signature: (value, delay) -> None
+      'value' is the value returned by the last call to 'callable_func'
+      'delay' is the retry delay, in seconds
+    delay: Delay between tries, in seconds.
+    max_tries: Maximum number of tries (the first one counts).
+
+  Returns:
+    What the last call to 'callable_func' returned, which is of the form
+    (done, value).  If 'done' is True, you know 'callable_func' returned True
+    before we ran out of retries.  If 'done' is False, you know 'callable_func'
+    kept returning False and we ran out of retries.
+
+  Raises:
+    Whatever the function raises--an exception will immediately stop retries.
+  """
+
+  return RetryWithBackoff(callable_func,
+                          retry_notify_func,
+                          delay,
+                          1,
+                          delay,
+                          max_tries)
 
 
 def MigratePython27Notice():
@@ -1735,6 +1793,23 @@ class _ClientDeployLoggingContext(object):
       logging.debug('Exception logging deploy info continuing - %s', e)
 
 
+class EndpointsState(object):
+  SERVING = 'serving'
+  PENDING = 'pending'
+  FAILED = 'failed'
+  _STATES = frozenset((SERVING, PENDING, FAILED))
+
+  @classmethod
+  def Parse(cls, value):
+    state = value.lower()
+    if state not in cls._STATES:
+      lst = sorted(cls._STATES)
+      pretty_states = ', '.join(lst[:-1]) + ', or ' + lst[-1]
+      raise ValueError('Unexpected Endpoints state "%s"; should be %s.' %
+                       (value, pretty_states))
+    return state
+
+
 class AppVersionUpload(object):
   """Provides facilities to upload a new appversion to the hosting service.
 
@@ -2095,8 +2170,7 @@ class AppVersionUpload(object):
       if result == '0':
         raise CannotStartServingError(
             'Another operation on this version is in progress.')
-      success, response = RetryWithBackoff(
-          self.IsServing, PrintRetryMessage, 1, 2, 60, 20)
+      success, response = RetryNoBackoff(self.IsServing, PrintRetryMessage)
       if not success:
 
         logging.warning('Version still not serving, aborting.')
@@ -2106,13 +2180,14 @@ class AppVersionUpload(object):
 
       check_config_updated = response.get('check_endpoints_config')
       if check_config_updated:
-        success, unused_contents = RetryWithBackoff(
-            lambda: (self.IsEndpointsConfigUpdated(), None),
+        unused_done, last_state = RetryWithBackoff(
+            self.IsEndpointsConfigUpdated,
             PrintRetryMessage, 1, 2, 60, 20)
-        if not success:
-          error_message = ('Failed to update Endpoints configuration.  Check '
-                           'the app\'s AppEngine logs for errors: %s' %
-                           self.GetLogUrl())
+        if last_state != EndpointsState.SERVING:
+          error_message = (
+              'Failed to update Endpoints configuration (last result %s).  '
+              'Check the app\'s AppEngine logs for errors: %s' %
+              (last_state, self.GetLogUrl()))
           StatusUpdate(error_message, self.error_fh)
           logging.warning(error_message)
           raise RuntimeError(error_message)
@@ -2241,7 +2316,8 @@ class AppVersionUpload(object):
       Otherwise returns False.
     """
     response_dict = yaml.safe_load(resp)
-    if 'updated' not in response_dict:
+
+    if 'updated' not in response_dict and 'updatedDetail' not in response_dict:
       return None
     return response_dict
 
@@ -2266,7 +2342,10 @@ class AppVersionUpload(object):
         response.
 
     Returns:
-      True if the configuration has been updated, False if not.
+      (done, updated_state), where done is False if this function should
+      be called again to retry, True if not.  updated_state is an
+      EndpointsState value indicating whether the Endpoints configuration has
+      been updated on the server.
     """
 
     assert self.started, ('StartServing() must be called before '
@@ -2280,7 +2359,17 @@ class AppVersionUpload(object):
     if result is None:
       raise CannotStartServingError(
           'Internal error: Could not parse IsEndpointsConfigUpdated response.')
-    return result['updated']
+    if 'updatedDetail' in result:
+      updated_state = EndpointsState.Parse(result['updatedDetail'])
+    else:
+
+
+
+
+
+      updated_state = (EndpointsState.SERVING if result['updated']
+                       else EndpointsState.PENDING)
+    return updated_state != EndpointsState.PENDING, updated_state
 
   def Rollback(self):
     """Rolls back the transaction if one is in progress."""
@@ -2419,9 +2508,12 @@ class AppVersionUpload(object):
 
 
         if file_length > max_size:
+          extra_msg = (' Consider --enable_jar_splitting.'
+                       if JavaSupported() and path.endswith('jar')
+                       else '')
           logging.error('Ignoring file \'%s\': Too long '
-                        '(max %d bytes, file is %d bytes)',
-                        path, max_size, file_length)
+                        '(max %d bytes, file is %d bytes).%s',
+                        path, max_size, file_length, extra_msg)
         else:
           logging.info('Processing file \'%s\'', path)
           self.AddFile(path, file_handle)
@@ -2488,14 +2580,17 @@ class AppVersionUpload(object):
       logging.exception('An unexpected error occurred. Aborting.')
 
 
-class DoDebugAction(object):
-  """Turns on VM Debugging for a particular vm app version."""
+class DoLockAction(object):
+  """Locks/unlocks a particular vm app version and shows state."""
 
-  def __init__(self, rpcserver, app_id, version, module, file_handle):
+  def __init__(
+      self, url, rpcserver, app_id, version, module, instance, file_handle):
+    self.url = url
     self.rpcserver = rpcserver
     self.app_id = app_id
     self.version = version
     self.module = module
+    self.instance = instance
     self.file_handle = file_handle
 
   def GetState(self):
@@ -2514,10 +2609,13 @@ class DoDebugAction(object):
                  self.file_handle)
 
   def Do(self):
-    response = self.rpcserver.Send('/api/vms/debug',
-                                   app_id=self.app_id,
-                                   version_match=self.version,
-                                   module=self.module)
+    kwargs = {'app_id': self.app_id,
+              'version_match': self.version,
+              'module': self.module}
+    if self.instance:
+      kwargs['instance'] = self.instance
+
+    response = self.rpcserver.Send(self.url, **kwargs)
     print >> self.file_handle, response
     RetryWithBackoff(self.GetState, self.PrintRetryMessage, 1, 2, 5, 20)
 
@@ -2682,8 +2780,6 @@ class AppCfgApp(object):
       OptionsParser will exit the program when there is a parse failure, it
       is nice to subclass OptionsParser and catch the error before exiting.
     read_url_contents: A function to read the contents of a URL.
-    override_java_supported: If not None, forces the code to assume that Java
-      support is (True) or is not (False) present.
   """
 
   def __init__(self, argv, parser_class=optparse.OptionParser,
@@ -2700,8 +2796,7 @@ class AppCfgApp(object):
                wrap_server_error_message=True,
                oauth_client_id=APPCFG_CLIENT_ID,
                oauth_client_secret=APPCFG_CLIENT_NOTSOSECRET,
-               oauth_scopes=APPCFG_SCOPES,
-               override_java_supported=None):
+               oauth_scopes=APPCFG_SCOPES):
     """Initializer.  Parses the cmdline and selects the Action to use.
 
     Initializes all of the attributes described in the class docstring.
@@ -2738,8 +2833,6 @@ class AppCfgApp(object):
       oauth_scopes: The scope or set of scopes to be accessed by the OAuth2
           token retrieved. Defaults to APPCFG_SCOPES. Can be a string or
           iterable of strings, representing the scope(s) to request.
-      override_java_supported: If not None, forces the code to assume that Java
-        support is (True) or is not (False) present.
     """
     self.parser_class = parser_class
     self.argv = argv
@@ -2755,7 +2848,6 @@ class AppCfgApp(object):
     self.oauth_client_id = oauth_client_id
     self.oauth_client_secret = oauth_client_secret
     self.oauth_scopes = oauth_scopes
-    self.override_java_supported = override_java_supported
 
     self.read_url_contents = _ReadUrlContents
 
@@ -2901,13 +2993,6 @@ class AppCfgApp(object):
       print >>self.error_fh, 'Could not start serving the given version.'
       return 1
     return 0
-
-  def _JavaSupported(self):
-    """True if this SDK supports uploading Java apps."""
-    if self.override_java_supported is not None:
-      return self.override_java_supported
-    tools_java_dir = os.path.join(os.path.dirname(appcfg_java.__file__), 'java')
-    return os.path.isdir(tools_java_dir)
 
   def _GetActionDescriptions(self):
     """Returns a formatted string containing the short_descs for all actions."""
@@ -3255,7 +3340,7 @@ class AppCfgApp(object):
       self.parser.error('Error parsing %s.yaml: %s.' % (
           os.path.join(basepath, basename), e))
     if not appyaml:
-      if self._JavaSupported():
+      if JavaSupported():
         if appcfg_java.IsWarFileWithoutYaml(basepath):
           java_app_update = appcfg_java.JavaAppUpdate(basepath, self.options)
           appyaml_string = java_app_update.GenerateAppYamlString([])
@@ -3549,17 +3634,19 @@ class AppCfgApp(object):
     paths = self.file_iterator(basepath, appyaml.skip_files, appyaml.runtime)
     openfunc = lambda path: self.opener(os.path.join(basepath, path), 'rb')
 
-    gopath = os.environ.get('GOPATH')
-    if appyaml.GetEffectiveRuntime() == 'go' and gopath:
-
-
-
-
-
-
+    if appyaml.GetEffectiveRuntime() == 'go':
 
       sdk_base = os.path.normpath(os.path.join(
           google.appengine.__file__, '..', '..', '..'))
+
+      gopath = os.environ.get('GOPATH')
+      if not gopath:
+        gopath = os.path.join(sdk_base, 'gopath')
+
+
+
+
+
       goroot = os.path.join(sdk_base, 'goroot')
       if not os.path.exists(goroot):
 
@@ -3581,12 +3668,15 @@ class AppCfgApp(object):
         ]
         if goroot:
           gab_argv.extend(['-goroot', goroot])
+        if appyaml.runtime == 'vm':
+          gab_argv.append('-vm')
         gab_argv.extend(go_files)
 
         env = {
             'GOOS': 'linux',
             'GOARCH': 'amd64',
         }
+        logging.info('Invoking go-app-builder: %s', ' '.join(gab_argv))
         try:
           p = subprocess.Popen(gab_argv, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env=env)
@@ -3650,11 +3740,9 @@ class AppCfgApp(object):
       self.UpdateUsingSpecificFiles()
       return
 
-    if (self._JavaSupported() and
-        appcfg_java.IsWarFileWithoutYaml(self.basepath)):
+    if JavaSupported() and appcfg_java.IsWarFileWithoutYaml(self.basepath):
       java_app_update = appcfg_java.JavaAppUpdate(self.basepath, self.options)
-      self.options.compile_jsps = True
-
+      self.options.compile_jsps = not java_app_update.app_engine_web_xml.vm
 
 
 
@@ -3810,7 +3898,7 @@ class AppCfgApp(object):
     parser.add_option('--no_usage_reporting', action='store_false',
                       dest='usage_reporting', default=True,
                       help='Disable usage reporting.')
-    if self._JavaSupported():
+    if JavaSupported():
       appcfg_java.AddUpdateOptions(parser)
 
   def VacuumIndexes(self):
@@ -3981,8 +4069,7 @@ class AppCfgApp(object):
       self.backend = self.args[0]
     elif len(self.args) > 1:
       self.parser.error('Expected an optional <backend> argument.')
-    if (self._JavaSupported() and
-        appcfg_java.IsWarFileWithoutYaml(self.basepath)):
+    if JavaSupported() and appcfg_java.IsWarFileWithoutYaml(self.basepath):
       java_app_update = appcfg_java.JavaAppUpdate(self.basepath, self.options)
       self.options.compile_jsps = True
       sdk_root = os.path.dirname(appcfg_java.__file__)
@@ -4124,8 +4211,8 @@ class AppCfgApp(object):
 
     print >> self.out_fh, response
 
-  def DebugAction(self):
-    """Sets the specified version and instance for an app to be debuggable."""
+  def _LockingAction(self, url):
+    """Changes the locking state for a given version."""
     if len(self.args) == 1:
       appyaml = self._ParseAppInfoFromYaml(self.args[0])
       app_id = appyaml.application
@@ -4150,8 +4237,38 @@ class AppCfgApp(object):
       version = self.options.version
 
     rpcserver = self._GetRpcServer()
-    DoDebugAction(
-        rpcserver, app_id, version, module, self.out_fh).Do()
+    DoLockAction(
+        url,
+        rpcserver,
+        app_id, version, module,
+        self.options.instance,
+        self.out_fh).Do()
+
+  def DebugAction(self):
+    """Sets the specified version and instance for an app to be debuggable."""
+    self._LockingAction('/api/vms/debug')
+
+  def LockAction(self):
+    """Locks the specified version and instance for an app."""
+    self._LockingAction('/api/vms/lock')
+
+  def _LockActionOptions(self, parser):
+    """Adds lock/unlock-specific options to 'parser'.
+
+    Args:
+      parser: An instance of OptionsParser.
+    """
+    parser.add_option('-I', '--instance', type='string', dest='instance',
+                      help='Instance to lock/unlock.')
+
+  def PrepareVmRuntimeAction(self):
+    """Prepare the application for vm runtimes and return state."""
+    if not self.options.app_id:
+      self.parser.error('Expected an --application argument')
+    rpcserver = self._GetRpcServer()
+    response = rpcserver.Send('/api/vms/prepare',
+                              app_id=self.options.app_id)
+    print >> self.out_fh, response
 
   def _ParseAndValidateModuleYamls(self, yaml_paths):
     """Validates given yaml paths and returns the parsed yaml objects.
@@ -5194,13 +5311,35 @@ application."""),
 
       'debug': Action(
           function='DebugAction',
-          usage='%prog [options] debug [-A app_id] [-V version] '
-          ' [-M module] [directory]',
+          usage='%prog [options] debug [-A app_id] [-V version]'
+          ' [-M module] [-I instance] [directory]',
+          options=_LockActionOptions,
           short_desc='Debug a vm runtime application.',
           hidden=True,
           uses_basepath=False,
           long_desc="""
-The 'debug' command configures a vm runtime to be accessable for debugging."""),
+The 'debug' command configures a vm runtime application to be accessable
+for debugging."""),
+
+      'lock': Action(
+          function='LockAction',
+          usage='%prog [options] lock [-A app_id] [-V version]'
+          ' [-M module] [-I instance] [directory]',
+          options=_LockActionOptions,
+          short_desc='Lock a debugged vm runtime application.',
+          hidden=True,
+          uses_basepath=False,
+          long_desc="""
+The 'lock' command relocks a debugged vm runtime application."""),
+
+      'prepare_vm_runtime': Action(
+          function='PrepareVmRuntimeAction',
+          usage='%prog [options] prepare_vm_runtime -A app_id',
+          short_desc='Prepare an application for the VM runtime.',
+          hidden=True,
+          uses_basepath=False,
+          long_desc="""
+The 'prepare_vm_runtime' prepares an application for the VM runtime."""),
   }
 
 

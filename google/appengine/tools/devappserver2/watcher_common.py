@@ -17,8 +17,10 @@
 """Common functionality for file watchers."""
 
 
-# Directories that we should not watch at all.
-_IGNORED_DIRS = ('.git', '.hg', '.svn')
+import os
+
+# A prefix for files and directories that we should not watch at all.
+_IGNORED_PREFIX = '.'
 # File suffixes that should be ignored.
 _IGNORED_FILE_SUFFIXES = (
     # Python temporaries
@@ -36,11 +38,47 @@ _IGNORED_FILE_SUFFIXES = (
 
 def ignore_file(filename):
   """Report whether a file should not be watched."""
-  return any(filename.endswith(suffix) for suffix in _IGNORED_FILE_SUFFIXES)
+  filename = os.path.basename(filename)
+  return (
+      filename.startswith(_IGNORED_PREFIX) or
+      any(filename.endswith(suffix) for suffix in _IGNORED_FILE_SUFFIXES))
 
 
-def remove_ignored_dirs(dirs):
-  """Remove directories from dirs that should not be watched."""
-  for d in _IGNORED_DIRS:
-    if d in dirs:
-      dirs.remove(d)
+def _remove_pred(lst, pred):
+  """Remove items from a list that match a predicate."""
+
+  # Walk the list in reverse because once an item is deleted,
+  # the indexes of any subsequent items change.
+  for idx in reversed(xrange(len(lst))):
+    if pred(lst[idx]):
+      del lst[idx]
+
+
+def skip_ignored_dirs(dirs):
+  """Skip directories that should not be watched."""
+
+  _remove_pred(dirs, lambda d: d.startswith(_IGNORED_PREFIX))
+
+
+def skip_local_symlinks(roots, dirpath, directories):
+  """Skip symlinks that link to another watched directory.
+
+  Our algorithm gets confused when the same directory is watched multiple times
+  due to symlinks.
+
+  Args:
+    roots: The realpath of the root of all directory trees being watched.
+    dirpath: The base directory that each of the directories are in (i.e.
+      the first element of a triplet obtained from os.walkpath).
+    directories: A list of directories in dirpath. This list is modified so
+      that any element which is a symlink to another directory is removed.
+  """
+
+  def is_local_symlink(d):
+    d = os.path.join(dirpath, d)
+    if not os.path.islink(d):
+      return False
+    d = os.path.realpath(d)
+    return any(d.startswith(root) for root in roots)
+
+  _remove_pred(directories, is_local_symlink)

@@ -132,10 +132,15 @@ def _get_default_php_path():
         os.path.join(os.path.dirname(sys.argv[0]),
                      'php/php-5.4-Win32-VC9-x86/php-cgi.exe'))
   elif sys.platform == 'darwin':
-    default_php_executable_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))),
-            'php-cgi'))
+    # The Cloud SDK uses symlinks in its packaging of the Mac Launcher.  First
+    # try to find PHP relative to the apsolute path of this executable.  If that
+    # doesn't work, try using the path without dereferencing all symlinks.
+    base_paths = [os.path.realpath(sys.argv[0]), sys.argv[0]]
+    for base_path in base_paths:
+      default_php_executable_path = os.path.abspath(
+          os.path.join(os.path.dirname(os.path.dirname(base_path)), 'php-cgi'))
+      if os.path.exists(default_php_executable_path):
+        break
 
   if (default_php_executable_path and
       os.path.exists(default_php_executable_path)):
@@ -317,6 +322,10 @@ def create_command_line_parser():
 
   common_group = parser.add_argument_group('Common')
   common_group.add_argument(
+      '-A', '--application', action='store', dest='app_id',
+      help='Set the application, overriding the application value from the '
+      'app.yaml file.')
+  common_group.add_argument(
       '--host', default='localhost',
       help='host name to which application modules should bind')
   common_group.add_argument(
@@ -375,6 +384,16 @@ def create_command_line_parser():
                          const=True,
                          default=False,
                          help='enable XDebug remote debugging')
+
+  # Dart
+  dart_group = parser.add_argument_group('Dart')
+  dart_group.add_argument('--dart_sdk', help=argparse.SUPPRESS)
+  dart_group.add_argument('--dart_dev_mode',
+                          choices=['dev', 'deploy'],
+                          help=argparse.SUPPRESS)
+  dart_group.add_argument('--dart_pub_serve_host', help=argparse.SUPPRESS)
+  dart_group.add_argument('--dart_pub_serve_port',
+                          type=PortParser(), help=argparse.SUPPRESS)
 
   # App Identity
   appidentity_group = parser.add_argument_group('Application Identity')
@@ -692,7 +711,7 @@ class DevelopmentServer(object):
         _LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
 
     configuration = application_configuration.ApplicationConfiguration(
-        options.config_paths)
+        options.config_paths, options.app_id)
 
     if options.enable_cloud_datastore:
       # This requires the oauth server stub to return that the logged in user
@@ -885,6 +904,14 @@ class DevelopmentServer(object):
     vm_config = runtime_config_pb2.VMConfig()
     if options.docker_daemon_url:
       vm_config.docker_daemon_url = options.docker_daemon_url
+    if options.dart_sdk:
+      vm_config.dart_config.dart_sdk = os.path.abspath(options.dart_sdk)
+    if options.dart_dev_mode:
+      vm_config.dart_config.dart_dev_mode = options.dart_dev_mode
+    if options.dart_pub_serve_host:
+      vm_config.dart_config.dart_pub_serve_host = options.dart_pub_serve_host
+    if options.dart_pub_serve_port:
+      vm_config.dart_config.dart_pub_serve_port = options.dart_pub_serve_port
     return vm_config
 
   @staticmethod

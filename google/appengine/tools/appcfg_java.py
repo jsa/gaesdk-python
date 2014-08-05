@@ -74,6 +74,10 @@ def AddUpdateOptions(parser):
                     dest='retain_upload_dir', default=False,
                     help='Do not delete temporary (staging) directory used '
                     'in uploading Java apps')
+  parser.add_option('--no_symlinks', action='store_true',
+                    dest='no_symlinks', default=False,
+                    help='Do not use symbolic links when making the temporary '
+                    '(staging) directory for uploading Java apps')
   parser.add_option('--compile_encoding', action='store',
                     dest='compile_encoding', default='UTF-8',
                     help='Set the encoding to be used when compiling Java '
@@ -87,6 +91,17 @@ def AddUpdateOptions(parser):
   parser.add_option('--enable_jar_classes', action='store_true',
                     dest='do_jar_classes', default=False,
                     help='Jar the WEB-INF/classes content.')
+  parser.add_option('--enable_jar_splitting', action='store_true',
+                    dest='do_jar_splitting', default=False,
+                    help='Split large jar files (> 32M) into smaller '
+                    'fragments.')
+  parser.add_option('--jar_splitting_excludes', action='store',
+                    dest='jar_splitting_exclude_suffixes', default='',
+                    help='When --enable_jar_splitting is specified and '
+                    '--jar_splitting_excludes specifies a comma-separated list '
+                    'of suffixes, a file in a jar whose name ends with one '
+                    'of the suffixes will not be included in the split jar '
+                    'fragments.')
 
 
 class JavaAppUpdate(object):
@@ -118,8 +133,11 @@ class JavaAppUpdate(object):
   _XML_VALIDATOR_CLASS = 'com.google.appengine.tools.admin.XmlValidator'
 
   def __init__(self, basepath, options):
-    self.basepath = basepath
+    self.basepath = os.path.abspath(basepath)
     self.options = options
+    if not hasattr(self.options, 'no_symlinks'):
+
+      self.options.no_symlinks = True
 
     java_home, exec_suffix = _JavaHomeAndSuffix()
     self.java_command = os.path.join(java_home, 'bin', 'java' + exec_suffix)
@@ -213,11 +231,10 @@ class JavaAppUpdate(object):
       ConfigurationError: if the app to be staged has a configuration error.
       IOError: if there was an I/O problem, for example when scanning jar files.
     """
-    full_basepath = os.path.abspath(self.basepath)
     stage_dir = tempfile.mkdtemp(prefix='appcfgpy')
     static_dir = os.path.join(stage_dir, '__static__')
     os.mkdir(static_dir)
-    self._CopyOrLink(full_basepath, stage_dir, static_dir, False)
+    self._CopyOrLink(self.basepath, stage_dir, static_dir, False)
     self.app_engine_web_xml.app_root = stage_dir
 
     if self.options.compile_jsps:
@@ -292,6 +309,9 @@ class JavaAppUpdate(object):
       handle.write(yaml_str)
 
   def _CopyOrLink(self, source_dir, stage_dir, static_dir, inside_web_inf):
+    source_dir = os.path.abspath(source_dir)
+    stage_dir = os.path.abspath(stage_dir)
+    static_dir = os.path.abspath(static_dir)
     for file_name in os.listdir(source_dir):
       file_path = os.path.join(source_dir, file_name)
 
@@ -316,12 +336,15 @@ class JavaAppUpdate(object):
 
   def _CopyOrLinkFile(self, source, dest):
 
-    if not os.path.exists(os.path.dirname(dest)):
-      os.makedirs(os.path.dirname(dest))
-    if not source.endswith('web.xml'):
+    destdir = os.path.dirname(dest)
+    if not os.path.exists(destdir):
+      os.makedirs(destdir)
+    if self._ShouldSplitJar(source):
+      self._SplitJar(source, destdir)
+    elif source.endswith('web.xml') or self.options.no_symlinks:
+      shutil.copy(source, dest)
+    else:
       os.symlink(source, dest)
-      return
-    shutil.copy(source, dest)
 
   def _MoveDirectoryContents(self, source_dir, dest_dir):
     """Move the contents of source_dir to dest_dir, which might not exist.
@@ -344,6 +367,32 @@ class JavaAppUpdate(object):
           raise IOError('Cannot overwrite existing %s' % dest_entry)
       else:
         shutil.move(source_entry, dest_entry)
+
+  _MAX_SIZE = 32 * 1000 * 1000
+
+
+  def _ShouldSplitJar(self, path):
+    return (path.lower().endswith('.jar') and self.options.do_jar_splitting and
+            os.path.getsize(path) >= self._MAX_SIZE)
+
+  def _SplitJar(self, jar_path, dest_dir):
+    """Split a source jar into two or more jars in the given dest_dir.
+
+    Args:
+      jar_path: string that is the path to jar to be split. The contents of this
+        jar will be copied into the output jars, but the jar itself will not be
+        affected.
+      dest_dir: directory into which to put the jars that result from splitting
+        the input jar.
+
+    Raises:
+      IOError: if the jar cannot be split.
+    """
+
+    exclude_suffixes = (
+        set(self.options.jar_splitting_exclude_suffixes.split(',')) - set(['']))
+    include = lambda name: not any(name.endswith(s) for s in exclude_suffixes)
+    jarfile.SplitJar(jar_path, dest_dir, self._MAX_SIZE, include)
 
   @staticmethod
   def _GetStaticFileList(staging_dir):
