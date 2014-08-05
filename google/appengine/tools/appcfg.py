@@ -1123,7 +1123,7 @@ class LogsRequester(object):
     for line in lines:
       if line.startswith('#'):
         match = re.match(r'^#\s*next_offset=(\S+)\s*$', line)
-        if match:
+        if match and match.group(1) != 'None':
           offset = match.group(1)
         continue
 
