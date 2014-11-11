@@ -47,6 +47,7 @@ class ModuleConfigurationStub(object):
   def __init__(self, application, module_name, version, manual_scaling):
     self.application_root = '/'
     self.application = application
+    self.application_external_name = 'app'
     self.module_name = module_name
     self.major_version = version
     self.version_id = '%s:%s.%s' % (module_name, version, '12345')
@@ -104,6 +105,7 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
         runtime_stderr_loglevel=1,
         php_config=None,
         python_config=None,
+        java_config=None,
         cloud_sql_config=None,
         unused_vm_config=None,
         default_version_port=8080,
@@ -146,6 +148,7 @@ class ManualScalingModuleFacade(module.ManualScalingModule):
         runtime_stderr_loglevel=1,
         php_config=None,
         python_config=None,
+        java_config=None,
         cloud_sql_config=None,
         vm_config=None,
         default_version_port=8080,
@@ -188,6 +191,7 @@ def _make_dispatcher(app_config):
       1,
       php_config=None,
       python_config=None,
+      java_config=None,
       cloud_sql_config=None,
       vm_config=None,
       module_to_max_instances={},

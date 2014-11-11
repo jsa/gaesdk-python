@@ -17,6 +17,7 @@
 """Manage the lifecycle of runtime processes and dispatch requests to them."""
 
 
+
 import collections
 import cStringIO
 import functools
@@ -50,6 +51,7 @@ from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import file_watcher
 from google.appengine.tools.devappserver2 import gcs_server
 from google.appengine.tools.devappserver2 import go_runtime
+from google.appengine.tools.devappserver2 import health_check_service
 from google.appengine.tools.devappserver2 import http_runtime_constants
 from google.appengine.tools.devappserver2 import instance
 try:
@@ -106,6 +108,13 @@ _REDIRECT_HTML = '''\
 The document has moved'
 <A HREF="%(correct-url)s">here</A>.
 </BODY></HTML>'''
+
+_TIMEOUT_HTML = '<HTML><BODY>503 - This request has timed out.</BODY></HTML>'
+
+# Factor applied to the request timeouts to compensate for the
+# long vmengines reloads. TODO eventually remove that once we have
+# optimized the vm_engine reload.
+_VMENGINE_SLOWDOWN_FACTOR = 2
 
 
 def _static_files_regex_from_handlers(handlers):
@@ -170,6 +179,18 @@ class Module(object):
         'java': java_runtime.JavaRuntimeInstanceFactory,
         'java7': java_runtime.JavaRuntimeInstanceFactory,
     })
+
+  _MAX_REQUEST_WAIT_TIME = 10
+
+  def _get_wait_time(self):
+    """Gets the wait time before timing out a request.
+
+    Returns:
+      The timeout value in seconds.
+    """
+    if self.vm_enabled():
+      return self._MAX_REQUEST_WAIT_TIME * _VMENGINE_SLOWDOWN_FACTOR
+    return self._MAX_REQUEST_WAIT_TIME
 
   def _create_instance_factory(self,
                                module_configuration):
@@ -313,6 +334,9 @@ class Module(object):
     if (self._python_config and
         self._module_configuration.runtime.startswith('python')):
       runtime_config.python_config.CopyFrom(self._python_config)
+    if (self._java_config and
+        self._module_configuration.runtime.startswith('java')):
+      runtime_config.java_config.CopyFrom(self._java_config)
 
     if self._vm_config:
       runtime_config.vm_config.CopyFrom(self._vm_config)
@@ -352,14 +376,15 @@ class Module(object):
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    has_file_changes = self._watcher.has_changes()
-
+    file_changes = self._watcher.changes()
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
-    if has_file_changes:
+    if file_changes:
+      logging.info(
+          'Detected file changes:\n  %s', '\n  '.join(sorted(file_changes)))
       self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
@@ -367,7 +392,7 @@ class Module(object):
 
     self._maybe_restart_instances(
         config_changed=bool(config_changes & _RESTART_INSTANCES_CONFIG_CHANGES),
-        file_changed=has_file_changes)
+        file_changed=bool(file_changes))
 
   def __init__(self,
                module_configuration,
@@ -379,6 +404,7 @@ class Module(object):
                runtime_stderr_loglevel,
                php_config,
                python_config,
+               java_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -408,8 +434,9 @@ class Module(object):
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are
-          used.
+          Python runtime-specific configuration. If None then defaults are used.
+      java_config: A runtime_config_pb2.JavaConfig instance containing
+          Java runtime-specific configuration. If None then defaults are used.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -437,6 +464,8 @@ class Module(object):
     """
     self._module_configuration = module_configuration
     self._name = module_configuration.module_name
+    self._version = module_configuration.major_version
+    self._app_name_external = module_configuration.application_external_name
     self._host = host
     self._api_host = api_host
     self._api_port = api_port
@@ -445,6 +474,7 @@ class Module(object):
     self._balanced_port = balanced_port
     self._php_config = php_config
     self._python_config = python_config
+    self._java_config = java_config
     self._cloud_sql_config = cloud_sql_config
     self._vm_config = vm_config
     self._request_data = request_data
@@ -457,8 +487,7 @@ class Module(object):
     self._default_version_port = default_version_port
     self._port_registry = port_registry
 
-    # TODO: remove when GA.
-    if self._vm_config and self._vm_config.HasField('docker_daemon_url'):
+    if self.vm_enabled():
       self._RUNTIME_INSTANCE_FACTORIES['vm'] = (
           vm_runtime_factory.VMRuntimeInstanceFactory)
 
@@ -477,6 +506,10 @@ class Module(object):
         (self._host, self._balanced_port), self)
     self._quit_event = threading.Event()  # Set when quit() has been called.
 
+  def vm_enabled(self):
+    # TODO: change when GA
+    return self._vm_config
+
   @property
   def name(self):
     """The name of the module, as defined in app.yaml.
@@ -485,6 +518,24 @@ class Module(object):
     module configuration changes.
     """
     return self._name
+
+  @property
+  def version(self):
+    """The version of the module, as defined in app.yaml.
+
+    This value will be constant for the lifetime of the module even in the
+    module configuration changes.
+    """
+    return self._version
+
+  @property
+  def app_name_external(self):
+    """The external application name of the module, as defined in app.yaml.
+
+    This value will be constant for the lifetime of the module even in the
+    module configuration changes.
+    """
+    return self._app_name_external
 
   @property
   def ready(self):
@@ -521,6 +572,16 @@ class Module(object):
     return self._module_configuration
 
   @property
+  def runtime(self):
+    """Runtime property for this module."""
+    return self._module_configuration.runtime
+
+  @property
+  def effective_runtime(self):
+    """Effective_runtime property for this module."""
+    return self._module_configuration.effective_runtime
+
+  @property
   def supports_interactive_commands(self):
     """True if the module can evaluate arbitrary code and return the result."""
     return self._instance_factory.SUPPORTS_INTERACTIVE_REQUESTS
@@ -553,7 +614,13 @@ class Module(object):
     start_response('404 Not Found', [('Content-Type', 'text/plain')])
     return ['The url "%s" does not match any handlers.' % environ['PATH_INFO']]
 
-  def _error_response(self, environ, start_response, status):
+  def _error_response(self, environ, start_response, status, body=None):
+    if body:
+      start_response(
+          '%d %s' % (status, httplib.responses[status]),
+          [('Content-Type', 'text/html'),
+           ('Content-Length', str(len(body)))])
+      return body
     start_response('%d %s' % (status, httplib.responses[status]), [])
     return []
 
@@ -661,6 +728,12 @@ class Module(object):
         # unavailable if the connection is closed before the client can send
         # all the data. To match the behavior of production, for large files
         # < 64M read the data to prevent the client bug from being triggered.
+
+
+
+
+
+
 
         if content_length <= _MAX_UPLOAD_NO_TRIGGER_BAD_CLIENT_BYTES:
           environ['wsgi.input'].read(content_length)
@@ -893,6 +966,7 @@ class Module(object):
                                       self._runtime_stderr_loglevel,
                                       self._php_config,
                                       self._python_config,
+                                      self._java_config,
                                       self._cloud_sql_config,
                                       self._vm_config,
                                       self._default_version_port,
@@ -997,6 +1071,7 @@ class AutoScalingModule(Module):
                runtime_stderr_loglevel,
                php_config,
                python_config,
+               java_config,
                cloud_sql_config,
                unused_vm_config,
                default_version_port,
@@ -1027,8 +1102,9 @@ class AutoScalingModule(Module):
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are
-          used.
+          Python runtime-specific configuration. If None then defaults are used.
+      java_config: A runtime_config_pb2.JavaConfig instance containing
+          Java runtime-specific configuration. If None then defaults are used.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -1063,6 +1139,7 @@ class AutoScalingModule(Module):
                                             runtime_stderr_loglevel,
                                             php_config,
                                             python_config,
+                                            java_config,
                                             cloud_sql_config,
                                             # VM runtimes does not support
                                             # autoscaling.
@@ -1076,7 +1153,6 @@ class AutoScalingModule(Module):
                                             automatic_restarts,
                                             allow_skipped_files,
                                             threadsafe_override)
-
 
     self._process_automatic_scaling(
         self._module_configuration.automatic_scaling)
@@ -1414,7 +1490,6 @@ class ManualScalingModule(Module):
   """A pool of instances that is manually-scaled."""
 
   _DEFAULT_MANUAL_SCALING = appinfo.ManualScaling(instances='1')
-  _MAX_REQUEST_WAIT_TIME = 10
 
   @classmethod
   def _populate_default_manual_scaling(cls, manual_scaling):
@@ -1440,6 +1515,7 @@ class ManualScalingModule(Module):
                runtime_stderr_loglevel,
                php_config,
                python_config,
+               java_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -1451,7 +1527,6 @@ class ManualScalingModule(Module):
                automatic_restarts,
                allow_skipped_files,
                threadsafe_override):
-
     """Initializer for ManualScalingModule.
 
     Args:
@@ -1471,8 +1546,9 @@ class ManualScalingModule(Module):
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are
-          used.
+          Python runtime-specific configuration. If None then defaults are used.
+      java_config: A runtime_config_pb2.JavaConfig instance containing
+          Java runtime-specific configuration. If None then defaults are used.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -1507,6 +1583,7 @@ class ManualScalingModule(Module):
                                               runtime_stderr_loglevel,
                                               php_config,
                                               python_config,
+                                              java_config,
                                               cloud_sql_config,
                                               vm_config,
                                               default_version_port,
@@ -1518,7 +1595,6 @@ class ManualScalingModule(Module):
                                               automatic_restarts,
                                               allow_skipped_files,
                                               threadsafe_override)
-
 
     self._process_manual_scaling(module_configuration.manual_scaling)
 
@@ -1614,7 +1690,7 @@ class ManualScalingModule(Module):
       An iterable over strings containing the body of the HTTP response.
     """
     start_time = time.time()
-    timeout_time = start_time + self._MAX_REQUEST_WAIT_TIME
+    timeout_time = start_time + self._get_wait_time()
     try:
       while time.time() < timeout_time:
         logging.debug('Dispatching request to %s after %0.4fs pending',
@@ -1672,7 +1748,8 @@ class ManualScalingModule(Module):
           request_type)
 
     start_time = time.time()
-    timeout_time = start_time + self._MAX_REQUEST_WAIT_TIME
+    timeout_time = start_time + self._get_wait_time()
+
     while time.time() < timeout_time:
       if ((request_type in (instance.NORMAL_REQUEST, instance.READY_REQUEST) and
            self._suspended) or self._quit_event.is_set()):
@@ -1690,7 +1767,7 @@ class ManualScalingModule(Module):
           with self._condition:
             self._condition.notify()
     else:
-      return self._error_response(environ, start_response, 503)
+      return self._error_response(environ, start_response, 503, _TIMEOUT_HTML)
 
   def _add_instance(self):
     """Creates and adds a new instance.Instance to the Module.
@@ -1705,6 +1782,12 @@ class ManualScalingModule(Module):
         (self._host, 0), functools.partial(self._handle_request, inst=inst))
     wsgi_servr.start()
     self._port_registry.add(wsgi_servr.port, self, inst)
+
+    health_check_config = self.module_configuration.vm_health_check
+    if (self.module_configuration.runtime == 'vm' and
+        health_check_config.enable_health_check):
+      self._add_health_checks(inst, wsgi_servr, health_check_config)
+
     with self._condition:
       if self._quit_event.is_set():
         return
@@ -1713,6 +1796,15 @@ class ManualScalingModule(Module):
       suspended = self._suspended
     if not suspended:
       self._async_start_instance(wsgi_servr, inst)
+
+  def _add_health_checks(self, inst, wsgi_servr, config):
+    do_health_check = functools.partial(
+        self._do_health_check, wsgi_servr, inst)
+    restart_instance = functools.partial(
+        self._restart_instance, inst)
+    health_checker = health_check_service.HealthChecker(
+        inst, config, do_health_check, restart_instance)
+    health_checker.start()
 
   def _async_start_instance(self, wsgi_servr, inst):
     return _THREAD_POOL.submit(self._start_instance, wsgi_servr, inst)
@@ -1741,6 +1833,20 @@ class ManualScalingModule(Module):
     except Exception, e:  # pylint: disable=broad-except
       logging.exception('Internal error while handling start request: %s', e)
 
+  def _do_health_check(self, wsgi_servr, inst, start_response,
+                       is_last_successful):
+    is_last_successful = 'yes' if is_last_successful else 'no'
+    url = '/_ah/health?%s' % urllib.urlencode(
+        [('IsLastSuccessful', is_last_successful)])
+    environ = self.build_request_environ(
+        'GET', url, [], '', '', wsgi_servr.port,
+        fake_login=True)
+    return self._handle_request(
+        environ,
+        start_response,
+        inst=inst,
+        request_type=instance.NORMAL_REQUEST)
+
   def _choose_instance(self, timeout_time):
     """Returns an Instance to handle a request or None if all are busy."""
     with self._condition:
@@ -1756,20 +1862,21 @@ class ManualScalingModule(Module):
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    has_file_changes = self._watcher.has_changes()
-
+    file_changes = self._watcher.changes()
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
-    if has_file_changes:
+    if file_changes:
+      logging.info(
+          'Detected file changes:\n  %s', '\n  '.join(sorted(file_changes)))
       self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
       self._instance_factory.configuration_changed(config_changes)
 
-    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or has_file_changes:
+    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or file_changes:
       with self._instances_change_lock:
         if not self._suspended:
           self.restart()
@@ -1888,11 +1995,40 @@ class ManualScalingModule(Module):
         self._async_start_instance(wsgi_servr, inst)
         for wsgi_servr, inst in zip(wsgi_servers, instances_to_start)]
     logging.info('Waiting for instances to restart')
+
+    health_check_config = self.module_configuration.vm_health_check
+    for (inst, wsgi_servr) in zip(instances_to_start, wsgi_servers):
+      if (self.module_configuration.runtime == 'vm'
+          and health_check_config.enable_health_check):
+        self._add_health_checks(inst, wsgi_servr, health_check_config)
+
     _, not_done = futures.wait(start_futures, timeout=_SHUTDOWN_TIMEOUT)
     if not_done:
       logging.warning('All instances may not have restarted')
     else:
       logging.info('Instances restarted')
+
+  def _restart_instance(self, inst):
+    """Restarts the specified instance."""
+    with self._instances_change_lock:
+      # Quit the old instance.
+      inst.quit(force=True)
+      # Create the new instance.
+      new_instance = self._instance_factory.new_instance(inst.instance_id)
+      wsgi_servr = self._wsgi_servers[inst.instance_id]
+      wsgi_servr.set_app(
+          functools.partial(self._handle_request, inst=new_instance))
+      self._port_registry.add(wsgi_servr.port, self, new_instance)
+      # Start the new instance.
+      self._start_instance(wsgi_servr, new_instance)
+    health_check_config = self.module_configuration.vm_health_check
+    if (self.module_configuration.runtime == 'vm'
+        and health_check_config.enable_health_check):
+      self._add_health_checks(new_instance, wsgi_servr, health_check_config)
+      # Replace it in the module registry.
+    with self._instances_change_lock:
+      with self._condition:
+        self._instances[new_instance.instance_id] = new_instance
 
   def get_instance(self, instance_id):
     """Returns the instance with the provided instance ID."""
@@ -1915,7 +2051,6 @@ class BasicScalingModule(Module):
 
   _DEFAULT_BASIC_SCALING = appinfo.BasicScaling(max_instances='1',
                                                 idle_timeout='15m')
-  _MAX_REQUEST_WAIT_TIME = 10
 
   @staticmethod
   def _parse_idle_timeout(timing):
@@ -1962,6 +2097,7 @@ class BasicScalingModule(Module):
                runtime_stderr_loglevel,
                php_config,
                python_config,
+               java_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -1973,7 +2109,6 @@ class BasicScalingModule(Module):
                automatic_restarts,
                allow_skipped_files,
                threadsafe_override):
-
     """Initializer for BasicScalingModule.
 
     Args:
@@ -1993,8 +2128,9 @@ class BasicScalingModule(Module):
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are
-          used.
+          Python runtime-specific configuration. If None then defaults are used.
+      java_config: A runtime_config_pb2.JavaConfig instance containing
+          Java runtime-specific configuration. If None then defaults are used.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -2029,6 +2165,7 @@ class BasicScalingModule(Module):
                                              runtime_stderr_loglevel,
                                              php_config,
                                              python_config,
+                                             java_config,
                                              cloud_sql_config,
                                              vm_config,
                                              default_version_port,
@@ -2136,7 +2273,7 @@ class BasicScalingModule(Module):
     """
     instance_id = inst.instance_id
     start_time = time.time()
-    timeout_time = start_time + self._MAX_REQUEST_WAIT_TIME
+    timeout_time = start_time + self._get_wait_time()
     try:
       while time.time() < timeout_time:
         logging.debug('Dispatching request to %s after %0.4fs pending',
@@ -2202,7 +2339,7 @@ class BasicScalingModule(Module):
           request_type)
 
     start_time = time.time()
-    timeout_time = start_time + self._MAX_REQUEST_WAIT_TIME
+    timeout_time = start_time + self._get_wait_time()
     while time.time() < timeout_time:
       if self._quit_event.is_set():
         return self._error_response(environ, start_response, 404)
@@ -2219,7 +2356,7 @@ class BasicScalingModule(Module):
           with self._condition:
             self._condition.notify()
     else:
-      return self._error_response(environ, start_response, 503)
+      return self._error_response(environ, start_response, 503, _TIMEOUT_HTML)
 
   def _start_any_instance(self):
     """Choose an inactive instance and start it asynchronously.
@@ -2288,20 +2425,20 @@ class BasicScalingModule(Module):
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    has_file_changes = self._watcher.has_changes()
+    file_changes = self._watcher.changes()
 
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
-    if has_file_changes:
+    if file_changes:
       self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
       self._instance_factory.configuration_changed(config_changes)
 
-    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or has_file_changes:
+    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES or file_changes:
       self.restart()
 
   def _loop_watching_for_changes_and_idle_instances(self):
@@ -2394,6 +2531,7 @@ class InteractiveCommandModule(Module):
                runtime_stderr_loglevel,
                php_config,
                python_config,
+               java_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -2424,8 +2562,9 @@ class InteractiveCommandModule(Module):
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are
-          used.
+          Python runtime-specific configuration. If None then defaults are used.
+      java_config: A runtime_config_pb2.JavaConfig instance containing
+          Java runtime-specific configuration. If None then defaults are used.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -2457,6 +2596,7 @@ class InteractiveCommandModule(Module):
         runtime_stderr_loglevel,
         php_config,
         python_config,
+        java_config,
         cloud_sql_config,
         vm_config,
         default_version_port,
@@ -2515,7 +2655,7 @@ class InteractiveCommandModule(Module):
     assert request_type == instance.INTERACTIVE_REQUEST
 
     start_time = time.time()
-    timeout_time = start_time + self._MAX_REQUEST_WAIT_TIME
+    timeout_time = start_time + self._get_wait_time()
 
     while time.time() < timeout_time:
       new_instance = False

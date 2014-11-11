@@ -22,6 +22,8 @@ import warnings
 
 from google.appengine.tools.devappserver2 import watcher_common
 
+_MAX_MONITORED_FILES = 10000
+
 
 class MtimeFileWatcher(object):
   """Monitors a directory tree for changes using mtime polling."""
@@ -31,60 +33,61 @@ class MtimeFileWatcher(object):
 
   def __init__(self, directory):
     self._directory = directory
-    self._quit_event = threading.Event()
     self._filename_to_mtime = None
-    self._has_changes = False
-    self._has_changes_lock = threading.Lock()
-    self._watcher_thread = threading.Thread(target=self._watch_changes)
-    self._watcher_thread.daemon = True
+    self._startup_thread = None
+
+  def _first_pass(self):
+    self._filename_to_mtime = (
+        MtimeFileWatcher._generate_filename_to_mtime(self._directory))
 
   def start(self):
     """Start watching a directory for changes."""
-    self._watcher_thread.start()
+    self._startup_thread = threading.Thread(target=self._first_pass)
+    self._startup_thread.start()
 
   def quit(self):
     """Stop watching a directory for changes."""
-    self._quit_event.set()
+    # TODO: stop the current crawling and join on the start thread.
 
-  def has_changes(self):
-    """Returns True if the watched directory has changed since the last call.
+  def changes(self):
+    """Returns a set of changed files if the watched directory has changed.
 
+    The changes set is reset at every call.
     start() must be called before this method.
 
     Returns:
-      Returns True if the watched directory has changed since the last call to
-      has_changes or, if has_changes has never been called, since start was
-      called.
+      Returns the set of file paths changes if the watched directory has changed
+      since the last call to changes or, if changes has never been called,
+      since start was called.
     """
-    with self._has_changes_lock:
-      has_changes = self._has_changes
-      self._has_changes = False
-    return has_changes
+    self._startup_thread.join()
+    old_filename_to_mtime = self._filename_to_mtime
+    self._filename_to_mtime = (
+        MtimeFileWatcher._generate_filename_to_mtime(self._directory))
+    diff_items = set(self._filename_to_mtime.items()).symmetric_difference(
+        old_filename_to_mtime.items())
+    return {k for k, _ in diff_items}
 
-  def _watch_changes(self):
-    while not self._quit_event.wait(1):
-      self._check_for_changes()
+  @staticmethod
+  def _generate_filename_to_mtime(directory):
+    """Records the state of a directory.
 
-  def _check_for_changes(self):
-    if self._has_changed_paths():
-      with self._has_changes_lock:
-        self._has_changes = True
+    Args:
+      directory: the root directory to traverse.
 
-  def _has_changed_paths(self):
-    self._filename_to_mtime, old_filename_to_mtime = (
-        self._generate_filename_to_mtime(), self._filename_to_mtime)
-    return (old_filename_to_mtime is not None and
-            self._filename_to_mtime != old_filename_to_mtime)
-
-  def _generate_filename_to_mtime(self):
+    Returns:
+      A dictionary of subdirectories and files under
+      directory associated with their timestamps.
+      the keys are absolute paths and values are epoch timestamps.
+    """
     filename_to_mtime = {}
     num_files = 0
-    for dirname, dirnames, filenames in os.walk(self._directory,
+    for dirname, dirnames, filenames in os.walk(directory,
                                                 followlinks=True):
       watcher_common.skip_ignored_dirs(dirnames)
       filenames = [f for f in filenames if not watcher_common.ignore_file(f)]
       for filename in filenames + dirnames:
-        if num_files == 10000:
+        if num_files == _MAX_MONITORED_FILES:
           warnings.warn(
               'There are too many files in your application for '
               'changes in all of them to be monitored. You may have to '
@@ -94,9 +97,7 @@ class MtimeFileWatcher(object):
         num_files += 1
         path = os.path.join(dirname, filename)
         try:
-          mtime = os.path.getmtime(path)
+          filename_to_mtime[path] = os.path.getmtime(path)
         except (IOError, OSError):
           pass
-        else:
-          filename_to_mtime[path] = mtime
     return filename_to_mtime

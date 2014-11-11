@@ -20,6 +20,7 @@ See http://linux.die.net/man/7/inotify.
 """
 
 
+
 import ctypes
 import ctypes.util
 import errno
@@ -45,7 +46,7 @@ IN_ISDIR = 0x40000000
 _INOTIFY_EVENT = struct.Struct('iIII')
 _INOTIFY_EVENT_SIZE = _INOTIFY_EVENT.size
 _INTERESTING_INOTIFY_EVENTS = (
-    IN_ATTRIB|IN_MODIFY|IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE)
+    IN_ATTRIB | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO | IN_CREATE | IN_DELETE)
 
 # inotify only available on Linux and a ctypes.CDLL will raise if code tries to
 # specify the arg types or return type for a non-existent function.
@@ -210,10 +211,16 @@ class InotifyFileWatcher(object):
     """Stop watching the directory for changes."""
     os.close(self._inotify_fd)
 
-  def _get_changed_paths(self):
+  def changes(self, timeout_ms=0):
     """Return paths for changed files and directories.
 
     start() must be called before this method.
+
+    Args:
+      timeout_ms: a timeout in milliseconds on which this watcher will block
+                  waiting for a change. It allows for external polling threads
+                  to react immediately on a change instead of waiting for
+                  a random polling delay.
 
     Returns:
       A set of strings representing file and directory paths that have changed
@@ -221,7 +228,8 @@ class InotifyFileWatcher(object):
     """
     paths = set()
     while True:
-      if not self._inotify_poll.poll(0):
+      # Don't wait to detect subsequent changes after the initial one.
+      if not self._inotify_poll.poll(0 if paths else timeout_ms):
         break
 
       self._inotify_events += os.read(self._inotify_fd, 1024)
@@ -232,14 +240,15 @@ class InotifyFileWatcher(object):
           break
 
         name = self._inotify_events[
-            _INOTIFY_EVENT_SIZE:_INOTIFY_EVENT_SIZE+length]
+            _INOTIFY_EVENT_SIZE:_INOTIFY_EVENT_SIZE + length]
         name = name.rstrip('\0')
 
         logging.debug('wd=%s, mask=%s, cookie=%s, length=%s, name=%r',
                       wd, _bit_str(mask, _ATTRIBUTE_MASK_NAMES), cookie, length,
                       name)
 
-        self._inotify_events = self._inotify_events[_INOTIFY_EVENT_SIZE+length:]
+        self._inotify_events = self._inotify_events[
+            _INOTIFY_EVENT_SIZE + length:]
 
         if mask & IN_IGNORED:
           continue
@@ -262,6 +271,3 @@ class InotifyFileWatcher(object):
         if path not in paths and not watcher_common.ignore_file(path):
           paths.add(path)
     return paths
-
-  def has_changes(self):
-    return bool(self._get_changed_paths())

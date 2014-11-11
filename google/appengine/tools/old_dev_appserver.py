@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
 """Pure-Python application server for testing applications locally.
 
 Given a port and the paths to a valid application directory (with an 'app.yaml'
@@ -33,6 +30,7 @@ Example:
 """
 
 from __future__ import with_statement
+
 
 
 
@@ -3671,8 +3669,6 @@ def SetupStubs(app_id, **config):
         'images',
         images_stub.ImagesServiceStub(host_prefix=host_prefix))
   except ImportError, e:
-    logging.warning('Could not initialize images API; you are likely missing '
-                    'the Python "PIL" module. ImportError: %s', e)
 
     from google.appengine.api.images import images_not_implemented_stub
     apiproxy_stub_map.apiproxy.RegisterStub(

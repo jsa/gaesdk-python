@@ -100,9 +100,9 @@ Description: Requests: HTTP for Humans
         
         2.3.0 (2014-05-16)
         ++++++++++++++++++
-
+        
         **API Changes**
-
+        
         - New ``Response`` property ``is_redirect``, which is true when the
           library could have processed this response as a redirection (whether
           or not it actually did).
@@ -112,9 +112,9 @@ Description: Requests: HTTP for Humans
           Proxy schemes now default to ``http://``.
         - The ``CaseInsensitiveDict`` used for HTTP headers now behaves like a normal
           dictionary when references as string or viewd in the interpreter.
-
+        
         **Bugfixes**
-
+        
         - No longer expose Authorization or Proxy-Authorization headers on redirect.
           Fix CVE-2014-1829 and CVE-2014-1830 respectively.
         - Authorization is re-evaluated each redirect.
@@ -126,7 +126,7 @@ Description: Requests: HTTP for Humans
         - Stop advertising ``compress`` as a supported Content-Encoding.
         - The ``Response.history`` parameter is now always a list.
         - Many, many ``urllib3`` bugfixes.
-
+        
         2.2.1 (2014-01-23)
         ++++++++++++++++++
         

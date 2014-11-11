@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
-
 """Tool for performing authenticated RPCs against App Engine."""
+
 
 
 import google

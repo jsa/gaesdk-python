@@ -17,20 +17,24 @@
 """Appcfg logic specific to Java apps."""
 from __future__ import with_statement
 
+import collections
 import os.path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 
+from google.appengine.datastore import datastore_index
+from google.appengine.datastore import datastore_index_xml
 from google.appengine.tools import app_engine_web_xml_parser
 from google.appengine.tools import backends_xml_parser
 from google.appengine.tools import cron_xml_parser
 from google.appengine.tools import dispatch_xml_parser
 from google.appengine.tools import dos_xml_parser
-from google.appengine.tools import indexes_xml_parser
 from google.appengine.tools import jarfile
+from google.appengine.tools import java_utils
 from google.appengine.tools import queue_xml_parser
 from google.appengine.tools import web_xml_parser
 from google.appengine.tools import yaml_translator
@@ -109,25 +113,17 @@ class JavaAppUpdate(object):
 
   _JSP_REGEX = re.compile('.*\\.jspx?')
 
-  class _XmlParser(object):
-
-
-
-    def __init__(self, xml_name, yaml_name, xml_to_yaml_function):
-      self.xml_name = xml_name
-      self.yaml_name = yaml_name
-      self.xml_to_yaml_function = xml_to_yaml_function
+  _xml_parser = collections.namedtuple(
+      '_xml_parser', ['xml_name', 'yaml_name', 'xml_to_yaml_function'])
 
   _XML_PARSERS = [
-      _XmlParser('backends.xml', 'backends.yaml',
-                 backends_xml_parser.GetBackendsYaml),
-      _XmlParser('cron.xml', 'cron.yaml', cron_xml_parser.GetCronYaml),
-      _XmlParser('datastore-indexes.xml', 'index.yaml',
-                 indexes_xml_parser.GetIndexYaml),
-      _XmlParser('dispatch.xml', 'dispatch.yaml',
-                 dispatch_xml_parser.GetDispatchYaml),
-      _XmlParser('dos.xml', 'dos.yaml', dos_xml_parser.GetDosYaml),
-      _XmlParser('queue.xml', 'queue.yaml', queue_xml_parser.GetQueueYaml),
+      _xml_parser('backends.xml', 'backends.yaml',
+                  backends_xml_parser.GetBackendsYaml),
+      _xml_parser('cron.xml', 'cron.yaml', cron_xml_parser.GetCronYaml),
+      _xml_parser('dispatch.xml', 'dispatch.yaml',
+                  dispatch_xml_parser.GetDispatchYaml),
+      _xml_parser('dos.xml', 'dos.yaml', dos_xml_parser.GetDosYaml),
+      _xml_parser('queue.xml', 'queue.yaml', queue_xml_parser.GetQueueYaml),
   ]
 
   _XML_VALIDATOR_CLASS = 'com.google.appengine.tools.admin.XmlValidator'
@@ -139,7 +135,7 @@ class JavaAppUpdate(object):
 
       self.options.no_symlinks = True
 
-    java_home, exec_suffix = _JavaHomeAndSuffix()
+    java_home, exec_suffix = java_utils.JavaHomeAndSuffix()
     self.java_command = os.path.join(java_home, 'bin', 'java' + exec_suffix)
     self.javac_command = os.path.join(java_home, 'bin', 'javac' + exec_suffix)
 
@@ -274,6 +270,28 @@ class JavaAppUpdate(object):
         with open(yaml_file, 'w') as yaml:
           yaml.write(yaml_string)
 
+
+
+
+
+
+    indexes = []
+    for xml_name in (
+        'datastore-indexes.xml',
+        os.path.join('appengine-generated', 'datastore-indexes-auto.xml')):
+      xml_name = os.path.join(self.basepath, 'WEB-INF', xml_name)
+      if os.path.exists(xml_name):
+        with open(xml_name) as xml_file:
+          xml_string = xml_file.read()
+        index_definitions = datastore_index_xml.IndexesXmlToIndexDefinitions(
+            xml_string)
+        indexes.extend(index_definitions.indexes)
+    if indexes:
+      yaml_string = datastore_index.IndexDefinitions(indexes=indexes).ToYAML()
+      yaml_file = os.path.join(appengine_generated, 'index.yaml')
+      with open(yaml_file, 'w') as yaml:
+        yaml.write(yaml_string)
+
     return stage_dir
 
   def GenerateAppYamlString(self, static_file_list, api_version=None):
@@ -341,7 +359,11 @@ class JavaAppUpdate(object):
       os.makedirs(destdir)
     if self._ShouldSplitJar(source):
       self._SplitJar(source, destdir)
-    elif source.endswith('web.xml') or self.options.no_symlinks:
+    elif source.endswith('web.xml'):
+      shutil.copy(source, dest)
+      os.chmod(dest, os.stat(dest).st_mode | stat.S_IWRITE)
+
+    elif self.options.no_symlinks:
       shutil.copy(source, dest)
     else:
       os.symlink(source, dest)
@@ -566,61 +588,6 @@ def _FilesMatching(root, predicate=lambda f: True):
   for path, _, files in os.walk(root):
     matches += [os.path.join(path, f) for f in files if predicate(f)]
   return matches
-
-
-def _JavaHomeAndSuffix():
-  """Find the directory that the JDK is installed in.
-
-  The JDK install directory is expected to have a bin directory that contains
-  at a minimum the java and javac executables. If the environment variable
-  JAVA_HOME is set then it must point to such a directory. Otherwise, we look
-  for javac on the PATH and check that it is inside a JDK install directory.
-
-  Returns:
-    A tuple where the first element is the JDK install directory and the second
-    element is a suffix that must be appended to executables in that directory
-    ('' on Unix-like systems, '.exe' on Windows).
-
-  Raises:
-    RuntimeError: If JAVA_HOME is set but is not a JDK install directory, or
-    otherwise if a JDK install directory cannot be found based on the PATH.
-  """
-  def ResultForJdkAt(path):
-    """Return (path, suffix) if path is a JDK install directory, else None."""
-    def IsExecutable(binary):
-      return os.path.isfile(binary) and os.access(binary, os.X_OK)
-
-    def ResultFor(path):
-      for suffix in ['', '.exe']:
-        if all(IsExecutable(os.path.join(path, 'bin', binary + suffix))
-               for binary in ['java', 'javac', 'jar']):
-          return (path, suffix)
-      return None
-
-    result = ResultFor(path)
-    if not result:
-
-
-      head, tail = os.path.split(path)
-      if tail == 'jre':
-        result = ResultFor(head)
-    return result
-
-  java_home = os.getenv('JAVA_HOME')
-  if java_home:
-    result = ResultForJdkAt(java_home)
-    if result:
-      return result
-    else:
-      raise RuntimeError(
-          'JAVA_HOME is set but does not reference a valid JDK: %s' % java_home)
-  for path_dir in os.environ['PATH'].split(os.pathsep):
-    maybe_root, last = os.path.split(path_dir)
-    if last == 'bin':
-      result = ResultForJdkAt(maybe_root)
-      if result:
-        return result
-  raise RuntimeError('Did not find JDK in PATH and JAVA_HOME is not set')
 
 
 def _FindApiJars(lib_dir):

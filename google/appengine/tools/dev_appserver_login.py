@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
 """Helper CGI for logins/logout in the development application server.
 
 This CGI has these parameters:
@@ -29,6 +26,7 @@ This CGI has these parameters:
 To view the current user information and a form for logging in and out,
 supply no parameters.
 """
+
 
 
 import cgi

@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
-
 """Channel support classes.
 
 Classes:
@@ -26,6 +22,7 @@ Classes:
     Creates a dispatcher that is added to dispatcher chain.  Handles polls from
     the client to retrieve messages for a given channel.
 """
+
 
 
 

@@ -1293,6 +1293,8 @@ class Query(object):
     total = 0
     while rpc is not None:
       batch = yield rpc
+      options = QueryOptions(offset=options.offset - batch.skipped_results,
+                             config=options)
       rpc = batch.next_batch_async(options)
       total += batch.skipped_results
     raise tasklets.Return(total)
@@ -1780,8 +1782,8 @@ class _SubQueryIteratorState(object):
                                 (self.orders, other.orders))
     lhs = self.entity._orig_pb
     rhs = other.entity._orig_pb
-    lhs_filter = self.dsquery._filter_predicate
-    rhs_filter = other.dsquery._filter_predicate
+    lhs_filter = self.dsquery.filter_predicate
+    rhs_filter = other.dsquery.filter_predicate
     names = self.orders._get_prop_names()
     # TODO: In some future version, there won't be a need to add the
     # filters' names.

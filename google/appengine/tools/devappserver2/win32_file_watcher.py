@@ -17,6 +17,7 @@
 """Monitors a directory tree for changes using win32 APIs."""
 
 
+
 import ctypes
 import os
 
@@ -80,19 +81,17 @@ class Win32FileWatcher(object):
     """Stop watching the directory for changes."""
     ctypes.windll.kernel32.FindCloseChangeNotification(self._find_change_handle)
 
-  def has_changes(self):
-    """Returns True if the watched directory has changed since the last call.
+  def changes(self):
+    """Returns the paths changed in the watched directory since the last call.
 
     start() must be called before this method.
 
     Returns:
-      Returns True if the watched directory has changed since the last call to
-      has_changes or, if has_changes has never been called, since start was
-      called.
+      Returns an iterable of changed directories/files.
     """
     found_change = False
-    # Loop until no new changes are found. This prevents future calls to
-    # has_changes() from returning True for changes that happened before this
+    # Loop until no new changes are found. This prevents future accesses to
+    # changes from returning the list of changes that happened before this
     # call was made.
     while True:
       wait_result = ctypes.windll.kernel32.WaitForSingleObject(
@@ -104,7 +103,7 @@ class Win32FileWatcher(object):
         found_change = True
         continue
       elif wait_result == WAIT_TIMEOUT:
-        return found_change
+        return {'-'} if found_change else set()  # TODO: implement
       elif wait_result == WAIT_FAILED:
         raise ctypes.WinError()
       else:

@@ -40,3 +40,6 @@ def is_connection_dropped(conn):  # Platform-specific
         if fno == sock.fileno():
             # Either data is buffered (bad), or the connection is dropped.
             return True
+
+
+

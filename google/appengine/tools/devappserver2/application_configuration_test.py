@@ -17,8 +17,11 @@
 """Tests for google.apphosting.tools.devappserver2.application_configuration."""
 
 
+
 import collections
 from contextlib import contextmanager
+import datetime
+import io
 import os.path
 import shutil
 import tempfile
@@ -28,6 +31,7 @@ import google
 import mox
 
 from google.appengine.api import appinfo
+from google.appengine.api import appinfo_includes
 from google.appengine.api import backendinfo
 from google.appengine.api import dispatchinfo
 from google.appengine.tools.devappserver2 import application_configuration
@@ -48,18 +52,32 @@ def _java_temporarily_supported():
   application_configuration.java_supported = old_java_supported
 
 
+_DEFAULT_HEALTH_CHECK = appinfo.VmHealthCheck(
+    enable_health_check=True,
+    check_interval_sec=5,
+    timeout_sec=4,
+    unhealthy_threshold=2,
+    healthy_threshold=2,
+    restart_threshold=60,
+    host='127.0.0.1')
+
+
 class TestModuleConfiguration(unittest.TestCase):
   """Tests for application_configuration.ModuleConfiguration."""
 
   def setUp(self):
     self.mox = mox.Mox()
-    self.mox.StubOutWithMock(
-        application_configuration.ModuleConfiguration,
-        '_parse_configuration')
+    self.mox.StubOutWithMock(appinfo_includes, 'ParseAndReturnIncludePaths')
     self.mox.StubOutWithMock(os.path, 'getmtime')
+    application_configuration.open = self._fake_open
 
   def tearDown(self):
     self.mox.UnsetStubs()
+    del application_configuration.open
+
+  @staticmethod
+  def _fake_open(unused_filename):
+    return io.BytesIO()
 
   def test_good_app_yaml_configuration(self):
     automatic_scaling = appinfo.AutomaticScaling(min_pending_latency='1.0s',
@@ -82,13 +100,12 @@ class TestModuleConfiguration(unittest.TestCase):
         inbound_services=['warmup'],
         env_variables=env_variables,
         )
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
     self.mox.ReplayAll()
-    config = application_configuration.ModuleConfiguration(
-        '/appdir/app.yaml')
+    config = application_configuration.ModuleConfiguration('/appdir/app.yaml')
     self.mox.VerifyAll()
 
     self.assertEqual(os.path.realpath('/appdir'), config.application_root)
@@ -110,11 +127,15 @@ class TestModuleConfiguration(unittest.TestCase):
     self.assertEqual(['warmup'], config.inbound_services)
     self.assertEqual(env_variables, config.env_variables)
     self.assertEqual({'/appdir/app.yaml': 10}, config._mtimes)
+    self.assertEqual(_DEFAULT_HEALTH_CHECK, config.vm_health_check)
 
   def test_vm_app_yaml_configuration(self):
     manual_scaling = appinfo.ManualScaling()
     vm_settings = appinfo.VmSettings()
     vm_settings['vm_runtime'] = 'myawesomeruntime'
+    vm_settings['forwarded_ports'] = '49111:49111,5002:49112,8000'
+    health_check = appinfo.VmHealthCheck()
+    health_check.enable_health_check = False
     info = appinfo.AppInfoExternal(
         application='app',
         module='module1',
@@ -123,9 +144,11 @@ class TestModuleConfiguration(unittest.TestCase):
         vm_settings=vm_settings,
         threadsafe=False,
         manual_scaling=manual_scaling,
+        vm_health_check=health_check
     )
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
     self.mox.ReplayAll()
@@ -142,9 +165,67 @@ class TestModuleConfiguration(unittest.TestCase):
     self.assertRegexpMatches(config.version_id, r'module1:1\.\d+')
     self.assertEqual('vm', config.runtime)
     self.assertEqual(vm_settings['vm_runtime'], config.effective_runtime)
+    self.assertItemsEqual(
+        {49111: 49111, 5002: 49112, 8000: 8000},
+        config.forwarded_ports)
     self.assertFalse(config.threadsafe)
     self.assertEqual(manual_scaling, config.manual_scaling)
     self.assertEqual({'/appdir/app.yaml': 10}, config._mtimes)
+    self.assertEqual(info.vm_health_check, config.vm_health_check)
+
+  def test_vm_no_version(self):
+    manual_scaling = appinfo.ManualScaling()
+    info = appinfo.AppInfoExternal(
+        application='app',
+        module='module1',
+        runtime='vm',
+        threadsafe=False,
+        manual_scaling=manual_scaling,
+    )
+
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
+    os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+
+    self.mox.StubOutWithMock(application_configuration, 'generate_version_id')
+    application_configuration.generate_version_id().AndReturn(
+        'generated-version')
+    self.mox.ReplayAll()
+    config = application_configuration.ModuleConfiguration('/appdir/app.yaml')
+
+    self.mox.VerifyAll()
+    self.assertEqual(config.major_version, 'generated-version')
+
+  def test_set_health_check_defaults(self):
+    # Pass nothing in.
+    self.assertEqual(
+        _DEFAULT_HEALTH_CHECK,
+        application_configuration._set_health_check_defaults(None))
+
+    # Pass in an empty object.
+    self.assertEqual(
+        _DEFAULT_HEALTH_CHECK,
+        application_configuration._set_health_check_defaults(
+            appinfo.VmHealthCheck()))
+
+    # Override some.
+    health_check = appinfo.VmHealthCheck(restart_threshold=7,
+                                         healthy_threshold=4)
+    defaults_set = application_configuration._set_health_check_defaults(
+        health_check)
+
+    self.assertEqual(defaults_set.enable_health_check,
+                     _DEFAULT_HEALTH_CHECK.enable_health_check)
+    self.assertEqual(defaults_set.check_interval_sec,
+                     _DEFAULT_HEALTH_CHECK.check_interval_sec)
+    self.assertEqual(defaults_set.timeout_sec,
+                     _DEFAULT_HEALTH_CHECK.timeout_sec)
+    self.assertEqual(defaults_set.unhealthy_threshold,
+                     _DEFAULT_HEALTH_CHECK.unhealthy_threshold)
+    self.assertEqual(defaults_set.healthy_threshold, 4)
+    self.assertEqual(defaults_set.restart_threshold, 7)
+    self.assertEqual(defaults_set.host,
+                     _DEFAULT_HEALTH_CHECK.host)
 
   def test_override_app_id(self):
     info = appinfo.AppInfoExternal(
@@ -153,16 +234,23 @@ class TestModuleConfiguration(unittest.TestCase):
         version='version',
         runtime='python27',
         threadsafe=False)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(20)
+    os.path.getmtime('/appdir/app.yaml').AndReturn(20)
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
 
     self.mox.ReplayAll()
     config = application_configuration.ModuleConfiguration(
         '/appdir/app.yaml', 'overriding-app')
-    self.mox.VerifyAll()
     self.assertEqual('overriding-app', config.application_external_name)
     self.assertEqual('dev~overriding-app', config.application)
+    config.check_for_updates()
+    self.assertEqual('overriding-app', config.application_external_name)
+    self.assertEqual('dev~overriding-app', config.application)
+    self.mox.VerifyAll()
 
   def test_check_for_updates_unchanged_mtime(self):
     info = appinfo.AppInfoExternal(
@@ -171,8 +259,8 @@ class TestModuleConfiguration(unittest.TestCase):
         version='version',
         runtime='python27',
         threadsafe=False)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
 
@@ -189,17 +277,15 @@ class TestModuleConfiguration(unittest.TestCase):
         runtime='python27',
         includes=['/appdir/include.yaml'],
         threadsafe=False)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(
-            (info, ['/appdir/app.yaml', '/appdir/include.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, ['/appdir/include.yaml']))
     os.path.getmtime('/appdir/app.yaml').InAnyOrder().AndReturn(10)
     os.path.getmtime('/appdir/include.yaml').InAnyOrder().AndReturn(10)
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
     os.path.getmtime('/appdir/include.yaml').AndReturn(11)
 
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn(
-            (info, ['/appdir/app.yaml', '/appdir/include.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, ['/appdir/include.yaml']))
     os.path.getmtime('/appdir/app.yaml').InAnyOrder().AndReturn(10)
     os.path.getmtime('/appdir/include.yaml').InAnyOrder().AndReturn(11)
 
@@ -221,12 +307,12 @@ class TestModuleConfiguration(unittest.TestCase):
         version='version',
         runtime='python27',
         threadsafe=False)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
@@ -261,12 +347,12 @@ class TestModuleConfiguration(unittest.TestCase):
             min_idle_instances=1,
             max_idle_instances=2))
 
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info1, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info1, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info2, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info2, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
@@ -282,7 +368,7 @@ class TestModuleConfiguration(unittest.TestCase):
     self.assertFalse(config.threadsafe)
     self.assertEqual(automatic_scaling1, config.automatic_scaling)
 
-  def test_check_for_mutable_changes(self):
+  def test_check_for_updates_mutable_changes(self):
     info1 = appinfo.AppInfoExternal(
         application='app',
         module='default',
@@ -308,12 +394,12 @@ class TestModuleConfiguration(unittest.TestCase):
         inbound_services=[],
         )
 
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info1, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info1, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(10)
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
-    application_configuration.ModuleConfiguration._parse_configuration(
-        '/appdir/app.yaml').AndReturn((info2, ['/appdir/app.yaml']))
+    appinfo_includes.ParseAndReturnIncludePaths(mox.IgnoreArg()).AndReturn(
+        (info2, []))
     os.path.getmtime('/appdir/app.yaml').AndReturn(11)
 
     self.mox.ReplayAll()
@@ -1085,6 +1171,16 @@ class TestApplicationConfiguration(unittest.TestCase):
     self.assertSequenceEqual(
         [module1_config, module2_config], config.modules)
     self.assertEqual(dispatch_config, config.dispatch)
+
+
+class GenerateVersionIdTest(unittest.TestCase):
+  """Tests the GenerateVersionId function."""
+
+  def test_generate_version_id(self):
+    datetime_getter = lambda: datetime.datetime(2014, 9, 18, 17, 31, 45, 92949)
+    generated_version = application_configuration.generate_version_id(
+        datetime_getter)
+    self.assertEqual(generated_version, '20140918t173145')
 
 
 if __name__ == '__main__':

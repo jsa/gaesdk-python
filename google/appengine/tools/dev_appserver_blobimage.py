@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
-
 """Dispatcher for dynamic image serving requests.
 
 Classes:
@@ -26,6 +22,7 @@ Classes:
     Creates a dispatcher that will handle an image serving request. It will
     fetch an image from blobstore and dynamically resize it.
 """
+
 
 
 import logging

@@ -17,6 +17,7 @@
 """Common functionality for file watchers."""
 
 
+
 import os
 
 # A prefix for files and directories that we should not watch at all.

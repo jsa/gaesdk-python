@@ -17,6 +17,7 @@
 """Monitors a directory tree for changes."""
 
 
+
 import logging
 import sys
 import types
@@ -50,11 +51,11 @@ class _MultipleFileWatcher(object):
     for watcher in self._file_watchers:
       watcher.quit()
 
-  def has_changes(self):
-    # .has_changes() returns True if there has been any changes since the
-    # last call to .has_changes() so it must be called for every FileWatcher
-    # to prevent spurious change notifications on subsequent calls.
-    return any([watcher.has_changes() for watcher in self._file_watchers])
+  def changes(self):
+    # .changes() returns the set of file paths change if there has been any
+    # changes since the last call to .changes so it must be called for every
+    # FileWatcher to prevent spurious change notifications on subsequent calls.
+    return set.union(*[watcher.changes() for watcher in self._file_watchers])
 
 
 def _create_watcher(directories, watcher_class):
@@ -122,7 +123,7 @@ def get_file_watcher(directories, use_mtime_file_watcher):
 
   Returns:
     A FileWatcher appropriate for the current platform. start() must be called
-    before has_changes().
+    before changes().
   """
   assert not isinstance(directories, types.StringTypes), 'expected list got str'
 

@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-
-
 """Helper CGI for Apiserver in the development app server.
 
 This is a fake apiserver proxy that does simple transforms on requests that
@@ -30,6 +26,7 @@ backend at /_ah/spi and afterwards if app.yaml is changed.
 """
 
 from __future__ import with_statement
+
 
 
 

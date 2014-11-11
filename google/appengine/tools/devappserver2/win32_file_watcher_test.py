@@ -17,6 +17,7 @@
 """Tests for google.apphosting.tools.devappserver2.win32_file_watcher."""
 
 
+
 import ctypes
 import os
 import unittest
@@ -32,6 +33,7 @@ class WinError(Exception):
 
 
 class Win32FileWatcherTest(unittest.TestCase):
+
   def setUp(self):
     self.mox = mox.Mox()
     ctypes.windll = self.mox.CreateMockAnything()
@@ -87,7 +89,7 @@ class Win32FileWatcherTest(unittest.TestCase):
                       watcher.start)
     self.mox.VerifyAll()
 
-  def test_has_changes_with_changes(self):
+  def test_changes_with_changes(self):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
     watcher._find_change_handle = 5
 
@@ -98,10 +100,10 @@ class Win32FileWatcherTest(unittest.TestCase):
         win32_file_watcher.WAIT_TIMEOUT)
 
     self.mox.ReplayAll()
-    self.assertTrue(watcher.has_changes())
+    self.assertTrue(watcher.changes())
     self.mox.VerifyAll()
 
-  def test_has_changes_no_changes(self):
+  def test_changes_no_changes(self):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
     watcher._find_change_handle = 5
 
@@ -109,10 +111,10 @@ class Win32FileWatcherTest(unittest.TestCase):
         win32_file_watcher.WAIT_TIMEOUT)
 
     self.mox.ReplayAll()
-    self.assertFalse(watcher.has_changes())
+    self.assertFalse(watcher.changes())
     self.mox.VerifyAll()
 
-  def test_has_changes_wait_failed(self):
+  def test_changes_wait_failed(self):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
     watcher._find_change_handle = 5
 
@@ -120,10 +122,10 @@ class Win32FileWatcherTest(unittest.TestCase):
         win32_file_watcher.WAIT_FAILED)
 
     self.mox.ReplayAll()
-    self.assertRaises(WinError, watcher.has_changes)
+    self.assertRaises(WinError, watcher.changes)
     self.mox.VerifyAll()
 
-  def test_has_changes_find_next_change_notification_failed(self):
+  def test_changes_find_next_change_notification_failed(self):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
     watcher._find_change_handle = 5
 
@@ -132,7 +134,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     ctypes.windll.kernel32.FindNextChangeNotification(5).AndReturn(False)
 
     self.mox.ReplayAll()
-    self.assertRaises(WinError, watcher.has_changes)
+    self.assertRaises(WinError, watcher.changes)
     self.mox.VerifyAll()
 
 if __name__ == '__main__':

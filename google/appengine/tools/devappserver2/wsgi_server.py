@@ -17,6 +17,7 @@
 """A WSGI server implementation using a shared thread pool."""
 
 
+
 import collections
 import errno
 import httplib
@@ -53,6 +54,7 @@ _SECONDS_TO_MILLISECONDS = 1000
 # increasing it (on my circa 2010 desktop, it takes about 1/2 second per 1024
 # tries) but it would probably be better to either figure out a better
 # algorithm or make it possible for code to work with inconsistent ports.
+
 
 _PORT_0_RETRIES = 2048
 

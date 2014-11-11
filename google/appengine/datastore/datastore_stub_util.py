@@ -24,6 +24,9 @@ This module is internal and should not be used by client applications.
 """
 
 
+from __future__ import with_statement
+
+
 
 
 
@@ -56,6 +59,7 @@ from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import datastore_admin
 from google.appengine.api import datastore_errors
 from google.appengine.api import datastore_types
+from google.appengine.api import yaml_errors
 from google.appengine.api.taskqueue import taskqueue_service_pb
 from google.appengine.datastore import datastore_index
 from google.appengine.datastore import datastore_pb
@@ -167,6 +171,16 @@ _MAX_SCATTERED_ID = _MAX_SEQUENTIAL_ID + 1 + _MAX_SCATTERED_COUNTER
 
 _SCATTER_SHIFT = 64 - _MAX_SEQUENTIAL_BIT + 1
 
+
+_SHOULD_FAIL_ON_BAD_OFFSET = False
+
+def _HandleBadOffset(expected, actual):
+  logging.warn('Encountered an offset %d to Next but expected %d given the '
+               'query offset and the number of skipped entities.' %
+               (actual, expected))
+  if (_SHOULD_FAIL_ON_BAD_OFFSET):
+    raise datastore_errors.BadArgumentError(
+        'Invalid offset provided. Got %s expected %s.' % (actual, expected))
 
 def _GetScatterProperty(entity_proto):
   """Gets the scatter property for an object.
@@ -1007,6 +1021,17 @@ class BaseCursor(object):
     self.app = query.app()
     self.cursor = self._AcquireCursorID()
 
+    if query.has_count():
+      count = query.count()
+    elif query.has_limit():
+      count = query.limit()
+    else:
+      count = BaseDatastore._BATCH_SIZE
+
+    self.__use_persisted_offset = query.persist_offset()
+    self.__persisted_offset = query.offset()
+    self.__persisted_count = count
+
     self.__order_compare_entities = dsquery._order.cmp_for_filter(
         dsquery._filter_predicate)
     if self.group_by:
@@ -1128,6 +1153,34 @@ class BaseCursor(object):
       position.set_start_inclusive(False)
       _SetBeforeAscending(position, self.__first_sort_order)
 
+  def PopulateQueryResult(self, result, count, offset,
+                          compile=False, first_result=False):
+    """Populates a QueryResult with this cursor and the given number of results.
+
+    Args:
+      result: datastore_pb.QueryResult
+      count: integer of how many results to return, or None if not specified
+      offset: integer of how many results to skip
+      compile: boolean, whether we are compiling this query
+      first_result: whether the query result is the first for this query
+
+    Offset and count may be ignored if the query requested information
+    to be persisted.
+    """
+    if count is None:
+      count = BaseDatastore._BATCH_SIZE
+    if self.__use_persisted_offset:
+      offset = self.__persisted_offset
+      count = self.__persisted_count
+    elif self.__persisted_offset != offset:
+      _HandleBadOffset(self.__persisted_offset, offset)
+    self._PopulateQueryResult(result, count, offset,
+                              compile, first_result)
+    self.__persisted_offset -= result.skipped_results()
+
+  def _PopulateQueryResult(self, result, count, offset,
+                           compile, first_result):
+    raise NotImplementedError
 
 class ListCursor(BaseCursor):
   """A query cursor over a list of entities.
@@ -1211,17 +1264,7 @@ class ListCursor(BaseCursor):
         hi = mid
     return lo
 
-  def PopulateQueryResult(self, result, count, offset,
-                          compile=False, first_result=False):
-    """Populates a QueryResult with this cursor and the given number of results.
-
-    Args:
-      result: datastore_pb.QueryResult
-      count: integer of how many results to return
-      offset: integer of how many results to skip
-      compile: boolean, whether we are compiling this query
-      first_result: whether the query result is the first for this query
-    """
+  def _PopulateQueryResult(self, result, count, offset, compile, first_result):
     Check(offset >= 0, 'Offset must be >= 0')
 
     offset = min(offset, self.__count - self.__offset)
@@ -1445,7 +1488,8 @@ class LiveTxn(object):
     return LoadEntity(entity)
 
   @_SynchronizeTxn
-  def GetQueryCursor(self, query, filters, orders, index_list):
+  def GetQueryCursor(self, query, filters, orders, index_list,
+                     filter_predicate=None):
     """Runs the given datastore_pb.Query and returns a QueryCursor for it.
 
     Does not see any modifications in the current txn.
@@ -1455,6 +1499,9 @@ class LiveTxn(object):
       filters: A list of filters that override the ones found on query.
       orders: A list of orders that override the ones found on query.
       index_list: A list of indexes used by the query.
+      filter_predicate: an additional filter of type
+          datastore_query.FilterPredicate. This is passed along to implement V4
+          specific filters without changing the entire stub.
 
     Returns:
       A BaseCursor that can be used to fetch query results.
@@ -1462,7 +1509,8 @@ class LiveTxn(object):
     Check(query.has_ancestor(),
           'Query must have an ancestor when performed in a transaction.')
     snapshot = self._GrabSnapshot(query.ancestor())
-    return _ExecuteQuery(snapshot.values(), query, filters, orders, index_list)
+    return _ExecuteQuery(snapshot.values(), query, filters, orders, index_list,
+                         filter_predicate)
 
   @_SynchronizeTxn
   def Put(self, entity, insert, indexes):
@@ -2169,6 +2217,8 @@ class BaseIndexManager(object):
     return None
 
   def CreateIndex(self, index, trusted=False, calling_app=None):
+
+
     calling_app = datastore_types.ResolveAppId(calling_app)
     CheckAppId(trusted, calling_app, index.app_id())
     Check(index.id() == 0, 'New index id must be 0.')
@@ -2300,7 +2350,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
 
 
 
-  def GetQueryCursor(self, raw_query, trusted=False, calling_app=None):
+  def GetQueryCursor(self, raw_query, trusted=False, calling_app=None,
+                     filter_predicate=None):
     """Execute a query.
 
     Args:
@@ -2308,6 +2359,9 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
       trusted: If the calling app is trusted.
       calling_app: The app requesting the results or None to pull the app from
         the environment.
+      filter_predicate: an additional filter of type
+          datastore_query.FilterPredicate. This is passed along to implement V4
+          specific filters without changing the entire stub.
 
     Returns:
       A BaseCursor that can be used to retrieve results.
@@ -2325,11 +2379,15 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     CheckQuery(raw_query, filters, orders, self._MAX_QUERY_COMPONENTS)
     FillUsersInQuery(filters)
 
+    index_list = []
 
-    self._CheckHasIndex(raw_query, trusted, calling_app)
 
 
-    index_list = self.__IndexListForQuery(raw_query)
+    if filter_predicate is None:
+      self._CheckHasIndex(raw_query, trusted, calling_app)
+
+
+      index_list = self.__IndexListForQuery(raw_query)
 
 
     if raw_query.has_transaction():
@@ -2342,11 +2400,13 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     if raw_query.has_ancestor() and raw_query.kind() not in self._pseudo_kinds:
 
       txn = self._BeginTransaction(raw_query.app(), False)
-      return txn.GetQueryCursor(raw_query, filters, orders, index_list)
+      return txn.GetQueryCursor(raw_query, filters, orders, index_list,
+                                filter_predicate)
 
 
     self.Groom()
-    return self._GetQueryCursor(raw_query, filters, orders, index_list)
+    return self._GetQueryCursor(raw_query, filters, orders, index_list,
+                                filter_predicate)
 
   def __IndexListForQuery(self, query):
     """Get the single composite index pb used by the query, if any, as a list.
@@ -2664,7 +2724,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     """Writes the datastore to disk."""
     self.Flush()
 
-  def _GetQueryCursor(self, query, filters, orders, index_list):
+  def _GetQueryCursor(self, query, filters, orders, index_list,
+                      filter_predicate):
     """Runs the given datastore_pb.Query and returns a QueryCursor for it.
 
     This must be implemented by a sub-class. The sub-class does not need to
@@ -2675,6 +2736,9 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
       filters: A list of filters that override the ones found on query.
       orders: A list of orders that override the ones found on query.
       index_list: A list of indexes used by the query.
+      filter_predicate: an additional filter of type
+          datastore_query.FilterPredicate. This is passed along to implement V4
+          specific filters without changing the entire stub.
 
     Returns:
       A BaseCursor that can be used to fetch query results.
@@ -2824,6 +2888,32 @@ class EntityGroupPseudoKind(object):
         datastore_pb.Error.BAD_REQUEST, 'queries not supported on ' + self.name)
 
 
+class _CachedIndexDefinitions(object):
+  """Records definitions read from index configuration files for later reuse.
+
+  If the names and modification times of the configuration files are unchanged,
+  then the index configurations previously parsed out of those files can be
+  reused.
+
+  Attributes:
+    file_names: a list of the names of the configuration files. This will have
+      one element when the configuration is based on an index.yaml but may have
+      more than one if it is based on datastore-indexes.xml and
+      datastore-indexes-auto.xml.
+    last_modifieds: a list of floats that are the modification times of the
+      files in file_names.
+    index_protos: a list of entity_pb.CompositeIndex objects corresponding to
+      the index definitions read from file_names.
+  """
+
+  def __init__(self, file_names, last_modifieds, index_protos):
+
+    assert len(file_names) <= 1
+    self.file_names = file_names
+    self.last_modifieds = last_modifieds
+    self.index_protos = index_protos
+
+
 class DatastoreStub(object):
   """A stub that maps datastore service calls on to a BaseDatastore.
 
@@ -2840,6 +2930,7 @@ class DatastoreStub(object):
     self._app_id = datastore_types.ResolveAppId(app_id)
     self._trusted = trusted
     self._root_path = root_path
+    self._xml_configuration = self._XmlConfiguration()
 
 
     self.__query_history = {}
@@ -2849,17 +2940,54 @@ class DatastoreStub(object):
 
 
 
-    self._cached_yaml = (None, None, None)
+    self._cached_index_definitions = _CachedIndexDefinitions([], [], None)
 
     if self._require_indexes or root_path is None:
 
-      self._index_yaml_updater = None
+      self._index_config_updater = None
     else:
 
-      self._index_yaml_updater = datastore_stub_index.IndexYamlUpdater(
-          root_path)
+
+      updater_class = (
+          datastore_stub_index.DatastoreIndexesAutoXmlUpdater
+          if self._xml_configuration else datastore_stub_index.IndexYamlUpdater)
+      self._index_config_updater = updater_class(root_path)
 
     DatastoreStub.Clear(self)
+
+  def _XmlConfiguration(self):
+    """Return True if the app at self._root_path uses XML configuration files.
+
+    An app uses XML configuration files if it has a WEB-INF subdirectory and it
+    does not have an index.yaml at its root. We assume this even if it doesn't
+    currently have any configuration files at all, because then we will want to
+    create a new datastore-indexes-auto.xml rather than create a new index.yaml.
+
+    Returns:
+      True if the app uses XML configuration files, False otherwise.
+
+    Raises:
+      yaml_errors.AmbiguousConfigurationFiles: if there is both an index.yaml
+        and either or both of the two possible XML configuration files.
+    """
+    if not self._root_path:
+      return False
+    index_yaml = os.path.join(self._root_path, 'index.yaml')
+    web_inf = os.path.join(self._root_path, 'WEB-INF')
+    datastore_indexes_xml = os.path.join(web_inf, 'datastore-indexes.xml')
+    datastore_indexes_auto_xml = os.path.join(
+        web_inf, 'appengine-generated', 'datastore-indexes-auto.xml')
+    existing = [
+        f for f in [
+            index_yaml, datastore_indexes_xml, datastore_indexes_auto_xml]
+        if os.path.isfile(f)]
+    if existing == [index_yaml]:
+      return False
+    elif index_yaml in existing:
+      raise yaml_errors.AmbiguousConfigurationFiles(
+          'App has both XML and YAML configuration files: %s' % existing)
+    else:
+      return os.path.isdir(web_inf)
 
   def Clear(self):
     """Clears out all stored values."""
@@ -2949,17 +3077,12 @@ class DatastoreStub(object):
     self._datastore.Touch(req.key_list(), self._trusted, self._app_id)
 
   @_NeedsIndexes
-  def _Dynamic_RunQuery(self, query, query_result):
+  def _Dynamic_RunQuery(self, query, query_result, filter_predicate=None):
     self.__UpgradeCursors(query)
-    cursor = self._datastore.GetQueryCursor(query, self._trusted, self._app_id)
+    cursor = self._datastore.GetQueryCursor(query, self._trusted, self._app_id,
+                                            filter_predicate)
 
-    if query.has_count():
-      count = query.count()
-    elif query.has_limit():
-      count = query.limit()
-    else:
-      count = self._BATCH_SIZE
-
+    count = query.count() if query.has_count() else None
     cursor.PopulateQueryResult(query_result, count, query.offset(),
                                query.compile(), first_result=True)
     if query_result.has_cursor():
@@ -3045,12 +3168,12 @@ class DatastoreStub(object):
     Check(cursor and cursor.app == app,
           'Cursor %d not found' % next_request.cursor().cursor())
 
-    count = self._BATCH_SIZE
-    if next_request.has_count():
-      count = next_request.count()
-
-    cursor.PopulateQueryResult(query_result, count, next_request.offset(),
-                               next_request.compile(), first_result=False)
+    count = next_request.count() if next_request.has_count() else None
+    cursor.PopulateQueryResult(query_result,
+                               count,
+                               next_request.offset(),
+                               next_request.compile(),
+                               first_result=False)
 
     if not query_result.has_cursor():
       del self._query_cursors[next_request.cursor().cursor()]
@@ -3155,34 +3278,39 @@ class DatastoreStub(object):
 
     if not self._root_path:
       return
-    index_yaml_file = os.path.join(self._root_path, 'index.yaml')
-    if (self._cached_yaml[0] == index_yaml_file and
-        os.path.exists(index_yaml_file) and
-        os.path.getmtime(index_yaml_file) == self._cached_yaml[1]):
-      requested_indexes = self._cached_yaml[2]
+    file_names = [os.path.join(self._root_path, 'index.yaml')]
+    file_mtimes = [os.path.getmtime(f) for f in file_names if os.path.exists(f)]
+    if (self._cached_index_definitions.file_names == file_names and
+        all(os.path.exists(f) for f in file_names) and
+        self._cached_index_definitions.last_modifieds == file_mtimes):
+      requested_indexes = self._cached_index_definitions.index_protos
     else:
-      try:
-        index_yaml_mtime = os.path.getmtime(index_yaml_file)
-        fh = _open(index_yaml_file, 'r')
-      except (OSError, IOError):
-        index_yaml_data = None
-      else:
+      file_mtimes = []
+      index_texts = []
+      for file_name in file_names:
         try:
-          index_yaml_data = fh.read()
-        finally:
-          fh.close()
+          file_mtimes.append(os.path.getmtime(file_name))
+          with _open(file_name, 'r') as fh:
+            index_texts.append(fh.read())
+        except (OSError, IOError):
+          pass
 
       requested_indexes = []
-      if index_yaml_data is not None:
+      if len(index_texts) == len(file_names):
+        all_ok = True
+        for index_text in index_texts:
 
-        index_defs = datastore_index.ParseIndexDefinitions(index_yaml_data)
-        if index_defs is not None and index_defs.indexes is not None:
+          index_defs = datastore_index.ParseIndexDefinitions(index_text)
+          if index_defs is None or index_defs.indexes is None:
+            all_ok = False
+          else:
 
-          requested_indexes = datastore_index.IndexDefinitionsToProtos(
-              self._app_id,
-              index_defs.indexes)
-          self._cached_yaml = (index_yaml_file, index_yaml_mtime,
-                               requested_indexes)
+            requested_indexes.extend(
+                datastore_index.IndexDefinitionsToProtos(
+                    self._app_id, index_defs.indexes))
+        if all_ok:
+          self._cached_index_definitions = _CachedIndexDefinitions(
+              file_names, file_mtimes, requested_indexes)
 
 
     existing_indexes = self._datastore.GetIndexes(
@@ -3216,8 +3344,8 @@ class DatastoreStub(object):
                     created, deleted, len(requested))
 
   def _UpdateIndexes(self):
-    if self._index_yaml_updater is not None:
-      self._index_yaml_updater.UpdateIndexYaml()
+    if self._index_config_updater is not None:
+      self._index_config_updater.UpdateIndexConfig()
 
 
 class StubQueryConverter(object):
@@ -3401,6 +3529,12 @@ class StubQueryConverter(object):
       v4_filter: a datastore_v4_pb.Filter
       v3_query: a datastore_pb.Query to populate with filters
     """
+
+    datastore_pbs.check_conversion(not v4_filter.has_bounding_circle_filter(),
+                                   'bounding circle filter not supported')
+    datastore_pbs.check_conversion(not v4_filter.has_bounding_box_filter(),
+                                   'bounding box filter not supported')
+
     if v4_filter.has_property_filter():
       v4_property_filter = v4_filter.property_filter()
       if (v4_property_filter.operator()
@@ -3669,10 +3803,6 @@ class StubServiceConverter(object):
     if v3_req.has_count():
       v4_req.set_suggested_batch_size(v3_req.count())
 
-    datastore_pbs.check_conversion(
-        not (v3_req.has_transaction() and v3_req.has_failover_ms()),
-        'Cannot set failover and transaction handle.')
-
 
     if v3_req.has_transaction():
       v4_req.mutable_read_options().set_transaction(
@@ -3680,7 +3810,7 @@ class StubServiceConverter(object):
     elif v3_req.strong():
       v4_req.mutable_read_options().set_read_consistency(
           datastore_v4_pb.ReadOptions.STRONG)
-    elif v3_req.has_failover_ms():
+    elif v3_req.has_strong():
       v4_req.mutable_read_options().set_read_consistency(
           datastore_v4_pb.ReadOptions.EVENTUAL)
     if v3_req.has_min_safe_time_seconds():
@@ -3830,6 +3960,10 @@ class StubServiceConverter(object):
     if v4_batch.has_end_cursor():
       self._query_converter.v4_to_v3_compiled_cursor(
           v4_batch.end_cursor(), v3_result.mutable_compiled_cursor())
+    if v4_batch.has_skipped_cursor():
+      self._query_converter.v4_to_v3_compiled_cursor(
+          v4_batch.skipped_cursor(),
+          v3_result.mutable_skipped_results_compiled_cursor())
 
 
     if v4_batch.entity_result_type() == datastore_v4_pb.EntityResult.PROJECTION:
@@ -3843,6 +3977,10 @@ class StubServiceConverter(object):
     for v4_entity in v4_batch.entity_result_list():
       v3_entity = v3_result.add_result()
       self._entity_converter.v4_to_v3_entity(v4_entity.entity(), v3_entity)
+      if v4_entity.has_cursor():
+        cursor = v3_result.add_result_compiled_cursor()
+        self._query_converter.v4_to_v3_compiled_cursor(v4_entity.cursor(),
+                                                       cursor)
       if v4_batch.entity_result_type() != datastore_v4_pb.EntityResult.FULL:
 
 
@@ -3869,6 +4007,10 @@ class StubServiceConverter(object):
       v4_batch.set_end_cursor(
           self._query_converter.v3_to_v4_compiled_cursor(
               v3_result.compiled_cursor()))
+    if v3_result.has_skipped_results_compiled_cursor():
+      v4_batch.set_skipped_cursor(
+          self._query_converter.v3_to_v4_compiled_cursor(
+              v3_result.skipped_results_compiled_cursor()))
 
 
     if v3_result.keys_only():
@@ -3881,10 +4023,15 @@ class StubServiceConverter(object):
 
     if v3_result.has_skipped_results():
       v4_batch.set_skipped_results(v3_result.skipped_results())
-    for v3_entity in v3_result.result_list():
+    for v3_entity, v3_cursor in itertools.izip_longest(
+        v3_result.result_list(),
+        v3_result.result_compiled_cursor_list()):
       v4_entity_result = datastore_v4_pb.EntityResult()
       self._entity_converter.v3_to_v4_entity(v3_entity,
                                              v4_entity_result.mutable_entity())
+      if v3_cursor is not None:
+        v4_entity_result.set_cursor(
+            self._query_converter.v3_to_v4_compiled_cursor(v3_cursor))
       v4_batch.entity_result_list().append(v4_entity_result)
 
 
@@ -4018,17 +4165,56 @@ def _GuessOrders(filters, orders):
   return orders
 
 
-def _MakeQuery(query, filters, orders):
+def _MakeQuery(query_pb, filters, orders, filter_predicate):
   """Make a datastore_query.Query for the given datastore_pb.Query.
 
-  Overrides filters and orders in query with the specified arguments."""
-  clone = datastore_pb.Query()
-  clone.CopyFrom(query)
-  clone.clear_filter()
-  clone.clear_order()
-  clone.filter_list().extend(filters)
-  clone.order_list().extend(orders)
-  return datastore_query.Query._from_pb(clone)
+  Overrides filters and orders in query with the specified arguments.
+
+  Args:
+    query_pb: a datastore_pb.Query.
+    filters: the filters from query.
+    orders: the orders from query.
+    filter_predicate: an additional filter of type
+          datastore_query.FilterPredicate. This is passed along to implement V4
+          specific filters without changing the entire stub.
+
+  Returns:
+    A datastore_query.Query for the datastore_pb.Query."""
+
+
+
+
+
+  clone_pb = datastore_pb.Query()
+  clone_pb.CopyFrom(query_pb)
+  clone_pb.clear_filter()
+  clone_pb.clear_order()
+  clone_pb.filter_list().extend(filters)
+  clone_pb.order_list().extend(orders)
+
+  query = datastore_query.Query._from_pb(clone_pb)
+
+  assert datastore_v4_pb.CompositeFilter._Operator_NAMES.values() == ['AND']
+
+
+
+
+  if filter_predicate is not None:
+    if query.filter_predicate is not None:
+
+
+      filter_predicate = datastore_query.CompositeFilter(
+          datastore_query.CompositeFilter.AND,
+          [filter_predicate, query.filter_predicate])
+
+    return datastore_query.Query(app=query.app,
+                                 namespace=query.namespace,
+                                 ancestor=query.ancestor,
+                                 filter_predicate=filter_predicate,
+                                 group_by=query.group_by,
+                                 order=query.order)
+  else:
+    return query
 
 def _CreateIndexEntities(entity, postfix_props):
   """Creates entities for index values that would appear in prodcution.
@@ -4112,7 +4298,8 @@ def _CreateIndexOnlyQueryResults(results, postfix_props):
   return new_results
 
 
-def _ExecuteQuery(results, query, filters, orders, index_list):
+def _ExecuteQuery(results, query, filters, orders, index_list,
+                  filter_predicate=None):
   """Executes the query on a superset of its results.
 
   Args:
@@ -4121,12 +4308,15 @@ def _ExecuteQuery(results, query, filters, orders, index_list):
     filters: the filters from query.
     orders: the orders from query.
     index_list: the list of indexes used by the query.
+    filter_predicate: an additional filter of type
+          datastore_query.FilterPredicate. This is passed along to implement V4
+          specific filters without changing the entire stub.
 
   Returns:
     A ListCursor over the results of applying query to results.
   """
   orders = _GuessOrders(filters, orders)
-  dsquery = _MakeQuery(query, filters, orders)
+  dsquery = _MakeQuery(query, filters, orders, filter_predicate)
 
   if query.property_name_size():
     results = _CreateIndexOnlyQueryResults(

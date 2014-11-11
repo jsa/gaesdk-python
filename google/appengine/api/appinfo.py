@@ -32,6 +32,13 @@ configuration files.
 
 
 
+
+
+
+
+
+
+
 import logging
 import os
 import re
@@ -128,13 +135,14 @@ APPLICATION_RE_STRING = (r'(?:%s)?(?:%s)?%s' %
                           DOMAIN_RE_STRING,
                           DISPLAY_APP_ID_RE_STRING))
 
+
+
+
+
+
+
+
 MODULE_ID_RE_STRING = r'^(?!-)[a-z\d\-]{0,%d}[a-z\d]$' % (MODULE_ID_MAX_LEN - 1)
-
-
-
-
-
-
 MODULE_VERSION_ID_RE_STRING = (r'^(?!-)[a-z\d\-]{0,%d}[a-z\d]$' %
                                (MODULE_VERSION_ID_MAX_LEN - 1))
 
@@ -225,7 +233,11 @@ MANUAL_SCALING = 'manual_scaling'
 BASIC_SCALING = 'basic_scaling'
 VM = 'vm'
 VM_SETTINGS = 'vm_settings'
+BETA_SETTINGS = 'beta_settings'
 VM_HEALTH_CHECK = 'vm_health_check'
+HEALTH_CHECK = 'health_check'
+RESOURCES = 'resources'
+NETWORK = 'network'
 VERSION = 'version'
 MAJOR_VERSION = 'major_version'
 MINOR_VERSION = 'minor_version'
@@ -304,6 +316,14 @@ UNHEALTHY_THRESHOLD = 'unhealthy_threshold'
 HEALTHY_THRESHOLD = 'healthy_threshold'
 RESTART_THRESHOLD = 'restart_threshold'
 HOST = 'host'
+
+
+CPU = 'cpu'
+MEMORY_GB = 'memory_gb'
+
+
+FORWARDED_PORTS = 'forwarded_ports'
+INSTANCE_TAG = 'instance_tag'
 
 
 class _VersionedLibrary(object):
@@ -1324,7 +1344,7 @@ class BasicScaling(validation.Validated):
 class VmSettings(validation.ValidatedDict):
   """Class for VM settings.
 
-  We don't validate these further because the feature is in flux.
+  We don't validate these further here.  They're validated in Olympus.
   """
 
   KEY_VALIDATOR = validation.Regex('[a-zA-Z_][a-zA-Z0-9_]*')
@@ -1339,6 +1359,20 @@ class VmSettings(validation.ValidatedDict):
 
     result_vm_settings.update(vm_settings_one or {})
     return VmSettings(**result_vm_settings) if result_vm_settings else None
+
+
+class BetaSettings(VmSettings):
+  """Class for Beta (internal or unreleased) settings.
+
+  This class is meant to replace VmSettings eventually.
+
+  We don't validate these further here.  They're validated in Olympus.
+  """
+
+  @classmethod
+  def Merge(cls, beta_settings_one, beta_settings_two):
+    merged = VmSettings.Merge(beta_settings_one, beta_settings_two)
+    return BetaSettings(**merged.ToDict()) if merged else None
 
 
 class EnvironmentVariables(validation.ValidatedDict):
@@ -1384,12 +1418,10 @@ def VmSafeSetRuntime(appyaml, runtime):
       appyaml.vm_settings = VmSettings()
 
 
-    appyaml.vm_settings['has_docker_image'] = True
-
-
 
     if runtime == 'dart' or runtime == 'contrib-dart':
       runtime = 'dart'
+      appyaml.vm_settings['has_docker_image'] = True
 
 
 
@@ -1418,8 +1450,24 @@ def NormalizeVmSettings(appyaml):
   if appyaml.vm:
     if not appyaml.vm_settings:
       appyaml.vm_settings = VmSettings()
+
     if 'vm_runtime' not in appyaml.vm_settings:
       appyaml = VmSafeSetRuntime(appyaml, appyaml.runtime)
+
+
+    if hasattr(appyaml, 'beta_settings') and appyaml.beta_settings:
+
+
+
+      if 'vm_runtime' not in appyaml.beta_settings:
+
+        appyaml.beta_settings['vm_runtime'] = appyaml.vm_settings[
+            'vm_runtime']
+      if ('has_docker_image' not in appyaml.beta_settings and
+          'has_docker_image' in appyaml.vm_settings):
+        appyaml.beta_settings['has_docker_image'] = appyaml.vm_settings[
+            'has_docker_image']
+
   return appyaml
 
 
@@ -1436,6 +1484,41 @@ class VmHealthCheck(validation.Validated):
       HOST: validation.Optional(validation.TYPE_STR)}
 
 
+class HealthCheck(VmHealthCheck):
+  """Class representing the health check configuration.
+
+  This class is meant to replace VmHealthCheck eventually.
+  """
+  pass
+
+
+class Resources(validation.Validated):
+  """Class representing the configuration of VM resources."""
+
+
+
+
+
+  ATTRIBUTES = {
+      CPU: validation.Optional(validation.TYPE_FLOAT, default=.5),
+      MEMORY_GB: validation.Optional(validation.TYPE_FLOAT, default=1.3)
+  }
+
+
+class Network(validation.Validated):
+  """Class representing the VM network configuration."""
+
+  ATTRIBUTES = {
+
+      FORWARDED_PORTS: validation.Optional(validation.Repeated(validation.Regex(
+          '[0-9]+(:[0-9]+)?'))),
+
+
+      INSTANCE_TAG: validation.Optional(validation.Regex(
+          r'^[a-z\d]([a-z\d-]{0,61}[a-z\d])?$'))
+  }
+
+
 class AppInclude(validation.Validated):
   """Class representing the contents of an included app.yaml file.
 
@@ -1448,11 +1531,12 @@ class AppInclude(validation.Validated):
   ATTRIBUTES = {
       BUILTINS: validation.Optional(validation.Repeated(BuiltinHandler)),
       INCLUDES: validation.Optional(validation.Type(list)),
-      HANDLERS: validation.Optional(validation.Repeated(URLMap)),
+      HANDLERS: validation.Optional(validation.Repeated(URLMap), default=[]),
       ADMIN_CONSOLE: validation.Optional(AdminConsole),
       MANUAL_SCALING: validation.Optional(ManualScaling),
       VM: validation.Optional(bool),
       VM_SETTINGS: validation.Optional(VmSettings),
+      BETA_SETTINGS: validation.Optional(BetaSettings),
       ENV_VARIABLES: validation.Optional(EnvironmentVariables),
       SKIP_FILES: validation.RegexStr(default=SKIP_NO_FILES),
 
@@ -1511,6 +1595,11 @@ class AppInclude(validation.Validated):
 
     one.vm_settings = VmSettings.Merge(one.vm_settings,
                                        two.vm_settings)
+
+
+    if hasattr(one, 'beta_settings'):
+      one.beta_settings = BetaSettings.Merge(one.beta_settings,
+                                             two.beta_settings)
 
 
 
@@ -1644,10 +1733,14 @@ class AppInfoExternal(validation.Validated):
       BASIC_SCALING: validation.Optional(BasicScaling),
       VM: validation.Optional(bool),
       VM_SETTINGS: validation.Optional(VmSettings),
+      BETA_SETTINGS: validation.Optional(BetaSettings),
       VM_HEALTH_CHECK: validation.Optional(VmHealthCheck),
+      HEALTH_CHECK: validation.Optional(HealthCheck),
+      RESOURCES: validation.Optional(Resources),
+      NETWORK: validation.Optional(Network),
       BUILTINS: validation.Optional(validation.Repeated(BuiltinHandler)),
       INCLUDES: validation.Optional(validation.Type(list)),
-      HANDLERS: validation.Optional(validation.Repeated(URLMap)),
+      HANDLERS: validation.Optional(validation.Repeated(URLMap), default=[]),
       LIBRARIES: validation.Optional(validation.Repeated(Library)),
 
       SERVICES: validation.Optional(validation.Repeated(
@@ -1704,7 +1797,8 @@ class AppInfoExternal(validation.Validated):
           that does not support it (e.g. python25).
     """
     super(AppInfoExternal, self).CheckInitialized()
-    if not self.handlers and not self.builtins and not self.includes:
+    if (not self.handlers and not self.builtins and not self.includes
+        and not self.vm):
       raise appinfo_errors.MissingURLMapping(
           'No URLMap entries found in application configuration')
     if self.handlers and len(self.handlers) > MAX_URL_MAPS:
@@ -1735,8 +1829,12 @@ class AppInfoExternal(validation.Validated):
     if self.libraries:
       vm_runtime_python27 = (
           self.runtime == 'vm' and
-          hasattr(self, 'vm_settings') and
-          self.vm_settings['vm_runtime'] == 'python27')
+          (hasattr(self, 'vm_settings') and
+           self.vm_settings and
+           self.vm_settings['vm_runtime'] == 'python27') or
+          (hasattr(self, 'beta_settings') and
+           self.beta_settings and
+           self.beta_settings['vm_runtime'] == 'python27'))
       if not self._skip_runtime_checks and not (
           vm_runtime_python27 or self.runtime == 'python27'):
         raise appinfo_errors.RuntimeDoesNotSupportLibraries(
@@ -1869,11 +1967,15 @@ class AppInfoExternal(validation.Validated):
     """Returns the app's runtime, resolving VMs to the underlying vm_runtime.
 
     Returns:
-      The effective runtime: the value of vm_settings.vm_runtime if runtime is
-      "vm", or runtime otherwise.
+      The effective runtime: the value of beta/vm_settings.vm_runtime if
+      runtime is "vm", or runtime otherwise.
     """
-    if self.runtime == 'vm' and hasattr(self, 'vm_settings'):
+    if (self.runtime == 'vm' and hasattr(self, 'vm_settings')
+        and self.vm_settings is not None):
       return self.vm_settings.get('vm_runtime')
+    if (self.runtime == 'vm' and hasattr(self, 'beta_settings')
+        and self.beta_settings is not None):
+      return self.beta_settings.get('vm_runtime')
     return self.runtime
 
 
