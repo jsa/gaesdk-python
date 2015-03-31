@@ -35,7 +35,11 @@ from google.appengine.api import appinfo_includes
 from google.appengine.api import backendinfo
 from google.appengine.api import dispatchinfo
 from google.appengine.client.services import port_manager
+from google.appengine.tools import app_engine_web_xml_parser
+from google.appengine.tools import java_quickstart
 from google.appengine.tools import queue_xml_parser
+from google.appengine.tools import web_xml_parser
+from google.appengine.tools import xml_parser_utils
 from google.appengine.tools import yaml_translator
 from google.appengine.tools.devappserver2 import errors
 
@@ -141,18 +145,32 @@ class ModuleConfiguration(object):
     self._forwarded_ports = {}
     if self.runtime == 'vm':
       vm_settings = self._app_info_external.vm_settings
+      ports = None
       if vm_settings:
         ports = vm_settings.get('forwarded_ports')
-        if ports:
-          logging.debug('setting forwarded ports %s', ports)
-          pm = port_manager.PortManager()
-          pm.Add(ports, 'forwarded')
-          self._forwarded_ports = pm.GetAllMappedPorts()
+      if not ports:
+        if (self._app_info_external.network and
+            self._app_info_external.network.forwarded_ports):
+          # Depending on the YAML formatting, these may be strings or ints.
+          # Force them to be strings.
+          ports = ','.join(
+              str(p) for p in self._app_info_external.network.forwarded_ports)
+      if ports:
+        logging.debug('setting forwarded ports %s', ports)
+        pm = port_manager.PortManager()
+        pm.Add(ports, 'forwarded')
+        self._forwarded_ports = pm.GetAllMappedPorts()
 
     self._translate_configuration_files()
 
-    self._vm_health_check = _set_health_check_defaults(
-        self._app_info_external.vm_health_check)
+    # vm_health_check is deprecated but it still needs to be taken into account
+    # if it is populated.
+    if self._app_info_external.health_check is not None:
+      health_check = self._app_info_external.health_check
+    else:
+      health_check = self._app_info_external.vm_health_check
+
+    self._health_check = _set_health_check_defaults(health_check)
 
   @property
   def application_root(self):
@@ -265,8 +283,8 @@ class ModuleConfiguration(object):
     return self._config_path
 
   @property
-  def vm_health_check(self):
-    return self._vm_health_check
+  def health_check(self):
+    return self._health_check
 
   def check_for_updates(self):
     """Return any configuration changes since the last check_for_updates call.
@@ -390,17 +408,34 @@ class ModuleConfiguration(object):
     """
     with open(app_engine_web_xml_path) as f:
       app_engine_web_xml_str = f.read()
+    app_engine_web_xml = (
+        app_engine_web_xml_parser.AppEngineWebXmlParser().ProcessXml(
+            app_engine_web_xml_str))
+
+    quickstart = xml_parser_utils.BooleanValue(
+        app_engine_web_xml.beta_settings.get('java_quickstart', 'false'))
+
     web_inf_dir = os.path.dirname(app_engine_web_xml_path)
-    web_xml_path = os.path.join(web_inf_dir, 'web.xml')
-    with open(web_xml_path) as f:
-      web_xml_str = f.read()
+    if quickstart:
+      app_dir = os.path.dirname(web_inf_dir)
+      web_xml_str, web_xml_path = java_quickstart.quickstart_generator(app_dir)
+      webdefault_xml_str = java_quickstart.get_webdefault_xml()
+      web_xml_str = java_quickstart.remove_mappings(
+          web_xml_str, webdefault_xml_str)
+    else:
+      web_xml_path = os.path.join(web_inf_dir, 'web.xml')
+      with open(web_xml_path) as f:
+        web_xml_str = f.read()
+
     has_jsps = False
     for _, _, filenames in os.walk(self.application_root):
       if any(f.endswith('.jsp') for f in filenames):
         has_jsps = True
         break
+
+    web_xml = web_xml_parser.WebXmlParser().ProcessXml(web_xml_str, has_jsps)
     app_yaml_str = yaml_translator.TranslateXmlToYamlForDevAppServer(
-        app_engine_web_xml_str, web_xml_str, has_jsps, self.application_root)
+        app_engine_web_xml, web_xml, self.application_root)
     config = appinfo.LoadSingleAppInfo(app_yaml_str)
     return config, [app_engine_web_xml_path, web_xml_path]
 
@@ -426,24 +461,24 @@ class ModuleConfiguration(object):
         f.write(queue_yaml)
 
 
-def _set_health_check_defaults(vm_health_check):
-  """Sets default values for any missing attributes in VmHealthCheck.
+def _set_health_check_defaults(health_check):
+  """Sets default values for any missing attributes in HealthCheck.
 
   These defaults need to be kept up to date with the production values in
-  vm_health_check.cc
+  health_check.cc
 
   Args:
-    vm_health_check: An instance of appinfo.VmHealthCheck or None.
+    health_check: An instance of appinfo.HealthCheck or None.
 
   Returns:
-    An instance of appinfo.VmHealthCheck
+    An instance of appinfo.HealthCheck
   """
-  if not vm_health_check:
-    vm_health_check = appinfo.VmHealthCheck()
+  if not health_check:
+    health_check = appinfo.HealthCheck()
   for k, v in _HEALTH_CHECK_DEFAULTS.iteritems():
-    if getattr(vm_health_check, k) is None:
-      setattr(vm_health_check, k, v)
-  return vm_health_check
+    if getattr(health_check, k) is None:
+      setattr(health_check, k, v)
+  return health_check
 
 
 class BackendsConfiguration(object):
@@ -647,8 +682,8 @@ class BackendConfiguration(object):
     return self._module_configuration.config_path
 
   @property
-  def vm_health_check(self):
-    return self._module_configuration.vm_health_check
+  def health_check(self):
+    return self._module_configuration.health_check
 
   def check_for_updates(self):
     """Return any configuration changes since the last check_for_updates call.

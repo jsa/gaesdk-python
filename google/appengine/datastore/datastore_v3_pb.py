@@ -793,7 +793,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
   has_min_safe_time_seconds_ = 0
   min_safe_time_seconds_ = 0
   has_persist_offset_ = 0
-  persist_offset_ = 0
+  persist_offset_ = 1
 
   def __init__(self, contents=None):
     self.filter_ = []
@@ -1197,7 +1197,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
   def clear_persist_offset(self):
     if self.has_persist_offset_:
       self.has_persist_offset_ = 0
-      self.persist_offset_ = 0
+      self.persist_offset_ = 1
 
   def has_persist_offset(self): return self.has_persist_offset_
 

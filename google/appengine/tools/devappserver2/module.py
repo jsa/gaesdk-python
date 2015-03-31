@@ -116,6 +116,13 @@ _TIMEOUT_HTML = '<HTML><BODY>503 - This request has timed out.</BODY></HTML>'
 # optimized the vm_engine reload.
 _VMENGINE_SLOWDOWN_FACTOR = 2
 
+# polling time on module changes.
+_CHANGE_POLLING_MS = 1000
+
+# specific resources prefixes we don't want to see pollute the info level on
+# access.
+_QUIETER_RESOURCES = ('/_ah/health',)
+
 
 def _static_files_regex_from_handlers(handlers):
   patterns = []
@@ -169,6 +176,7 @@ class Module(object):
   _RUNTIME_INSTANCE_FACTORIES = {
       'go': go_runtime.GoRuntimeInstanceFactory,
       'php': php_runtime.PHPRuntimeInstanceFactory,
+      'php55': php_runtime.PHPRuntimeInstanceFactory,
       'python': python_runtime.PythonRuntimeInstanceFactory,
       'python27': python_runtime.PythonRuntimeInstanceFactory,
       # TODO: uncomment for GA.
@@ -207,15 +215,22 @@ class Module(object):
     Raises:
       RuntimeError: if the configuration specifies an unknown runtime.
     """
+    # TODO: Remove this when we have sandboxing disabled for all
+    # runtimes.
+    if (os.environ.get('GAE_LOCAL_VM_RUNTIME') and
+        module_configuration.runtime == 'vm'):
+      runtime = module_configuration.effective_runtime
+    else:
+      runtime = module_configuration.runtime
+
     # TODO: a bad runtime should be caught before we get here.
-    if module_configuration.runtime not in self._RUNTIME_INSTANCE_FACTORIES:
+    if runtime not in self._RUNTIME_INSTANCE_FACTORIES:
       raise RuntimeError(
           'Unknown runtime %r; supported runtimes are %s.' %
-          (module_configuration.runtime,
+          (runtime,
            ', '.join(
                sorted(repr(k) for k in self._RUNTIME_INSTANCE_FACTORIES))))
-    instance_factory = self._RUNTIME_INSTANCE_FACTORIES[
-        module_configuration.runtime]
+    instance_factory = self._RUNTIME_INSTANCE_FACTORIES[runtime]
     return instance_factory(
         request_data=self._request_data,
         runtime_config_getter=self._get_runtime_config,
@@ -329,7 +344,8 @@ class Module(object):
     if self._cloud_sql_config:
       runtime_config.cloud_sql_config.CopyFrom(self._cloud_sql_config)
 
-    if self._php_config and self._module_configuration.runtime == 'php':
+    if (self._php_config and
+        self._module_configuration.runtime.startswith('php')):
       runtime_config.php_config.CopyFrom(self._php_config)
     if (self._python_config and
         self._module_configuration.runtime.startswith('python')):
@@ -340,6 +356,8 @@ class Module(object):
 
     if self._vm_config:
       runtime_config.vm_config.CopyFrom(self._vm_config)
+
+    runtime_config.vm = self._module_configuration.runtime == 'vm'
 
     return runtime_config
 
@@ -371,20 +389,21 @@ class Module(object):
     for inst in instances_to_quit:
       inst.quit(allow_async=True)
 
-  def _handle_changes(self):
+  def _handle_changes(self, timeout=0):
     """Handle file or configuration changes."""
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    file_changes = self._watcher.changes()
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
+    file_changes = self._watcher.changes(timeout)
     if file_changes:
       logging.info(
-          'Detected file changes:\n  %s', '\n  '.join(sorted(file_changes)))
+          '[%s] Detected file changes:\n  %s', self.name,
+          '\n  '.join(sorted(file_changes)))
       self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
@@ -514,7 +533,7 @@ class Module(object):
   def name(self):
     """The name of the module, as defined in app.yaml.
 
-    This value will be constant for the lifetime of the module even in the
+    This value will be constant for the lifetime of the module even if the
     module configuration changes.
     """
     return self._name
@@ -523,7 +542,7 @@ class Module(object):
   def version(self):
     """The version of the module, as defined in app.yaml.
 
-    This value will be constant for the lifetime of the module even in the
+    This value will be constant for the lifetime of the module even if the
     module configuration changes.
     """
     return self._version
@@ -532,7 +551,7 @@ class Module(object):
   def app_name_external(self):
     """The external application name of the module, as defined in app.yaml.
 
-    This value will be constant for the lifetime of the module even in the
+    This value will be constant for the lifetime of the module even if the
     module configuration changes.
     """
     return self._app_name_external
@@ -580,6 +599,11 @@ class Module(object):
   def effective_runtime(self):
     """Effective_runtime property for this module."""
     return self._module_configuration.effective_runtime
+
+  @property
+  def mvm_logs_enabled(self):
+    """Returns True iff it's a Managed VM module and logs are enabled."""
+    return self._vm_config and self._vm_config.enable_logs
 
   @property
   def supports_interactive_commands(self):
@@ -698,15 +722,19 @@ class Module(object):
           status_code = int(status.split(' ', 1)[0])
           content_length = int(headers.get('Content-Length', 0))
           logservice.end_request(request_id, status_code, content_length)
-          logging.info('%(module_name)s: '
-                       '"%(method)s %(resource)s %(http_version)s" '
-                       '%(status)d %(content_length)s',
-                       {'module_name': self.name,
-                        'method': method,
-                        'resource': resource,
-                        'http_version': http_version,
-                        'status': status_code,
-                        'content_length': content_length or '-'})
+          if any(resource.startswith(prefix) for prefix in _QUIETER_RESOURCES):
+            level = logging.DEBUG
+          else:
+            level = logging.INFO
+          logging.log(level, '%(module_name)s: '
+                      '"%(method)s %(resource)s %(http_version)s" '
+                      '%(status)d %(content_length)s',
+                      {'module_name': self.name,
+                       'method': method,
+                       'resource': resource,
+                       'http_version': http_version,
+                       'status': status_code,
+                       'content_length': content_length or '-'})
         return start_response(status, response_headers, exc_info)
 
       content_length = int(environ.get('CONTENT_LENGTH', '0'))
@@ -787,7 +815,10 @@ class Module(object):
         return self._no_handler_for_request(environ, wrapped_start_response,
                                             request_id)
       except StandardError, e:
-        logging.exception('Request to %r failed', path_info)
+        if logging.getLogger('').isEnabledFor(logging.DEBUG):
+          logging.exception('Request to %r failed', path_info)
+        else:
+          logging.error('Request to %r failed', path_info)
         wrapped_start_response('500 Internal Server Error', [], e)
         return []
 
@@ -1061,98 +1092,14 @@ class AutoScalingModule(Module):
     self._min_idle_instances = int(automatic_scaling.min_idle_instances)
     self._max_idle_instances = int(automatic_scaling.max_idle_instances)
 
-  def __init__(self,
-               module_configuration,
-               host,
-               balanced_port,
-               api_host,
-               api_port,
-               auth_domain,
-               runtime_stderr_loglevel,
-               php_config,
-               python_config,
-               java_config,
-               cloud_sql_config,
-               unused_vm_config,
-               default_version_port,
-               port_registry,
-               request_data,
-               dispatcher,
-               max_instances,
-               use_mtime_file_watcher,
-               automatic_restarts,
-               allow_skipped_files,
-               threadsafe_override):
+  def __init__(self, **kwargs):
     """Initializer for AutoScalingModule.
 
     Args:
-      module_configuration: An application_configuration.ModuleConfiguration
-          instance storing the configuration data for a module.
-      host: A string containing the host that any HTTP servers should bind to
-          e.g. "localhost".
-      balanced_port: An int specifying the port where the balanced module for
-          the pool should listen.
-      api_host: The host that APIServer listens for RPC requests on.
-      api_port: The port that APIServer listens for RPC requests on.
-      auth_domain: A string containing the auth domain to set in the environment
-          variables.
-      runtime_stderr_loglevel: An int reprenting the minimum logging level at
-          which runtime log messages should be written to stderr. See
-          devappserver2.py for possible values.
-      php_config: A runtime_config_pb2.PhpConfig instances containing PHP
-          runtime-specific configuration. If None then defaults are used.
-      python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are used.
-      java_config: A runtime_config_pb2.JavaConfig instance containing
-          Java runtime-specific configuration. If None then defaults are used.
-      cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
-          required configuration for local Google Cloud SQL development. If None
-          then Cloud SQL will not be available.
-      unused_vm_config: A runtime_config_pb2.VMConfig instance containing
-          VM runtime-specific configuration. Ignored by AutoScalingModule as
-          autoscaling is not yet supported by VM runtimes.
-      default_version_port: An int containing the port of the default version.
-      port_registry: A dispatcher.PortRegistry used to provide the Dispatcher
-          with a mapping of port to Module and Instance.
-      request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
-          with request information for use by API stubs.
-      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
-      max_instances: The maximum number of instances to create for this module.
-          If None then there is no limit on the number of created instances.
-      use_mtime_file_watcher: A bool containing whether to use mtime polling to
-          monitor file changes even if other options are available on the
-          current platform.
-      automatic_restarts: If True then instances will be restarted when a
-          file or configuration change that effects them is detected.
-      allow_skipped_files: If True then all files in the application's directory
-          are readable, even if they appear in a static handler or "skip_files"
-          directive.
-      threadsafe_override: If not None, ignore the YAML file value of threadsafe
-          and use this value instead.
+      **kwargs: Arguments to forward to Module.__init__.
     """
-    super(AutoScalingModule, self).__init__(module_configuration,
-                                            host,
-                                            balanced_port,
-                                            api_host,
-                                            api_port,
-                                            auth_domain,
-                                            runtime_stderr_loglevel,
-                                            php_config,
-                                            python_config,
-                                            java_config,
-                                            cloud_sql_config,
-                                            # VM runtimes does not support
-                                            # autoscaling.
-                                            None,
-                                            default_version_port,
-                                            port_registry,
-                                            request_data,
-                                            dispatcher,
-                                            max_instances,
-                                            use_mtime_file_watcher,
-                                            automatic_restarts,
-                                            allow_skipped_files,
-                                            threadsafe_override)
+    kwargs['vm_config'] = None
+    super(AutoScalingModule, self).__init__(**kwargs)
 
     self._process_automatic_scaling(
         self._module_configuration.automatic_scaling)
@@ -1168,7 +1115,8 @@ class AutoScalingModule(Module):
 
     self._condition = threading.Condition()  # Protects instance state.
     self._instance_adjustment_thread = threading.Thread(
-        target=self._loop_adjusting_instances)
+        target=self._loop_adjusting_instances,
+        name='Instance Adjustment')
 
   def start(self):
     """Start background management of the Module."""
@@ -1478,9 +1426,10 @@ class AutoScalingModule(Module):
     while not self._quit_event.is_set():
       if self.ready:
         if self._automatic_restarts:
-          self._handle_changes()
+          self._handle_changes(_CHANGE_POLLING_MS)
+        else:
+          time.sleep(_CHANGE_POLLING_MS/1000.0)
         self._adjust_instances()
-      self._quit_event.wait(timeout=1)
 
   def __call__(self, environ, start_response):
     return self._handle_request(environ, start_response)
@@ -1505,98 +1454,15 @@ class ManualScalingModule(Module):
       manual_scaling = self._DEFAULT_MANUAL_SCALING
     self._initial_num_instances = int(manual_scaling.instances)
 
-  def __init__(self,
-               module_configuration,
-               host,
-               balanced_port,
-               api_host,
-               api_port,
-               auth_domain,
-               runtime_stderr_loglevel,
-               php_config,
-               python_config,
-               java_config,
-               cloud_sql_config,
-               vm_config,
-               default_version_port,
-               port_registry,
-               request_data,
-               dispatcher,
-               max_instances,
-               use_mtime_file_watcher,
-               automatic_restarts,
-               allow_skipped_files,
-               threadsafe_override):
+  def __init__(self, **kwargs):
     """Initializer for ManualScalingModule.
 
     Args:
-      module_configuration: An application_configuration.ModuleConfiguration
-          instance storing the configuration data for a module.
-      host: A string containing the host that any HTTP servers should bind to
-          e.g. "localhost".
-      balanced_port: An int specifying the port where the balanced module for
-          the pool should listen.
-      api_host: The host that APIServer listens for RPC requests on.
-      api_port: The port that APIServer listens for RPC requests on.
-      auth_domain: A string containing the auth domain to set in the environment
-          variables.
-      runtime_stderr_loglevel: An int reprenting the minimum logging level at
-          which runtime log messages should be written to stderr. See
-          devappserver2.py for possible values.
-      php_config: A runtime_config_pb2.PhpConfig instances containing PHP
-          runtime-specific configuration. If None then defaults are used.
-      python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are used.
-      java_config: A runtime_config_pb2.JavaConfig instance containing
-          Java runtime-specific configuration. If None then defaults are used.
-      cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
-          required configuration for local Google Cloud SQL development. If None
-          then Cloud SQL will not be available.
-      vm_config: A runtime_config_pb2.VMConfig instance containing
-          VM runtime-specific configuration. If None all docker-related stuff
-          is disabled.
-      default_version_port: An int containing the port of the default version.
-      port_registry: A dispatcher.PortRegistry used to provide the Dispatcher
-          with a mapping of port to Module and Instance.
-      request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
-          with request information for use by API stubs.
-      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
-      max_instances: The maximum number of instances to create for this module.
-          If None then there is no limit on the number of created instances.
-      use_mtime_file_watcher: A bool containing whether to use mtime polling to
-          monitor file changes even if other options are available on the
-          current platform.
-      automatic_restarts: If True then instances will be restarted when a
-          file or configuration change that effects them is detected.
-      allow_skipped_files: If True then all files in the application's directory
-          are readable, even if they appear in a static handler or "skip_files"
-          directive.
-      threadsafe_override: If not None, ignore the YAML file value of threadsafe
-          and use this value instead.
+      **kwargs: Arguments to forward to Module.__init__.
     """
-    super(ManualScalingModule, self).__init__(module_configuration,
-                                              host,
-                                              balanced_port,
-                                              api_host,
-                                              api_port,
-                                              auth_domain,
-                                              runtime_stderr_loglevel,
-                                              php_config,
-                                              python_config,
-                                              java_config,
-                                              cloud_sql_config,
-                                              vm_config,
-                                              default_version_port,
-                                              port_registry,
-                                              request_data,
-                                              dispatcher,
-                                              max_instances,
-                                              use_mtime_file_watcher,
-                                              automatic_restarts,
-                                              allow_skipped_files,
-                                              threadsafe_override)
+    super(ManualScalingModule, self).__init__(**kwargs)
 
-    self._process_manual_scaling(module_configuration.manual_scaling)
+    self._process_manual_scaling(self._module_configuration.manual_scaling)
 
     self._instances = []  # Protected by self._condition.
     self._wsgi_servers = []  # Protected by self._condition.
@@ -1610,7 +1476,7 @@ class ManualScalingModule(Module):
     self._instances_change_lock = threading.RLock()
 
     self._change_watcher_thread = threading.Thread(
-        target=self._loop_watching_for_changes)
+        target=self._loop_watching_for_changes, name='Change Watcher')
 
   def start(self):
     """Start background management of the Module."""
@@ -1631,11 +1497,11 @@ class ManualScalingModule(Module):
   def quit(self):
     """Stops the Module."""
     self._quit_event.set()
-    self._change_watcher_thread.join()
     # The instance adjustment thread depends on the balanced module and the
     # watcher so wait for it exit before quitting them.
     if self._watcher:
       self._watcher.quit()
+    self._change_watcher_thread.join()
     self._balanced_module.quit()
     for wsgi_servr in self._wsgi_servers:
       wsgi_servr.quit()
@@ -1783,11 +1649,6 @@ class ManualScalingModule(Module):
     wsgi_servr.start()
     self._port_registry.add(wsgi_servr.port, self, inst)
 
-    health_check_config = self.module_configuration.vm_health_check
-    if (self.module_configuration.runtime == 'vm' and
-        health_check_config.enable_health_check):
-      self._add_health_checks(inst, wsgi_servr, health_check_config)
-
     with self._condition:
       if self._quit_event.is_set():
         return
@@ -1795,7 +1656,15 @@ class ManualScalingModule(Module):
       self._instances.append(inst)
       suspended = self._suspended
     if not suspended:
-      self._async_start_instance(wsgi_servr, inst)
+      future = self._async_start_instance(wsgi_servr, inst)
+      health_check_config = self.module_configuration.health_check
+      if (self.module_configuration.runtime == 'vm' and
+          health_check_config.enable_health_check):
+        # Health checks should only get added after the build is done and the
+        # container starts.
+        def _add_health_checks_callback(unused_future):
+          return self._add_health_checks(inst, wsgi_servr, health_check_config)
+        future.add_done_callback(_add_health_checks_callback)
 
   def _add_health_checks(self, inst, wsgi_servr, config):
     do_health_check = functools.partial(
@@ -1819,6 +1688,8 @@ class ManualScalingModule(Module):
 
     logging.debug('Started instance: %s at http://%s:%s', inst, self.host,
                   wsgi_servr.port)
+    logging.info('New instance for module "%s" serving on:\nhttp://%s\n',
+                 self.name, self.balanced_address)
     try:
       environ = self.build_request_environ(
           'GET', '/_ah/start', [], '', '0.1.0.3', wsgi_servr.port,
@@ -1857,20 +1728,21 @@ class ManualScalingModule(Module):
         self._condition.wait(timeout_time - time.time())
       return None
 
-  def _handle_changes(self):
+  def _handle_changes(self, timeout=0):
     """Handle file or configuration changes."""
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    file_changes = self._watcher.changes()
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
+    file_changes = self._watcher.changes(timeout)
     if file_changes:
       logging.info(
-          'Detected file changes:\n  %s', '\n  '.join(sorted(file_changes)))
+          '[%s] Detected file changes:\n  %s', self.name,
+          '\n  '.join(sorted(file_changes)))
       self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
@@ -1886,8 +1758,9 @@ class ManualScalingModule(Module):
     while not self._quit_event.is_set():
       if self.ready:
         if self._automatic_restarts:
-          self._handle_changes()
-      self._quit_event.wait(timeout=1)
+          self._handle_changes(_CHANGE_POLLING_MS)
+        else:
+          time.sleep(_CHANGE_POLLING_MS/1000.0)
 
   def get_num_instances(self):
     with self._instances_change_lock:
@@ -1996,7 +1869,7 @@ class ManualScalingModule(Module):
         for wsgi_servr, inst in zip(wsgi_servers, instances_to_start)]
     logging.info('Waiting for instances to restart')
 
-    health_check_config = self.module_configuration.vm_health_check
+    health_check_config = self.module_configuration.health_check
     for (inst, wsgi_servr) in zip(instances_to_start, wsgi_servers):
       if (self.module_configuration.runtime == 'vm'
           and health_check_config.enable_health_check):
@@ -2021,7 +1894,7 @@ class ManualScalingModule(Module):
       self._port_registry.add(wsgi_servr.port, self, new_instance)
       # Start the new instance.
       self._start_instance(wsgi_servr, new_instance)
-    health_check_config = self.module_configuration.vm_health_check
+    health_check_config = self.module_configuration.health_check
     if (self.module_configuration.runtime == 'vm'
         and health_check_config.enable_health_check):
       self._add_health_checks(new_instance, wsgi_servr, health_check_config)
@@ -2087,98 +1960,15 @@ class BasicScalingModule(Module):
     self._instance_idle_timeout = self._parse_idle_timeout(
         basic_scaling.idle_timeout)
 
-  def __init__(self,
-               module_configuration,
-               host,
-               balanced_port,
-               api_host,
-               api_port,
-               auth_domain,
-               runtime_stderr_loglevel,
-               php_config,
-               python_config,
-               java_config,
-               cloud_sql_config,
-               vm_config,
-               default_version_port,
-               port_registry,
-               request_data,
-               dispatcher,
-               max_instances,
-               use_mtime_file_watcher,
-               automatic_restarts,
-               allow_skipped_files,
-               threadsafe_override):
+  def __init__(self, **kwargs):
     """Initializer for BasicScalingModule.
 
     Args:
-      module_configuration: An application_configuration.ModuleConfiguration
-          instance storing the configuration data for a module.
-      host: A string containing the host that any HTTP servers should bind to
-          e.g. "localhost".
-      balanced_port: An int specifying the port where the balanced module for
-          the pool should listen.
-      api_host: The host that APIServer listens for RPC requests on.
-      api_port: The port that APIServer listens for RPC requests on.
-      auth_domain: A string containing the auth domain to set in the environment
-          variables.
-      runtime_stderr_loglevel: An int reprenting the minimum logging level at
-          which runtime log messages should be written to stderr. See
-          devappserver2.py for possible values.
-      php_config: A runtime_config_pb2.PhpConfig instances containing PHP
-          runtime-specific configuration. If None then defaults are used.
-      python_config: A runtime_config_pb2.PythonConfig instance containing
-          Python runtime-specific configuration. If None then defaults are used.
-      java_config: A runtime_config_pb2.JavaConfig instance containing
-          Java runtime-specific configuration. If None then defaults are used.
-      cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
-          required configuration for local Google Cloud SQL development. If None
-          then Cloud SQL will not be available.
-      vm_config: A runtime_config_pb2.VMConfig instance containing
-          VM runtime-specific configuration. If None all docker-related stuff
-          is disabled.
-      default_version_port: An int containing the port of the default version.
-      port_registry: A dispatcher.PortRegistry used to provide the Dispatcher
-          with a mapping of port to Module and Instance.
-      request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
-          with request information for use by API stubs.
-      dispatcher: A Dispatcher instance that can be used to make HTTP requests.
-      max_instances: The maximum number of instances to create for this module.
-          If None then there is no limit on the number of created instances.
-      use_mtime_file_watcher: A bool containing whether to use mtime polling to
-          monitor file changes even if other options are available on the
-          current platform.
-      automatic_restarts: If True then instances will be restarted when a
-          file or configuration change that effects them is detected.
-      allow_skipped_files: If True then all files in the application's directory
-          are readable, even if they appear in a static handler or "skip_files"
-          directive.
-      threadsafe_override: If not None, ignore the YAML file value of threadsafe
-          and use this value instead.
+      **kwargs: Arguments to forward to Module.__init__.
     """
-    super(BasicScalingModule, self).__init__(module_configuration,
-                                             host,
-                                             balanced_port,
-                                             api_host,
-                                             api_port,
-                                             auth_domain,
-                                             runtime_stderr_loglevel,
-                                             php_config,
-                                             python_config,
-                                             java_config,
-                                             cloud_sql_config,
-                                             vm_config,
-                                             default_version_port,
-                                             port_registry,
-                                             request_data,
-                                             dispatcher,
-                                             max_instances,
-                                             use_mtime_file_watcher,
-                                             automatic_restarts,
-                                             allow_skipped_files,
-                                             threadsafe_override)
+    super(BasicScalingModule, self).__init__(**kwargs)
 
-    self._process_basic_scaling(module_configuration.basic_scaling)
+    self._process_basic_scaling(self._module_configuration.basic_scaling)
 
     self._instances = []  # Protected by self._condition.
     self._wsgi_servers = []  # Protected by self._condition.
@@ -2197,7 +1987,8 @@ class BasicScalingModule(Module):
     self._condition = threading.Condition()  # Protects instance state.
 
     self._change_watcher_thread = threading.Thread(
-        target=self._loop_watching_for_changes_and_idle_instances)
+        target=self._loop_watching_for_changes_and_idle_instances,
+        name='Change Watcher')
 
   def start(self):
     """Start background management of the Module."""
@@ -2420,18 +2211,18 @@ class BasicScalingModule(Module):
       inst.wait(timeout_time)
     return inst
 
-  def _handle_changes(self):
+  def _handle_changes(self, timeout=0):
     """Handle file or configuration changes."""
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
-    file_changes = self._watcher.changes()
 
     if application_configuration.HANDLERS_CHANGED in config_changes:
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
 
+    file_changes = self._watcher.changes(timeout)
     if file_changes:
       self._instance_factory.files_changed()
 
@@ -2447,8 +2238,9 @@ class BasicScalingModule(Module):
       if self.ready:
         self._shutdown_idle_instances()
         if self._automatic_restarts:
-          self._handle_changes()
-      self._quit_event.wait(timeout=1)
+          self._handle_changes(_CHANGE_POLLING_MS)
+        else:
+          time.sleep(_CHANGE_POLLING_MS/1000.0)
 
   def _shutdown_idle_instances(self):
     instances_to_stop = []

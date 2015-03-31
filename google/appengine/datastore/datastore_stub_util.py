@@ -106,7 +106,7 @@ _SCATTER_PROPORTION = 32768
 
 
 
-_MAX_EG_PER_TXN = 5
+_MAX_EG_PER_TXN = 25
 
 
 
@@ -170,17 +170,6 @@ _MAX_SCATTERED_ID = _MAX_SEQUENTIAL_ID + 1 + _MAX_SCATTERED_COUNTER
 
 
 _SCATTER_SHIFT = 64 - _MAX_SEQUENTIAL_BIT + 1
-
-
-_SHOULD_FAIL_ON_BAD_OFFSET = False
-
-def _HandleBadOffset(expected, actual):
-  logging.warn('Encountered an offset %d to Next but expected %d given the '
-               'query offset and the number of skipped entities.' %
-               (actual, expected))
-  if (_SHOULD_FAIL_ON_BAD_OFFSET):
-    raise datastore_errors.BadArgumentError(
-        'Invalid offset provided. Got %s expected %s.' % (actual, expected))
 
 def _GetScatterProperty(entity_proto):
   """Gets the scatter property for an object.
@@ -1094,12 +1083,12 @@ class BaseCursor(object):
       compiled_cursor: The datastore_pb.CompiledCursor to decode.
 
     Returns:
-      (cursor_entity, inclusive): a entity_pb.EntityProto and if it should
+      (cursor_entity, inclusive): an entity_pb.EntityProto and if it should
       be included in the result set.
     """
-    assert compiled_cursor.has_position()
+    assert compiled_cursor.has_postfix_position()
 
-    position = compiled_cursor.position()
+    position = compiled_cursor.postfix_position()
 
 
 
@@ -1113,22 +1102,22 @@ class BaseCursor(object):
         remaining_properties.remove('__key__')
       except KeyError:
         Check(False, 'Cursor does not match query: extra value __key__')
-    for indexvalue in position.indexvalue_list():
-      property = cursor_entity.add_property()
-      property.set_name(indexvalue.property())
-      property.mutable_value().CopyFrom(indexvalue.value())
+    for index_value in position.index_value_list():
+      prop = cursor_entity.add_property()
+      prop.set_name(index_value.property_name())
+      prop.mutable_value().CopyFrom(index_value.value())
       try:
-        remaining_properties.remove(indexvalue.property())
+        remaining_properties.remove(index_value.property_name())
       except KeyError:
         Check(False, 'Cursor does not match query: extra value %s' %
-              indexvalue.property())
+              index_value.property_name())
     Check(not remaining_properties,
           'Cursor does not match query: missing values for %r' %
           remaining_properties)
 
 
 
-    return (cursor_entity, position.start_inclusive())
+    return (cursor_entity, position.before())
 
   def _EncodeCompiledCursor(self, last_result, compiled_cursor):
     """Converts the current state of the cursor into a compiled_cursor.
@@ -1140,41 +1129,42 @@ class BaseCursor(object):
     if last_result is not None:
 
 
-      position = compiled_cursor.mutable_position()
+      position = compiled_cursor.mutable_postfix_position()
 
 
       if '__key__' in self.__cursor_properties:
         position.mutable_key().MergeFrom(last_result.key())
       for prop in last_result.property_list():
         if prop.name() in self.__cursor_properties:
-          indexvalue = position.add_indexvalue()
-          indexvalue.set_property(prop.name())
-          indexvalue.mutable_value().CopyFrom(prop.value())
-      position.set_start_inclusive(False)
+          index_value = position.add_index_value()
+          index_value.set_property_name(prop.name())
+          index_value.mutable_value().CopyFrom(prop.value())
+      position.set_before(False)
       _SetBeforeAscending(position, self.__first_sort_order)
 
-  def PopulateQueryResult(self, result, count, offset,
+  def PopulateQueryResult(self, result, count, deprecated_offset,
                           compile=False, first_result=False):
     """Populates a QueryResult with this cursor and the given number of results.
 
     Args:
       result: datastore_pb.QueryResult
       count: integer of how many results to return, or None if not specified
-      offset: integer of how many results to skip
+      deprecated_offset: integer of how many results to skip, deprecated.
       compile: boolean, whether we are compiling this query
       first_result: whether the query result is the first for this query
 
-    Offset and count may be ignored if the query requested information
-    to be persisted.
+    Raises:
+      datastore_errors.BadArgumentError: if the offset doesn't match the
+      original offset from the RunQuery call.
     """
     if count is None:
-      count = BaseDatastore._BATCH_SIZE
-    if self.__use_persisted_offset:
-      offset = self.__persisted_offset
       count = self.__persisted_count
-    elif self.__persisted_offset != offset:
-      _HandleBadOffset(self.__persisted_offset, offset)
-    self._PopulateQueryResult(result, count, offset,
+    if (deprecated_offset is not None
+        and self.__persisted_offset != deprecated_offset):
+      raise datastore_errors.BadArgumentError(
+          'Invalid offset provided. Got %d expected %d.'
+          % (deprecated_offset, self.__persisted_offset))
+    self._PopulateQueryResult(result, count, self.__persisted_offset,
                               compile, first_result)
     self.__persisted_offset -= result.skipped_results()
 
@@ -1212,7 +1202,8 @@ class ListCursor(BaseCursor):
           new_results.append(result)
       results = new_results
 
-    if query.has_compiled_cursor() and query.compiled_cursor().has_position():
+    if (query.has_compiled_cursor()
+        and query.compiled_cursor().has_postfix_position()):
       start_cursor = self._DecodeCompiledCursor(query.compiled_cursor())
       self.__last_result = start_cursor[0]
       start_cursor_position = self._GetCursorOffset(results, start_cursor)
@@ -1221,7 +1212,7 @@ class ListCursor(BaseCursor):
       start_cursor_position = 0
 
     if query.has_end_compiled_cursor():
-      if query.end_compiled_cursor().has_position():
+      if query.end_compiled_cursor().has_postfix_position():
         end_cursor = self._DecodeCompiledCursor(query.end_compiled_cursor())
         end_cursor_position = self._GetCursorOffset(results, end_cursor)
       else:
@@ -2459,6 +2450,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     calling_app = datastore_types.ResolveAppId(calling_app)
 
     if not transaction and eventual_consistency:
+      self.Groom()
 
       result = []
       for key in raw_keys:
@@ -3078,7 +3070,6 @@ class DatastoreStub(object):
 
   @_NeedsIndexes
   def _Dynamic_RunQuery(self, query, query_result, filter_predicate=None):
-    self.__UpgradeCursors(query)
     cursor = self._datastore.GetQueryCursor(query, self._trusted, self._app_id,
                                             filter_predicate)
 
@@ -3096,53 +3087,6 @@ class DatastoreStub(object):
       compiled_query.set_keys_only(query.keys_only())
       compiled_query.mutable_primaryscan().set_index_name(query.Encode())
     self.__UpdateQueryHistory(query)
-
-  def __UpgradeCursors(self, query):
-    """Upgrades compiled cursors in place.
-
-    If the cursor position does not specify before_ascending, populate it.
-    If before_ascending is already populated, use it and the sort direction
-    from the query to set an appropriate value for start_inclusive.
-
-    Args:
-      query: datastore_pb.Query
-    """
-    first_sort_direction = None
-    if query.order_list():
-      first_sort_direction = query.order(0).direction()
-
-    for compiled_cursor in [query.compiled_cursor(),
-                            query.end_compiled_cursor()]:
-      self.__UpgradeCursor(compiled_cursor, first_sort_direction)
-
-  def __UpgradeCursor(self, compiled_cursor, first_sort_direction):
-    """Upgrades a compiled cursor in place.
-
-    If the cursor position does not specify before_ascending, populate it.
-    If before_ascending is already populated, use it and the provided direction
-    to set an appropriate value for start_inclusive.
-
-    Args:
-      compiled_cursor: datastore_pb.CompiledCursor
-      first_sort_direction: first sort direction from the query or None
-    """
-
-
-    if not self.__IsPlannable(compiled_cursor):
-      return
-    elif compiled_cursor.position().has_before_ascending():
-      _SetStartInclusive(compiled_cursor.position(), first_sort_direction)
-    elif compiled_cursor.position().has_start_inclusive():
-      _SetBeforeAscending(compiled_cursor.position(), first_sort_direction)
-
-  def __IsPlannable(self, compiled_cursor):
-    """Returns True if compiled_cursor is plannable.
-
-    Args:
-      compiled_cursor: datastore_pb.CompiledCursor
-    """
-    position = compiled_cursor.position()
-    return position.has_key() or position.indexvalue_list()
 
   def __UpdateQueryHistory(self, query):
 
@@ -3169,9 +3113,10 @@ class DatastoreStub(object):
           'Cursor %d not found' % next_request.cursor().cursor())
 
     count = next_request.count() if next_request.has_count() else None
+    offset = next_request.offset() if next_request.has_offset() else None
     cursor.PopulateQueryResult(query_result,
                                count,
-                               next_request.offset(),
+                               offset,
                                next_request.compile(),
                                first_result=False)
 
@@ -3348,11 +3293,11 @@ class DatastoreStub(object):
       self._index_config_updater.UpdateIndexConfig()
 
 
-class StubQueryConverter(object):
+class StubQueryConverter(datastore_pbs._QueryConverter):
   """Converter for v3 and v4 queries suitable for use in stubs."""
 
   def __init__(self, entity_converter):
-    self._entity_converter = entity_converter
+    super(StubQueryConverter, self).__init__(entity_converter)
 
   def v4_to_v3_compiled_cursor(self, v4_cursor, v3_compiled_cursor):
     """Converts a v4 cursor string to a v3 CompiledCursor.
@@ -3500,18 +3445,15 @@ class StubQueryConverter(object):
       get_property_filter = self.__add_property_filter
 
     if v3_query.has_ancestor():
-      self.__v3_query_to_v4_ancestor_filter(v3_query,
-                                            get_property_filter(v4_query))
+      self._v3_query_to_v4_ancestor_filter(v3_query,
+                                           get_property_filter(v4_query))
     for v3_filter in v3_query.filter_list():
-      self.__v3_filter_to_v4_property_filter(v3_filter,
-                                             get_property_filter(v4_query))
+      self._v3_filter_to_v4_property_filter(v3_filter,
+                                            get_property_filter(v4_query))
 
 
     for v3_order in v3_query.order_list():
-      v4_order = v4_query.add_order()
-      v4_order.mutable_property().set_name(v3_order.property())
-      if v3_order.has_direction():
-        v4_order.set_direction(v3_order.direction())
+      self.v3_order_to_v4_order(v3_order, v4_query.add_order())
 
   def __get_property_filter(self, v4_query):
     """Returns the PropertyFilter from the query's top-level filter."""
@@ -3558,54 +3500,17 @@ class StubQueryConverter(object):
             not v4_property_filter.value().list_value_list(),
             ('unsupported value type, %s, in property filter'
              ' on "%s"' % ('list_value', property_name)))
-        prop = v3_filter.add_property()
-        prop.set_multiple(False)
-        prop.set_name(property_name)
-        self._entity_converter.v4_value_to_v3_property_value(
-            v4_property_filter.value(), prop.mutable_value())
+        self._entity_converter.v4_to_v3_property(property_name,
+                                                 False,
+                                                 False,
+                                                 v4_property_filter.value(),
+                                                 v3_filter.add_property())
     elif v4_filter.has_composite_filter():
       datastore_pbs.check_conversion((v4_filter.composite_filter().operator()
                                       == datastore_v4_pb.CompositeFilter.AND),
                                      'unsupported composite property operator')
       for v4_sub_filter in v4_filter.composite_filter().filter_list():
         self.__populate_v3_filters(v4_sub_filter, v3_query)
-
-  def __v3_filter_to_v4_property_filter(self, v3_filter, v4_property_filter):
-    """Converts a v3 Filter to a v4 PropertyFilter.
-
-    Args:
-      v3_filter: a datastore_pb.Filter
-      v4_property_filter: a datastore_v4_pb.PropertyFilter to populate
-
-    Raises:
-      InvalidConversionError if the filter cannot be converted
-    """
-    datastore_pbs.check_conversion(v3_filter.property_size() == 1,
-                                   'invalid filter')
-    datastore_pbs.check_conversion(v3_filter.op() <= 5,
-                                   'unsupported filter op: %d' % v3_filter.op())
-    v4_property_filter.Clear()
-    v4_property_filter.set_operator(v3_filter.op())
-    v4_property_filter.mutable_property().set_name(v3_filter.property(0).name())
-    self._entity_converter.v3_property_to_v4_value(
-        v3_filter.property(0), True, v4_property_filter.mutable_value())
-
-  def __v3_query_to_v4_ancestor_filter(self, v3_query, v4_property_filter):
-    """Converts a v3 Query to a v4 ancestor PropertyFilter.
-
-    Args:
-      v3_query: a datastore_pb.Query
-      v4_property_filter: a datastore_v4_pb.PropertyFilter to populate
-    """
-    v4_property_filter.Clear()
-    v4_property_filter.set_operator(
-        datastore_v4_pb.PropertyFilter.HAS_ANCESTOR)
-    prop = v4_property_filter.mutable_property()
-    prop.set_name(datastore_pbs.PROPERTY_NAME_KEY)
-    self._entity_converter.v3_to_v4_key(
-        v3_query.ancestor(),
-        v4_property_filter.mutable_value().mutable_key_value())
-
 
 
 __query_converter = StubQueryConverter(datastore_pbs.get_entity_converter())
@@ -4124,6 +4029,25 @@ def CompareEntityPbByKey(a, b):
              datastore_types.Key._FromPb(b.key()))
 
 
+def NormalizeCursors(query, first_sort_direction):
+    """Normalizes compiled cursors in place.
+
+    Any position specified in the position group is moved to either the
+    postfix_position or absolute_position field and the position group is
+    cleared.
+
+    If the cursor position does not specify before_ascending, populate it.
+    If before_ascending is already populated, use it and the sort direction
+    from the query to set an appropriate value for before.
+
+    Args:
+      query: datastore_pb.Query
+      first_sort_direction: first sort direction as returned by _GuessOrders
+    """
+    _NormalizeCursor(query.compiled_cursor(), first_sort_direction)
+    _NormalizeCursor(query.end_compiled_cursor(), first_sort_direction)
+
+
 def _GuessOrders(filters, orders):
   """Guess any implicit ordering.
 
@@ -4316,6 +4240,9 @@ def _ExecuteQuery(results, query, filters, orders, index_list,
     A ListCursor over the results of applying query to results.
   """
   orders = _GuessOrders(filters, orders)
+
+
+  NormalizeCursors(query, orders[0].direction())
   dsquery = _MakeQuery(query, filters, orders, filter_predicate)
 
   if query.property_name_size():
@@ -4523,15 +4450,73 @@ def _CopyAndSetMultipleToFalse(prop):
   return prop_copy
 
 
-def _SetStartInclusive(position, first_direction):
-  """Sets the start_inclusive field in position.
+def _NormalizeCursor(cursor, first_sort_direction):
+  """Normalizes a compiled cursor in place.
+
+  Any position specified in the position group is moved to either the
+  postfix_position or absolute_position field and the position group is
+  cleared.
+
+  If the cursor position does not specify before_ascending, populate it.
+  If before_ascending is already populated, use it and the provided direction
+  to set an appropriate value for before.
 
   Args:
-    position: datastore_pb.Position
+    cursor: datastore_pb.CompiledCursor
+    first_sort_direction: first sort direction as returned by _GuessOrders
+  """
+  Check((cursor.has_position()
+         + cursor.has_postfix_position()
+         + cursor.has_absolute_position()) <= 1,
+        ('Cursor may specify at most one of position, postfix_position, '
+         'and absolute_position.'))
+
+
+  if cursor.has_position():
+    pos = cursor.position()
+    if pos.has_start_key():
+      index_pos = cursor.mutable_absolute_position()
+      index_pos.set_key(pos.start_key())
+      if pos.has_start_inclusive():
+        index_pos.set_before(pos.start_inclusive())
+      if pos.has_before_ascending():
+        index_pos.set_before_ascending(pos.before_ascending())
+    elif pos.has_key() or len(pos.indexvalue_list()) > 0:
+      postfix_pos = cursor.mutable_postfix_position()
+      for value in pos.indexvalue_list():
+        index_value = postfix_pos.add_index_value()
+        index_value.set_property_name(value.property())
+        index_value.mutable_value().MergeFrom(value.value())
+      if pos.has_key():
+        postfix_pos.mutable_key().MergeFrom(pos.key())
+      if pos.has_start_inclusive():
+        postfix_pos.set_before(pos.start_inclusive())
+      if pos.has_before_ascending():
+        postfix_pos.set_before_ascending(pos.before_ascending())
+    cursor.clear_position()
+
+
+  pos = None
+  if cursor.has_absolute_position():
+    pos = cursor.absolute_position()
+  elif cursor.has_postfix_position():
+    pos = cursor.postfix_position()
+  if pos:
+    if pos.has_before_ascending():
+      _SetBefore(pos, first_sort_direction)
+    else:
+      _SetBeforeAscending(pos, first_sort_direction)
+
+
+def _SetBefore(position, first_direction):
+  """Sets the before field in position.
+
+  Args:
+    position: an entity_pb.IndexPosition or entity_pb.IndexPostfix
     first_direction: the first sort order from the query
       (a datastore_pb.Query_Order) or None
   """
-  position.set_start_inclusive(
+  position.set_before(
       position.before_ascending()
       != (first_direction == datastore_pb.Query_Order.DESCENDING))
 
@@ -4540,10 +4525,10 @@ def _SetBeforeAscending(position, first_direction):
   """Sets the before_ascending field in position.
 
   Args:
-    position: datastore_pb.Position
+    position: an entity_pb.IndexPosition or entity_pb.IndexPostfix
     first_direction: the first sort order from the query
       (a datastore_pb.Query_Order) or None
   """
   position.set_before_ascending(
-      position.start_inclusive()
+      position.before()
       != (first_direction == datastore_pb.Query_Order.DESCENDING))

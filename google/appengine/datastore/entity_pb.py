@@ -2737,12 +2737,10 @@ class Index_Property(ProtocolBuffer.ProtocolMessage):
 
 
   MODE_UNSPECIFIED =    0
-  SEGMENT      =    2
   GEOSPATIAL   =    3
 
   _Mode_NAMES = {
     0: "MODE_UNSPECIFIED",
-    2: "SEGMENT",
     3: "GEOSPATIAL",
   }
 

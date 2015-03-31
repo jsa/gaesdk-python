@@ -27,7 +27,7 @@ thread-safe; calls to the constructor and Singleton() method are protected
 by per-class locks.
 
 Singletons are often associated with bad coding practices; see
-https://wiki/Main/SingletonsConsideredDangerous and decide if you should
+http://wiki/Main/SingletonsConsideredDangerous and decide if you should
 really be using this functionality. Consider alternatives, like the
 "Borg pattern" where object state (instead of object identity) is shared.
 

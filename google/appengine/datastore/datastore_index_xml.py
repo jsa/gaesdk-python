@@ -23,6 +23,22 @@ IndexesXmlParser: converts XML to Index object.
 Index: describes a single index specified in datastore-indexes.xml
 """
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from xml.etree import ElementTree
 
 from google.appengine.api.validation import ValidationError

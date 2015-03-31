@@ -20,7 +20,6 @@
 import logging
 import os
 import shutil
-import subprocess
 import tempfile
 
 import google
@@ -125,32 +124,9 @@ class DartVMRuntimeProxy(instance.RuntimeProxy):
       application_dir = os.path.abspath(
           self._module_configuration.application_root)
 
-      # - copy the application to a new temporary directy (follow symlinks)
-      # - copy the dockerfiles/dart/Dockerfile into the directory
-      # - build & deploy the docker container
       with TempDir('dart_deployment_dir') as temp_dir:
         dst_application_dir = os.path.join(temp_dir, 'app')
-        try:
-          shutil.copytree(application_dir, dst_application_dir)
-        except Exception as e:
-          for src, unused_dst, unused_error in e.args[0]:
-            if os.path.islink(src):
-              linkto = os.readlink(src)
-              if not os.path.exists(linkto):
-                logging.error('Dangling symlink in Dart project. Path ' + src +
-                              ' links to ' + os.readlink(src))
-          raise
-
-        dst_build_dir = os.path.join(dst_application_dir, 'build')
-
-        if self._is_deployment_mode:
-          # Run 'pub build' to generate assets from web/ directory if necessary.
-          web_dir = os.path.join(application_dir, 'web')
-          if os.path.exists(web_dir):
-            subprocess.check_call(' '.join([self._pub, 'build', '--mode=debug',
-                                            'web', '-o', dst_build_dir]),
-                                  cwd=application_dir, shell=True)
-
+        build_dart_docker_image_source(application_dir, dst_application_dir)
         self._vm_runtime_proxy.start(dockerfile_dir=dst_application_dir)
 
       logging.info(
@@ -192,3 +168,41 @@ class TempDir(object):
 
   def __exit__(self, *_):
     shutil.rmtree(self._temp_dir, ignore_errors=True)
+
+
+def build_dart_docker_image_source(application_dir, dst_application_dir):
+  """Builds the Docker image source in preparation for building.
+
+     Create a self contained (no package sym-links out of the application
+     directory) application directory.
+
+  Steps:
+    copy the application to dst_deployment_dir keeping symlinks
+    remove the root package directory
+    copy the root package to dst_deployment_dir following symlinks
+
+  Args:
+    application_dir: string, pathname of application directory.
+    dst_application_dir: string, pathname of temporary deployment directory.
+  """
+  package_dir = os.path.join(application_dir, 'packages')
+  dst_package_dir = os.path.join(dst_application_dir, 'packages')
+
+  # First copy with symlinks.
+  shutil.copytree(application_dir, dst_application_dir, symlinks=True)
+
+  # Remove root package directory.
+  shutil.rmtree(dst_package_dir, ignore_errors=True)
+
+  # Then copy the root package directory following symlinks.
+  if os.path.exists(package_dir):
+    try:
+      shutil.copytree(package_dir, dst_package_dir)
+    except Exception as e:
+      for src, unused_dst, unused_error in e.args[0]:
+        if os.path.islink(src):
+          linkto = os.readlink(src)
+          if not os.path.exists(linkto):
+            logging.error('Dangling symlink in Dart project. Path ' + src +
+                          ' links to ' + os.readlink(src))
+      raise

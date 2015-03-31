@@ -205,12 +205,20 @@ def _AttachFieldHelpers(cls, field_descriptor):
 
   def AddDecoder(wiretype, is_packed):
     tag_bytes = encoder.TagBytes(field_descriptor.number, wiretype)
-    cls._decoders_by_tag[tag_bytes] = (
-        type_checkers.TYPE_TO_DECODER[field_descriptor.type](
-            field_descriptor.number, is_repeated, is_packed,
-            field_descriptor, field_descriptor._default_constructor),
-        field_descriptor if field_descriptor.containing_oneof is not None
-        else None)
+    decode_type = field_descriptor.type
+    if (decode_type == _FieldDescriptor.TYPE_ENUM and
+        type_checkers.SupportsOpenEnums(field_descriptor)):
+      decode_type = _FieldDescriptor.TYPE_INT32
+
+    oneof_descriptor = None
+    if field_descriptor.containing_oneof is not None:
+      oneof_descriptor = field_descriptor
+
+    field_decoder = type_checkers.TYPE_TO_DECODER[decode_type](
+        field_descriptor.number, is_repeated, is_packed,
+        field_descriptor, field_descriptor._default_constructor)
+
+    cls._decoders_by_tag[tag_bytes] = (field_decoder, oneof_descriptor)
 
   AddDecoder(type_checkers.FIELD_TYPE_TO_WIRE_TYPE[field_descriptor.type],
              False)
@@ -462,6 +470,7 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
   type_checker = type_checkers.GetTypeChecker(field)
   default_value = field.default_value
   valid_values = set()
+  is_proto3 = field.containing_type.syntax == "proto3"
 
   def getter(self):
 
@@ -469,15 +478,24 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
     return self._fields.get(field, default_value)
   getter.__module__ = None
   getter.__doc__ = 'Getter for %s.' % proto_field_name
+
+  clear_when_set_to_default = is_proto3 and not field.containing_oneof
+
   def field_setter(self, new_value):
 
-    self._fields[field] = type_checker.CheckValue(new_value)
+
+
+    new_value = type_checker.CheckValue(new_value)
+    if clear_when_set_to_default and not new_value:
+      self._fields.pop(field, None)
+    else:
+      self._fields[field] = new_value
 
 
     if not self._cached_byte_size_dirty:
       self._Modified()
 
-  if field.containing_oneof is not None:
+  if field.containing_oneof:
     def setter(self, new_value):
       field_setter(self, new_value)
       self._UpdateOneofState(field)
@@ -610,24 +628,35 @@ def _AddListFieldsMethod(message_descriptor, cls):
 
   cls.ListFields = ListFields
 
+_Proto3HasError = 'Protocol message has no non-repeated submessage field "%s"'
+_Proto2HasError = 'Protocol message has no non-repeated field "%s"'
 
 def _AddHasFieldMethod(message_descriptor, cls):
   """Helper for _AddMessageMethods()."""
 
-  singular_fields = {}
-  for field in message_descriptor.fields:
-    if field.label != _FieldDescriptor.LABEL_REPEATED:
-      singular_fields[field.name] = field
+  is_proto3 = (message_descriptor.syntax == "proto3")
+  error_msg = _Proto3HasError if is_proto3 else _Proto2HasError
 
-  for field in message_descriptor.oneofs:
-    singular_fields[field.name] = field
+  hassable_fields = {}
+  for field in message_descriptor.fields:
+    if field.label == _FieldDescriptor.LABEL_REPEATED:
+      continue
+
+    if (is_proto3 and field.cpp_type != _FieldDescriptor.CPPTYPE_MESSAGE and
+        not field.containing_oneof):
+      continue
+    hassable_fields[field.name] = field
+
+  if not is_proto3:
+
+    for oneof in message_descriptor.oneofs:
+      hassable_fields[oneof.name] = oneof
 
   def HasField(self, field_name):
     try:
-      field = singular_fields[field_name]
+      field = hassable_fields[field_name]
     except KeyError:
-      raise ValueError(
-          'Protocol message has no singular "%s" field.' % field_name)
+      raise ValueError(error_msg % field_name)
 
     if isinstance(field, descriptor_mod.OneofDescriptor):
       try:
@@ -994,9 +1023,13 @@ def _AddMergeFromMethod(cls):
 
             field_value = field._default_constructor(self)
             fields[field] = field_value
+            if field.containing_oneof:
+              self._UpdateOneofState(field)
           field_value.MergeFrom(value)
       else:
         self._fields[field] = value
+        if field.containing_oneof:
+          self._UpdateOneofState(field)
 
     if msg._unknown_fields:
       if not self._unknown_fields:
@@ -1236,11 +1269,10 @@ class _ExtensionDict(object):
 
 
 
-    type_checker = type_checkers.GetTypeChecker(
-        extension_handle)
+    type_checker = type_checkers.GetTypeChecker(extension_handle)
 
     self._extended_message._fields[extension_handle] = (
-      type_checker.CheckValue(value))
+        type_checker.CheckValue(value))
     self._extended_message._Modified()
 
   def _FindExtensionByName(self, name):

@@ -25,6 +25,7 @@
 import cStringIO
 import json
 import unittest
+import zlib
 
 from google.appengine.tools.devappserver2.endpoints import api_request
 from google.appengine.tools.devappserver2.endpoints import test_utils
@@ -53,6 +54,21 @@ class RequestTest(unittest.TestCase):
     self.assertEqual({'test': 'body'}, request.body_json)
     self.assertEqual([('CONTENT-TYPE', 'application/json')],
                      request.headers.items())
+    self.assertEqual(None, request.request_id)
+
+  def test_parse_gzipped_body(self):
+    uncompressed = '{"test": "body"}'
+    compressed = zlib.compress(uncompressed)
+    request = test_utils.build_request('/_ah/api/foo?bar=baz', compressed,
+                                       [('Content-encoding', 'gzip')])
+    self.assertEqual('foo', request.path)
+    self.assertEqual('bar=baz', request.query)
+    self.assertEqual({'bar': ['baz']}, request.parameters)
+    self.assertEqual(uncompressed, request.body)
+    self.assertEqual({'test': 'body'}, request.body_json)
+    self.assertItemsEqual([('CONTENT-TYPE', 'application/json'),
+                           ('CONTENT-ENCODING', 'gzip')],
+                          request.headers.items())
     self.assertEqual(None, request.request_id)
 
   def test_parse_empty_values(self):

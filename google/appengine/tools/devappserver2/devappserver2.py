@@ -125,30 +125,6 @@ def _get_storage_path(path, app_id):
     return path
 
 
-def _get_default_php_path():
-  """Returns the path to the siloed php-cgi binary or None if not present."""
-  default_php_executable_path = None
-  if sys.platform == 'win32':
-    default_php_executable_path = os.path.abspath(
-        os.path.join(os.path.dirname(sys.argv[0]),
-                     'php/php-5.4-Win32-VC9-x86/php-cgi.exe'))
-  elif sys.platform == 'darwin':
-    # The Cloud SDK uses symlinks in its packaging of the Mac Launcher.  First
-    # try to find PHP relative to the apsolute path of this executable.  If that
-    # doesn't work, try using the path without dereferencing all symlinks.
-    base_paths = [os.path.realpath(sys.argv[0]), sys.argv[0]]
-    for base_path in base_paths:
-      default_php_executable_path = os.path.abspath(
-          os.path.join(os.path.dirname(os.path.dirname(base_path)), 'php-cgi'))
-      if os.path.exists(default_php_executable_path):
-        break
-
-  if (default_php_executable_path and
-      os.path.exists(default_php_executable_path)):
-    return default_php_executable_path
-  return None
-
-
 class PortParser(object):
   """A parser for ints that represent ports."""
 
@@ -382,13 +358,18 @@ def create_command_line_parser():
   php_group = parser.add_argument_group('PHP')
   php_group.add_argument('--php_executable_path', metavar='PATH',
                          type=parse_path,
-                         default=_get_default_php_path(),
                          help='path to the PHP executable')
   php_group.add_argument('--php_remote_debugging',
                          action=boolean_action.BooleanAction,
                          const=True,
                          default=False,
                          help='enable XDebug remote debugging')
+  php_group.add_argument('--php_gae_extension_path', metavar='PATH',
+                         type=parse_path,
+                         help='path to the GAE PHP extension')
+  php_group.add_argument('--php_xdebug_extension_path', metavar='PATH',
+                         type=parse_path,
+                         help='path to the xdebug extension')
 
   # Dart
   dart_group = parser.add_argument_group('Dart')
@@ -897,6 +878,13 @@ class DevelopmentServer(object):
       php_config.php_executable_path = os.path.abspath(
           options.php_executable_path)
     php_config.enable_debugger = options.php_remote_debugging
+    if options.php_gae_extension_path:
+      php_config.gae_extension_path = os.path.abspath(
+          options.php_gae_extension_path)
+    if options.php_xdebug_extension_path:
+      php_config.xdebug_extension_path = os.path.abspath(
+          options.php_xdebug_extension_path)
+
     return php_config
 
   @staticmethod

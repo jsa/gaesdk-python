@@ -25,6 +25,10 @@ from google.appengine.tools.devappserver2 import watcher_common
 _MAX_MONITORED_FILES = 10000
 
 
+class ShutdownError(Exception):
+  pass
+
+
 class MtimeFileWatcher(object):
   """Monitors a directory tree for changes using mtime polling."""
 
@@ -33,27 +37,34 @@ class MtimeFileWatcher(object):
 
   def __init__(self, directory):
     self._directory = directory
+    self._quit_event = threading.Event()
     self._filename_to_mtime = None
+    self._timeout = threading.Event()
     self._startup_thread = None
 
-  def _first_pass(self):
-    self._filename_to_mtime = (
-        MtimeFileWatcher._generate_filename_to_mtime(self._directory))
+  def _refresh(self):
+    self._filename_to_mtime = self._generate_filename_to_mtime()
 
   def start(self):
     """Start watching a directory for changes."""
-    self._startup_thread = threading.Thread(target=self._first_pass)
+    self._startup_thread = threading.Thread(
+        target=self._refresh, name='Mtime File Watcher')
     self._startup_thread.start()
 
   def quit(self):
     """Stop watching a directory for changes."""
-    # TODO: stop the current crawling and join on the start thread.
+    self._quit_event.set()
+    self._startup_thread.join()
 
-  def changes(self):
+  def changes(self, timeout_ms=0):
     """Returns a set of changed files if the watched directory has changed.
 
     The changes set is reset at every call.
     start() must be called before this method.
+
+    Args:
+      timeout_ms: interface compatibility with the other watchers.
+                  It will just wait at most this time if no change is found.
 
     Returns:
       Returns the set of file paths changes if the watched directory has changed
@@ -61,32 +72,44 @@ class MtimeFileWatcher(object):
       since start was called.
     """
     self._startup_thread.join()
+    timeout_s = timeout_ms / 1000.0
+
     old_filename_to_mtime = self._filename_to_mtime
-    self._filename_to_mtime = (
-        MtimeFileWatcher._generate_filename_to_mtime(self._directory))
-    diff_items = set(self._filename_to_mtime.items()).symmetric_difference(
-        old_filename_to_mtime.items())
-    return {k for k, _ in diff_items}
+    try:
+      self._refresh()
+      diff_items = set(self._filename_to_mtime.items()).symmetric_difference(
+          old_filename_to_mtime.items())
+      # returns immediately if we found a difference.
+      if diff_items or timeout_ms == 0:
+        return {k for k, _ in diff_items}
 
-  @staticmethod
-  def _generate_filename_to_mtime(directory):
+      self._timeout.wait(timeout_s)
+    except ShutdownError:
+      pass
+    return set()
+
+  def _generate_filename_to_mtime(self):
     """Records the state of a directory.
-
-    Args:
-      directory: the root directory to traverse.
 
     Returns:
       A dictionary of subdirectories and files under
       directory associated with their timestamps.
       the keys are absolute paths and values are epoch timestamps.
+
+    Raises:
+      ShutdownError: if the quit event has been fired during processing.
     """
     filename_to_mtime = {}
     num_files = 0
-    for dirname, dirnames, filenames in os.walk(directory,
+    for dirname, dirnames, filenames in os.walk(self._directory,
                                                 followlinks=True):
+      if self._quit_event.is_set():
+        raise ShutdownError()
       watcher_common.skip_ignored_dirs(dirnames)
       filenames = [f for f in filenames if not watcher_common.ignore_file(f)]
       for filename in filenames + dirnames:
+        if self._quit_event.is_set():
+          raise ShutdownError()
         if num_files == _MAX_MONITORED_FILES:
           warnings.warn(
               'There are too many files in your application for '

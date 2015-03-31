@@ -32,14 +32,6 @@ from google.appengine.tools.docker import containers
 logging.getLogger('requests').setLevel(logging.WARNING)
 
 
-class Error(Exception):
-  """Base class for errors in this module."""
-
-
-class DockerDaemonConnectionError(Error):
-  """Raised if the docker client can't connect to the docker daemon."""
-
-
 class VMRuntimeInstanceFactory(instance.InstanceFactory):
   """A factory that creates new VM runtime Instances."""
 

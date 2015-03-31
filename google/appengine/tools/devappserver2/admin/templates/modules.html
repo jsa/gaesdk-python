@@ -54,7 +54,7 @@
             <td>
               {{ instance.total_requests }}
             </td>
-            {% if module.runtime == "vm" %}
+            {% if module.mvm_logs_enabled %}
             <td>
               <a href="/instances/logs?app={{ module.app_name_external }}&module={{ module.name }}&version={{ module.version }}&instance={{ instance.instance_id }}&log_type=request">
                 Logs

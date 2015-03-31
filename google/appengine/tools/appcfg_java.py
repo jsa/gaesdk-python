@@ -34,9 +34,11 @@ from google.appengine.tools import cron_xml_parser
 from google.appengine.tools import dispatch_xml_parser
 from google.appengine.tools import dos_xml_parser
 from google.appengine.tools import jarfile
+from google.appengine.tools import java_quickstart
 from google.appengine.tools import java_utils
 from google.appengine.tools import queue_xml_parser
 from google.appengine.tools import web_xml_parser
+from google.appengine.tools import xml_parser_utils
 from google.appengine.tools import yaml_translator
 
 
@@ -135,6 +137,8 @@ class JavaAppUpdate(object):
 
       self.options.no_symlinks = True
 
+
+
     java_home, exec_suffix = java_utils.JavaHomeAndSuffix()
     self.java_command = os.path.join(java_home, 'bin', 'java' + exec_suffix)
     self.javac_command = os.path.join(java_home, 'bin', 'javac' + exec_suffix)
@@ -147,7 +151,16 @@ class JavaAppUpdate(object):
       self.app_engine_web_xml.app_id = self.options.app_id
     if self.options.version:
       self.app_engine_web_xml.version_id = self.options.version
-    self.web_xml = self._ReadWebXml()
+    quickstart = xml_parser_utils.BooleanValue(
+        self.app_engine_web_xml.beta_settings.get('java_quickstart', 'false'))
+    if quickstart:
+      web_xml_str, _ = java_quickstart.quickstart_generator(self.basepath)
+      webdefault_xml_str = java_quickstart.get_webdefault_xml()
+      web_xml_str = java_quickstart.remove_mappings(
+          web_xml_str, webdefault_xml_str)
+      self.web_xml = web_xml_parser.WebXmlParser().ProcessXml(web_xml_str)
+    else:
+      self.web_xml = self._ReadWebXml()
 
   def _ValidateXmlFiles(self):
 
@@ -478,6 +491,7 @@ class JavaAppUpdate(object):
         self.javac_command,
         '-classpath', classpath,
         '-d', jsp_class_dir,
+        '-target', '1.7',
         '-encoding', self.options.compile_encoding,
     ] + java_files
 

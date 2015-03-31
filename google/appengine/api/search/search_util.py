@@ -22,6 +22,7 @@
 
 import datetime
 import re
+import unicodedata
 
 from google.appengine.datastore import document_pb
 
@@ -171,3 +172,12 @@ def TreeRepr(tree, depth=0):
     children = '\n' + '\n'.join([TreeRepr(child, depth=depth+1)
                                  for child in tree.children if child])
   return depth * '  ' + _NodeRepr(tree) + children
+
+
+def RemoveAccentsNfkd(text):
+  if not isinstance(text, (str, unicode)):
+    return text
+  if isinstance(text, str):
+    text = text.decode('utf-8')
+  return u''.join([c for c in unicodedata.normalize('NFKD', text)
+                   if not unicodedata.combining(c)])

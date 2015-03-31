@@ -1092,18 +1092,17 @@ def _NewFacetsFromPb(facet_list):
 
 
 class FacetRange(object):
-  """A facet range with a name, start and end values.
+  """A facet range with start and end values.
 
     An example of a FacetRange for good rating is:
-    FacetRange('good', start='3.0', end='3.5')
+    FacetRange(start=3.0, end=3.5)
   """
 
-  @datastore_rpc._positional(2)
-  def __init__(self, name=None, start=None, end=None):
+  @datastore_rpc._positional(1)
+  def __init__(self, start=None, end=None):
     """Initializer.
 
     Args:
-      name: The name of the range.
       start: Start value for the range, inclusive.
       end: End value for the range. exclusive.
 
@@ -1112,18 +1111,12 @@ class FacetRange(object):
         attribute is passed.
       ValueError: If any of the parameters have invalid values.
     """
-    self._name = name
     if start is None and end is None:
       raise ValueError(
           'Either start or end need to be provided for a facet range.')
     none_or_numeric_type = (type(None), int, float, long)
     self._start = _CheckType(start, none_or_numeric_type, 'start')
     self._end = _CheckType(end, none_or_numeric_type, 'end')
-
-  @property
-  def name(self):
-    """Returns the name of the range."""
-    return self._name
 
   @property
   def start(self):
@@ -1147,9 +1140,9 @@ class FacetRequest(object):
   (results will have this facet with only specified values)
   Or ranges:
     FacetRequest('Rating', ranges=[
-        FacetRange('Fair', 1.0, 2.0),
-        FacetRange('Good', 2.0, 3.5),
-        FacetRange('Excelent', 3.5, 4.0)]
+        FacetRange(1.0, 2.0),
+        FacetRange(2.0, 3.5),
+        FacetRange(3.5, 4.0)]
   (results will have this facet with specified ranges)
   """
 
@@ -1205,7 +1198,6 @@ class FacetRequest(object):
     request_param_pb.set_value_limit(self.value_limit)
     for facet_range in self.ranges:
       range_pb = request_param_pb.add_range()
-      range_pb.set_name(facet_range.name)
       if facet_range.start is not None:
         range_pb.set_start(str(facet_range.start))
       if facet_range.end is not None:
@@ -1234,7 +1226,6 @@ class FacetRefinement(object):
       name: The name of the facet.
       value: Value of the facet.
       facet_range: A FacetRange to refine facet based on a range.
-      FacetRange.name should be empty.
 
     Raises:
       TypeError: If any of the parameters have invalid types, or an unknown
@@ -1245,8 +1236,6 @@ class FacetRefinement(object):
     if (value is None) == (facet_range is None):
       raise ValueError('Either value or facet_range should be set but not '
                        'both.')
-    if facet_range is not None and facet_range.name is not None:
-      logging.warning('FacetRefinement.facet_range.name should be None.')
     self._value = value
     self._facet_range = facet_range
 
@@ -1305,7 +1294,6 @@ class FacetRefinement(object):
     if ref_pb.has_range():
       range_pb = ref_pb.range()
       facet_range = FacetRange(
-          name=None,
           start=float(range_pb.start()) if range_pb.has_start() else None,
           end=float(range_pb.end()) if range_pb.has_end() else None)
 
@@ -1317,7 +1305,7 @@ class FacetRefinement(object):
     """Copies This object to a search_service_pb.FacetRefinement."""
     facet_refinement_pb.set_name(self.name)
     if self.value is not None:
-      facet_refinement_pb.set_value(self.value)
+      facet_refinement_pb.set_value(str(self.value))
     if self.facet_range is not None:
       if self.facet_range.start:
         facet_refinement_pb.mutable_range().set_start(
@@ -1651,9 +1639,11 @@ class Document(object):
   Document(doc_id='document_id',
            fields=[TextField(name='subject', value='going for dinner'),
                    HtmlField(name='body',
-                             value='<html>I found a place.</html>',
+                             value='<html>I found a place.</html>'),
                    TextField(name='signature', value='brzydka pogoda',
                              language='pl')],
+           facets=[AtomFacet(name='tag', value='food'),
+                   NumberFacet(name='priority', value=5.0)],
            language='en')
   """
   _FIRST_JAN_2011 = datetime.datetime(2011, 1, 1)
@@ -1757,6 +1747,10 @@ class Document(object):
       A list of facets with the given name.
     """
     return self._BuildFacetMap().get(facet_name, [])
+
+  def __setstate__(self, state):
+    self.__dict__ = {'_facets': [], '_facet_map': None}
+    self.__dict__.update(state)
 
   def __getitem__(self, field_name):
     """Returns a list of all fields with the provided field name.
@@ -2444,6 +2438,10 @@ class SearchResults(object):
     """Return the list of FacetResults that found in matched documents."""
     return self._facets
 
+  def __setstate__(self, state):
+    self.__dict__ = {'_facets': []}
+    self.__dict__.update(state)
+
   def __repr__(self):
     return _Repr(self, [('results', self.results),
                         ('number_found', self.number_found),
@@ -2674,7 +2672,7 @@ class FacetOptions(object):
 
     facet_option = FacetOption(discover_facet_limit=5,
                                discover_facet_value_limit=10,
-                               facet_depth=6000)
+                               depth=6000)
 
     Args:
       discovery_limit: Number of facets to discover if facet discovery is
@@ -2686,7 +2684,7 @@ class FacetOptions(object):
     Raises:
       TypeError: If an unknown attribute is passed.
       ValueError: If any of the parameters have invalid values (e.g., a
-        negative facet_depth).
+        negative depth).
     """
     self._discovery_limit = _CheckFacetDiscoveryLimit(discovery_limit)
     self._discovery_value_limit = _CheckFacetValueLimit(
@@ -3004,9 +3002,9 @@ class Query(object):
     # discover only 5 facets and two manual facets with customized value
     facet_option = FacetOption(discovery_limit=5)
     facet1 = FacetRequest('Rating', ranges=[
-        FacetRange('Fair', 1.0, 2.0),
-        FacetRange('Good', 2.0, 3.5),
-        FacetRange('Excelent', 3.5, 4.0)]
+        FacetRange(1.0, 2.0),
+        FacetRange(2.0, 3.5),
+        FacetRange(3.5, 4.0)]
     results = index.search(
         Query(query_string='movies',
               enable_facet_discovery=true,
@@ -3088,6 +3086,13 @@ class Query(object):
   def return_facets(self):
     """Returns the list of specific facets to be included with the result."""
     return self._return_facets
+
+  def __setstate__(self, state):
+    self.__dict__ = {'_enable_facet_discovery': False,
+                     '_facet_options': None,
+                     '_return_facets': [],
+                     '_facet_refinements': []}
+    self.__dict__.update(state)
 
 
 def _CopyQueryToProtocolBuffer(query, params):
@@ -3489,7 +3494,6 @@ class Index(object):
       if refinement_pb.has_range():
         range_pb = refinement_pb.range()
         facet_range = FacetRange(
-            name=None,
             start=(float(range_pb.start()) if range_pb.has_start() else None),
             end=(float(range_pb.end()) if range_pb.has_end() else None))
       else:

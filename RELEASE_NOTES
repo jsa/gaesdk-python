@@ -3,6 +3,105 @@ All rights reserved.
 
 App Engine SDK - Release Notes
 
+Version 1.9.18
+
+All
+==================================
+- Newly created apps will have modules enabled by default. Existing
+  apps will still be able to use the existing "migrate my app to
+  modules" workflow.
+- Datastore cross-group transactions now allow 25 entity groups
+  (up from 5).
+- Users will have the option to use traffic migration instead of set
+  default version.
+- Faceted Search is now in Beta.
+- VM Engines users can now specify the size of disk needed; there's
+  no limitation that sizes be less than 10 GB.
+- Mac Launcher now uses OAuth2 exclusively for app deployments.
+  Permissions are granted through the browser instead of a login dialog.
+
+Python
+==================================
+- Added a new version of the third-party library MySQLdb
+  (version 1.24).
+  To use it, update app.yaml and redeploy.
+- Fixed a bug in Python 2.7 logging that sometimes impacted logs
+  when flushed.
+
+PHP
+==================================
+- PHP 5.5 runtime (php55) is now available. It runs alongside the
+  existing PHP 5.4 runtime (php). To use it, opt into the new runtime
+  in the app.yaml file.
+- Added ImageMagick extension (php55 only). Users will have to enable
+  this explicitly by specifying "extension=imagick.so" in their
+  php.ini file.
+    https://code.google.com/p/googleappengine/issues/detail?id=9424
+- Added in-memory tempnam() support. This feature is only available in
+  the PHP 5.5 runtime. tempnam() will return a path to in-memory virtual
+  files based on VFS stream wrapper.
+- Fixed glob() support for PHP.
+    https://code.google.com/p/googleappengine/issues/detail?id=10623
+- Added MongoDB as a standard PHP library (php55 only)
+    https://code.google.com/p/googleappengine/issues/detail?id=11571
+- Enabled the exif extension.
+    https://code.google.com/p/googleappengine/issues/detail?id=11566
+- Enabled the mailparse extension
+    https://code.google.com/p/googleappengine/issues/detail?id=10163
+- Enabled the cURL extension (php55 only)
+    https://code.google.com/p/googleappengine/issues/detail?id=9343
+- Provided a cURL implementation using the standard HTTP streams API
+  for apps that do not need the complete cURL extension.
+- Enabled the xslt extension
+    https://code.google.com/p/googleappengine/issues/detail?id=10024
+- Added support for XDebug on the Windows and Mac SDK
+    https://code.google.com/p/googleappengine/issues/detail?id=10763
+- Fixed the issue of Browsecap file not loading.
+    https://code.google.com/p/googleappengine/issues/detail?id=11223
+- Fixed the issue of incoming email limit not being able to be configured
+    https://code.google.com/p/googleappengine/issues/detail?id=11376
+- Fixed the issue of DNS related functions not enabled in runtime
+    https://code.google.com/p/googleappengine/issues/detail?id=11459)
+- Fixed the issue of errors resulting from uploading multiple files
+  using a name array
+    https://code.google.com/p/googleappengine/issues/detail?id=11451
+- Fixed the issue that loaded extensions not indicating that memcache
+  was availaible in the dev appserver
+    https://code.google.com/p/googleappengine/issues/detail?id=10371
+- Upgraded PHP 5.4 from PHP 5.4.32 to PHP 5.4.35
+- Fixed the issue of allow_url_include = "1" being required on
+  dev server
+    https://code.google.com/p/googleappengine/issues/detail?id=10180
+- Fixed the issue of input truncation when reading binary POST data.
+- Fixed the issue of PHP Message e-mailer forcing only raw e-mail
+  addresses for sender/reply-to
+    https://code.google.com/p/googleappengine/issues/detail?id=10153
+
+
+Version 1.9.17
+
+Managed VMs
+==================================
+- Managed VMs are now available as an open Beta feature of App Engine.
+- User-defined health checks on App Engine Managed VMs no longer
+  require an 'ok' message body; any status 200 response is considered
+  healthy.
+
+Python
+==================================
+- The old development appserver (old_dev_appserver.py) has been removed
+  from the SDK. However, old SDKs that contain old_dev_appserver.py
+  will continue to be available.
+
+PHP
+==================================
+- Fixed the issue which prevented the ability to fseek a GCS file
+  beyond 524287 (=0x7FFFF).
+    https://code.google.com/p/googleappengine/issues/detail?id=10881
+- Fixed the issue causing a value of "valid metadata with spaces" to
+  fail validation.
+    https://code.google.com/p/googleappengine/issues/detail?id=11443
+
 Version 1.9.15
 
 All

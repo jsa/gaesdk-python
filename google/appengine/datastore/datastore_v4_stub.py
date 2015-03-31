@@ -246,6 +246,12 @@ class DatastoreV4Stub(apiproxy_stub.APIProxyStub):
           datastore_v4_pb.Error.BAD_REQUEST, str(e))
     try:
       v4_resp = self.__service_converter.v3_to_v4_run_query_resp(v3_resp)
+      if req.query().projection_list():
+        if req.query().projection_list() == ['__key__']:
+          result_type = datastore_v4_pb.EntityResult.KEY_ONLY
+        else:
+          result_type = datastore_v4_pb.EntityResult.PROJECTION
+        v4_resp.mutable_batch().set_entity_result_type(result_type)
     except datastore_pbs.InvalidConversionError, e:
       raise apiproxy_errors.ApplicationError(
           datastore_v4_pb.Error.INTERNAL_ERROR, str(e))

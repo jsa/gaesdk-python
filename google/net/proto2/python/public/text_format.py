@@ -203,24 +203,6 @@ def PrintFieldValue(field, value, out, indent=0, as_utf8=False,
     out.write(str(value))
 
 
-def _ParseOrMerge(lines, message, allow_multiple_scalars):
-  """Converts an ASCII representation of a protocol message into a message.
-
-  Args:
-    lines: Lines of a message's ASCII representation.
-    message: A protocol buffer message to merge into.
-    allow_multiple_scalars: Determines if repeated values for a non-repeated
-      field are permitted, e.g., the string "foo: 1 foo: 2" for a
-      required/optional field named "foo".
-
-  Raises:
-    ParseError: On ASCII parsing problems.
-  """
-  tokenizer = _Tokenizer(lines)
-  while not tokenizer.AtEnd():
-    _MergeField(tokenizer, message, allow_multiple_scalars)
-
-
 def Parse(text, message):
   """Parses an ASCII representation of a protocol message into a message.
 
@@ -289,6 +271,24 @@ def MergeLines(lines, message):
   """
   _ParseOrMerge(lines, message, True)
   return message
+
+
+def _ParseOrMerge(lines, message, allow_multiple_scalars):
+  """Converts an ASCII representation of a protocol message into a message.
+
+  Args:
+    lines: Lines of a message's ASCII representation.
+    message: A protocol buffer message to merge into.
+    allow_multiple_scalars: Determines if repeated values for a non-repeated
+      field are permitted, e.g., the string "foo: 1 foo: 2" for a
+      required/optional field named "foo".
+
+  Raises:
+    ParseError: On ASCII parsing problems.
+  """
+  tokenizer = _Tokenizer(lines)
+  while not tokenizer.AtEnd():
+    _MergeField(tokenizer, message, allow_multiple_scalars)
 
 
 def _MergeField(tokenizer, message, allow_multiple_scalars):
@@ -685,7 +685,7 @@ class _Tokenizer(object):
     """
     text = self.token
     if len(text) < 1 or text[0] not in ('\'', '"'):
-      raise self._ParseError('Expected string.')
+      raise self._ParseError('Expected string but found: "%r"' % text)
 
     if len(text) < 2 or text[-1] != text[0]:
       raise self._ParseError('String missing ending quote.')

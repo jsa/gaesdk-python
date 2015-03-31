@@ -126,10 +126,6 @@ SDK_PRODUCT = 'appcfg_py'
 DAY = 24*3600
 SUNDAY = 6
 
-SUPPORTED_RUNTIMES = (
-    'contrib-dart', 'dart', 'go', 'php', 'python', 'python27', 'java', 'java7',
-    'vm', 'custom')
-
 
 
 
@@ -247,8 +243,11 @@ def JavaSupported():
   """True if Java is supported by this SDK."""
 
 
-  tools_java_dir = os.path.join(os.path.dirname(appcfg_java.__file__), 'java')
-  return os.path.isdir(tools_java_dir)
+  if appcfg_java:
+    tools_java_dir = os.path.join(os.path.dirname(appcfg_java.__file__), 'java')
+    return os.path.isdir(tools_java_dir)
+  else:
+    return False
 
 
 @contextlib.contextmanager
@@ -1825,13 +1824,16 @@ class AppVersionUpload(object):
     deployed: True iff the Deploy method has been called.
     started: True iff the StartServing method has been called.
     logging_context: The _ClientDeployLoggingContext for this upload.
+    ignore_endpoints_failures: True to finish deployment even if there are
+      errors updating the Google Cloud Endpoints configuration (if there is
+      one). False if these errors should cause a failure/rollback.
   """
 
   def __init__(self, rpcserver, config, module_yaml_path='app.yaml',
                backend=None,
                error_fh=None,
                get_version=sdk_update_checker.GetVersionObject,
-               usage_reporting=False):
+               usage_reporting=False, ignore_endpoints_failures=True):
     """Creates a new AppVersionUpload.
 
     Args:
@@ -1847,6 +1849,9 @@ class AppVersionUpload(object):
       get_version: Method for determining the current SDK version. The override
         is used for testing.
       usage_reporting: Whether or not to report usage.
+      ignore_endpoints_failures: True to finish deployment even if there are
+        errors updating the Google Cloud Endpoints configuration (if there is
+        one). False if these errors should cause a failure/rollback.
     """
     self.rpcserver = rpcserver
     self.config = config
@@ -1897,6 +1902,7 @@ class AppVersionUpload(object):
 
     if not self.config.auto_id_policy:
       self.config.auto_id_policy = appinfo.DATASTORE_ID_POLICY_DEFAULT
+    self.ignore_endpoints_failures = ignore_endpoints_failures
 
   def AddFile(self, path, file_handle):
     """Adds the provided file to the list to be pushed to the server.
@@ -2179,17 +2185,11 @@ class AppVersionUpload(object):
 
       check_config_updated = response.get('check_endpoints_config')
       if check_config_updated:
-        unused_done, last_state = RetryWithBackoff(
+        unused_done, (last_state, user_error) = RetryWithBackoff(
             self.IsEndpointsConfigUpdated,
             PrintRetryMessage, 1, 2, 60, 20)
         if last_state != EndpointsState.SERVING:
-          error_message = (
-              'Failed to update Endpoints configuration (last result %s).  '
-              'Check the app\'s AppEngine logs for errors: %s' %
-              (last_state, self.GetLogUrl()))
-          StatusUpdate(error_message, self.error_fh)
-          logging.warning(error_message)
-          raise RuntimeError(error_message)
+          self.HandleEndpointsError(user_error)
       self.in_transaction = False
 
     return app_summary
@@ -2316,7 +2316,7 @@ class AppVersionUpload(object):
     """
     response_dict = yaml.safe_load(resp)
 
-    if 'updated' not in response_dict and 'updatedDetail' not in response_dict:
+    if 'updated' not in response_dict and 'updatedDetail2' not in response_dict:
       return None
     return response_dict
 
@@ -2358,8 +2358,9 @@ class AppVersionUpload(object):
     if result is None:
       raise CannotStartServingError(
           'Internal error: Could not parse IsEndpointsConfigUpdated response.')
-    if 'updatedDetail' in result:
-      updated_state = EndpointsState.Parse(result['updatedDetail'])
+    if 'updatedDetail2' in result:
+      updated_state = EndpointsState.Parse(result['updatedDetail2'])
+      user_error = result.get('errorMessage')
     else:
 
 
@@ -2368,7 +2369,37 @@ class AppVersionUpload(object):
 
       updated_state = (EndpointsState.SERVING if result['updated']
                        else EndpointsState.PENDING)
-    return updated_state != EndpointsState.PENDING, updated_state
+      user_error = None
+    return updated_state != EndpointsState.PENDING, (updated_state, user_error)
+
+  def HandleEndpointsError(self, user_error):
+    """Handle an error state returned by IsEndpointsConfigUpdated.
+
+    Args:
+      user_error: Either None or a string with a message from the server
+        that indicates what the error was and how the user should resolve it.
+
+    Raises:
+      RuntimeError: The update state is fatal and the user hasn't chosen
+        to ignore Endpoints errors.
+    """
+    detailed_error = user_error or (
+        "Check the app's AppEngine logs for errors: %s" % self.GetLogUrl())
+    error_message = ('Failed to update Endpoints configuration.  %s' %
+                     detailed_error)
+    StatusUpdate(error_message, self.error_fh)
+
+
+    doc_link = ('https://developers.google.com/appengine/docs/python/'
+                'endpoints/test_deploy#troubleshooting_a_deployment_failure')
+    StatusUpdate('See the deployment troubleshooting documentation for more '
+                 'information: %s' % doc_link, self.error_fh)
+
+    if self.ignore_endpoints_failures:
+      StatusUpdate('Ignoring Endpoints failure and proceeding with update.',
+                   self.error_fh)
+    else:
+      raise RuntimeError(error_message)
 
   def Rollback(self, force_rollback=False):
     """Rolls back the transaction if one is in progress."""
@@ -2562,7 +2593,7 @@ class AppVersionUpload(object):
     self.file_batcher.Flush()
     self.blob_batcher.Flush()
     self.errorblob_batcher.Flush()
-    StatusUpdate('Uploaded %d files and blobs' % num_files, self.error_fh)
+    StatusUpdate('Uploaded %d files and blobs.' % num_files, self.error_fh)
 
   @staticmethod
   def _LogDoUploadException(exception):
@@ -2871,13 +2902,13 @@ class AppCfgApp(object):
 
     if not self.options.allow_any_runtime:
       if self.options.runtime:
-        if self.options.runtime not in SUPPORTED_RUNTIMES:
+        if self.options.runtime not in appinfo.GetAllRuntimes():
           _PrintErrorAndExit(self.error_fh,
                              '"%s" is not a supported runtime\n' %
                              self.options.runtime)
       else:
         appinfo.AppInfoExternal.ATTRIBUTES[appinfo.RUNTIME] = (
-            '|'.join(SUPPORTED_RUNTIMES))
+            '|'.join(appinfo.GetAllRuntimes()))
 
     action = self.args.pop(0)
 
@@ -3147,6 +3178,14 @@ class AppCfgApp(object):
                       'during OAuth authorization.')
     parser.add_option('--called_by_gcloud',
                       action='store_true', default=False,
+                      help=optparse.SUPPRESS_HELP)
+
+
+    parser.add_option('--ignore_endpoints_failures', action='store_true',
+                      dest='ignore_endpoints_failures', default=True,
+                      help=optparse.SUPPRESS_HELP)
+    parser.add_option('--no_ignore_endpoints_failures', action='store_false',
+                      dest='ignore_endpoints_failures',
                       help=optparse.SUPPRESS_HELP)
     return parser
 
@@ -3650,6 +3689,10 @@ class AppCfgApp(object):
           appinfo.JAVA_PRECOMPILED not in (appyaml.derived_file_type or [])):
       self.options.precompilation = False
 
+    if runtime == 'custom' and not self.options.called_by_gcloud:
+      raise RuntimeError('The runtime: \'custom\' is only supported with '
+                         'gcloud.')
+
     if self.options.precompilation:
       if not appyaml.derived_file_type:
         appyaml.derived_file_type = []
@@ -3724,12 +3767,14 @@ class AppCfgApp(object):
         paths = app_paths + overlay.keys()
         openfunc = Open
 
-    appversion = AppVersionUpload(rpcserver,
-                                  appyaml,
-                                  module_yaml_path=module_yaml_path,
-                                  backend=backend,
-                                  error_fh=self.error_fh,
-                                  usage_reporting=self.options.usage_reporting)
+    appversion = AppVersionUpload(
+        rpcserver,
+        appyaml,
+        module_yaml_path=module_yaml_path,
+        backend=backend,
+        error_fh=self.error_fh,
+        usage_reporting=self.options.usage_reporting,
+        ignore_endpoints_failures=self.options.ignore_endpoints_failures)
     return appversion.DoUpload(paths, openfunc)
 
   def UpdateUsingSpecificFiles(self):
@@ -4045,7 +4090,7 @@ class AppCfgApp(object):
     Args:
       appyaml: A parsed app.yaml file.
     """
-    if appyaml.runtime == 'php':
+    if appyaml.runtime.startswith('php'):
       _PrintErrorAndExit(
           self.error_fh,
           'Error: Backends are not supported with the PHP runtime. '

@@ -684,15 +684,16 @@ class ModelAdapter(datastore_rpc.AbstractAdapter):
     return index_state
 
 
-def make_connection(config=None, default_model=None):
+def make_connection(config=None, default_model=None,
+                    _api_version=datastore_rpc._DATASTORE_V3):
   """Create a new Connection object with the right adapter.
 
   Optionally you can pass in a datastore_rpc.Configuration object.
   """
   return datastore_rpc.Connection(
       adapter=ModelAdapter(default_model),
-      config=config)
-
+      config=config,
+      _api_version=_api_version)
 
 class ModelAttribute(object):
   """A Base class signifying the presence of a _fix_up() method."""
@@ -2644,7 +2645,7 @@ class GenericProperty(Property):
     elif isinstance(value, (int, long)):
       if not (-_MAX_LONG <= value < _MAX_LONG):
         raise TypeError('Property %s can only accept 64-bit integers; '
-                        'received %s' % value)
+                        'received %s' % (self._name, value))
       v.set_int64value(value)
     elif isinstance(value, float):
       v.set_doublevalue(value)

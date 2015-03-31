@@ -62,7 +62,6 @@ else:
   HAVE_CRON = True
 
 from google.appengine.api import apiproxy_stub_map
-from google.appengine.api import backends
 from google.appengine.api import datastore
 from google.appengine.api import datastore_errors
 from google.appengine.api import datastore_types
@@ -833,6 +832,12 @@ class BackendsPageHandler(BaseRequestHandler):
 
   def render_backends_page(self):
     """Shows template displaying all the app's backends."""
+
+
+
+
+    from google.appengine.api import backends
+
     if hasattr(self.stub, 'get_backend_info'):
       backend_info = self.stub.get_backend_info() or []
     else:
@@ -870,6 +875,12 @@ class BackendsPageHandler(BaseRequestHandler):
 
   def render_backend_page(self, backend_name):
     """Shows template displaying a single backend."""
+
+
+
+
+    from google.appengine.api import backends
+
     backend = self.get_backend_entry(backend_name)
 
     instances = []

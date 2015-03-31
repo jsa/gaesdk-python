@@ -96,9 +96,9 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
                host='fakehost',
                balanced_port=0):
     super(AutoScalingModuleFacade, self).__init__(
-        module_configuration,
-        host,
-        balanced_port,
+        module_configuration=module_configuration,
+        host=host,
+        balanced_port=balanced_port,
         api_host='localhost',
         api_port=8080,
         auth_domain='gmail.com',
@@ -107,7 +107,7 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
         python_config=None,
         java_config=None,
         cloud_sql_config=None,
-        unused_vm_config=None,
+        vm_config=None,
         default_version_port=8080,
         port_registry=None,
         request_data=None,
@@ -139,9 +139,9 @@ class ManualScalingModuleFacade(module.ManualScalingModule):
                host='fakehost',
                balanced_port=0):
     super(ManualScalingModuleFacade, self).__init__(
-        module_configuration,
-        host,
-        balanced_port,
+        module_configuration=module_configuration,
+        host=host,
+        balanced_port=balanced_port,
         api_host='localhost',
         api_port=8080,
         auth_domain='gmail.com',

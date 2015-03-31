@@ -19,6 +19,7 @@
 Should be accessed by get() function.
 """
 
+import atexit
 import httplib
 import logging
 import os
@@ -46,6 +47,8 @@ _DEFAULT_LOG_SERVER_PORT = 8080
 
 _LOG_TYPES = ['app', 'appjson', 'request']
 
+_APP_ENGINE_PREFIX = 'google.appengine'
+
 
 # TODO: more escaping.
 def _escape(s):
@@ -53,9 +56,10 @@ def _escape(s):
 
 
 def _make_container_name(app, module, version, instance):
-  tmpl = '{app}_{module}_{version}_{instance}'
-  return _escape(tmpl.format(app=app, module=module,
-                             version=version, instance=instance))
+  base_name_tmpl = '{app}.{module}.{version}.{instance}.logs'
+  base_name = _escape(base_name_tmpl.format(app=app, module=module,
+                                            version=version, instance=instance))
+  return containers.CleanableContainerName(_APP_ENGINE_PREFIX, base_name)
 
 
 def _make_external_logs_path(app, module, version, instance):
@@ -74,6 +78,9 @@ class _LogManagerDisabled(object):
     pass
 
   def start(self):
+    pass
+
+  def stop(self):
     pass
 
   def add(self, app, module, version, instance):
@@ -102,19 +109,21 @@ class _LogManager(_LogManagerDisabled):
         containers.ContainerOptions(
             image_opts=containers.ImageOptions(tag=_LOG_SERVER_IMAGE),
             port=log_server_port,
-            volumes=dict(volumes)))
+            volumes=dict(volumes),
+            name=containers.CleanableContainerName(_APP_ENGINE_PREFIX,
+                                                   'log-server')))
 
     self._lock = threading.RLock()
     self._containers = {}
 
-  def __del__(self):
-    for c in self._containers:
-      c.Stop()
-    self._server.Stop()
-
   def start(self):
     self._server.Start()
     http_utils.wait_for_connection(self._server.host, self._server.port, 100)
+
+  def stop(self):
+    for c in self._containers.itervalues():
+      c.Stop()
+    self._server.Stop()
 
   def add(self, app, module, version, instance):
     container_name = _make_container_name(app, module, version, instance)
@@ -143,7 +152,11 @@ class _LogManager(_LogManagerDisabled):
 
       environment = {
           'LOGS_PATH': _LOGS_PATH,
-          'PREFIX': container_name
+          'PREFIX': _escape('{app}_{module}'
+                            '_{version}_{instance}'.format(app=app,
+                                                           module=module,
+                                                           version=version,
+                                                           instance=instance))
       }
 
       volumes = [
@@ -159,7 +172,8 @@ class _LogManager(_LogManagerDisabled):
           containers.ContainerOptions(
               image_opts=containers.ImageOptions(tag=_LOG_PROCESSOR_IMAGE),
               environment=environment,
-              volumes=dict(volumes)))
+              volumes=dict(volumes),
+              name=container_name))
     with self._lock:
       if container_name in self._containers:
         return
@@ -197,6 +211,7 @@ def get(docker_client=None, log_server_port=_DEFAULT_LOG_SERVER_PORT,
   c = LogManager if enable_logging else LogManagerDisabled
   try:
     instance = c(docker_client, log_server_port)
+    atexit.register(c.stop, instance)
     instance.start()
 
     # To pass these values to Admin Server to query logs.

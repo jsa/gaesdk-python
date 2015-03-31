@@ -320,6 +320,7 @@ HOST = 'host'
 
 CPU = 'cpu'
 MEMORY_GB = 'memory_gb'
+DISK_SIZE_GB = 'disk_size_gb'
 
 
 FORWARDED_PORTS = 'forwarded_ports'
@@ -334,6 +335,7 @@ class _VersionedLibrary(object):
                url,
                description,
                supported_versions,
+               latest_version,
                default_version=None,
                deprecated_versions=None,
                experimental_versions=None):
@@ -346,6 +348,11 @@ class _VersionedLibrary(object):
       description: A short description of the library e.g. "A framework...".
       supported_versions: A list of supported version names ordered by release
           date e.g. ["v1", "v2", "v3"].
+      latest_version: The version of the library that will be used when
+          customers specify "latest." The rule of thumb is that this should
+          be the newest version that is neither deprecated nor experimental
+          (although may be experimental if all supported versions are either
+          deprecated or experimental).
       default_version: The version of the library that is enabled by default
           in the Python 2.7 runtime or None if the library is not available by
           default e.g. "v1".
@@ -358,6 +365,7 @@ class _VersionedLibrary(object):
     self.url = url
     self.description = description
     self.supported_versions = supported_versions
+    self.latest_version = latest_version
     self.default_version = default_version
     self.deprecated_versions = deprecated_versions or []
     self.experimental_versions = experimental_versions or []
@@ -374,89 +382,110 @@ _SUPPORTED_LIBRARIES = [
         'http://www.djangoproject.com/',
         'A full-featured web application framework for Python.',
         ['1.2', '1.3', '1.4', '1.5'],
+        latest_version='1.4',
         experimental_versions=['1.5'],
         ),
     _VersionedLibrary(
         'endpoints',
         'https://developers.google.com/appengine/docs/python/endpoints/',
         'Libraries for building APIs in an App Engine application.',
-        ['1.0']),
+        ['1.0'],
+        latest_version='1.0',
+        ),
     _VersionedLibrary(
         'jinja2',
         'http://jinja.pocoo.org/docs/',
         'A modern and designer friendly templating language for Python.',
-        ['2.6']),
+        ['2.6'],
+        latest_version='2.6',
+        ),
     _VersionedLibrary(
         'lxml',
         'http://lxml.de/',
         'A Pythonic binding for the C libraries libxml2 and libxslt.',
         ['2.3', '2.3.5'],
+        latest_version='2.3',
         experimental_versions=['2.3.5'],
         ),
     _VersionedLibrary(
         'markupsafe',
         'http://pypi.python.org/pypi/MarkupSafe',
         'A XML/HTML/XHTML markup safe string for Python.',
-        ['0.15']),
+        ['0.15'],
+        latest_version='0.15',
+        ),
     _VersionedLibrary(
         'matplotlib',
         'http://matplotlib.org/',
         'A 2D plotting library which produces publication-quality figures.',
         ['1.2.0'],
-        experimental_versions=['1.2.0'],
+        latest_version='1.2.0',
         ),
     _VersionedLibrary(
         'MySQLdb',
         'http://mysql-python.sourceforge.net/',
         'A Python DB API v2.0 compatible interface to MySQL.',
-        ['1.2.4b4'],
-        experimental_versions=['1.2.4b4']
+        ['1.2.4b4', '1.2.4'],
+        latest_version='1.2.4b4',
+        experimental_versions=['1.2.4b4', '1.2.4']
         ),
     _VersionedLibrary(
         'numpy',
         'http://numpy.scipy.org/',
         'A general-purpose library for array-processing.',
-        ['1.6.1']),
+        ['1.6.1'],
+        latest_version='1.6.1',
+        ),
     _VersionedLibrary(
         'PIL',
         'http://www.pythonware.com/library/pil/handbook/',
         'A library for creating and transforming images.',
-        ['1.1.7']),
+        ['1.1.7'],
+        latest_version='1.1.7',
+        ),
     _VersionedLibrary(
         'protorpc',
         'https://code.google.com/p/google-protorpc/',
         'A framework for implementing HTTP-based remote procedure call (RPC) '
         'services.',
         ['1.0'],
+        latest_version='1.0',
         default_version='1.0',
         ),
     _VersionedLibrary(
         'PyAMF',
         'http://www.pyamf.org/',
         'A library that provides (AMF) Action Message Format functionality.',
-        ['0.6.1']),
+        ['0.6.1'],
+        latest_version='0.6.1',
+        ),
     _VersionedLibrary(
         'pycrypto',
         'https://www.dlitz.net/software/pycrypto/',
         'A library of cryptogoogle.appengine._internal.graphy functions such as random number generation.',
         ['2.3', '2.6'],
+        latest_version='2.6',
         ),
     _VersionedLibrary(
         'setuptools',
         'http://pypi.python.org/pypi/setuptools',
         'A library that provides package and module discovery capabilities.',
-        ['0.6c11']),
+        ['0.6c11'],
+        latest_version='0.6c11',
+        ),
     _VersionedLibrary(
         'ssl',
         'http://docs.python.org/dev/library/ssl.html',
         'The SSL socket wrapper built-in module.',
         ['2.7'],
-        experimental_versions=['2.7']),
+        latest_version='2.7',
+        ),
     _VersionedLibrary(
         'webapp2',
         'http://webapp-improved.appspot.com/',
         'A lightweight Python web framework.',
         ['2.3', '2.5.1', '2.5.2'],
+        latest_version='2.5.2',
         default_version='2.3',
         deprecated_versions=['2.3']
         ),
@@ -465,6 +494,7 @@ _SUPPORTED_LIBRARIES = [
         'http://www.webob.org/',
         'A library that provides wrappers around the WSGI request environment.',
         ['1.1.1', '1.2.3'],
+        latest_version='1.2.3',
         default_version='1.1.1',
         ),
     _VersionedLibrary(
@@ -472,6 +502,7 @@ _SUPPORTED_LIBRARIES = [
         'http://www.yaml.org/',
         'A library for YAML serialization and deserialization.',
         ['3.10'],
+        latest_version='3.10',
         default_version='3.10'
         ),
     ]
@@ -484,7 +515,6 @@ _NAME_TO_SUPPORTED_LIBRARY = dict((library.name, library)
 REQUIRED_LIBRARIES = {
     ('jinja2', '2.6'): [('markupsafe', '0.15'), ('setuptools', '0.6c11')],
     ('jinja2', 'latest'): [('markupsafe', 'latest'), ('setuptools', 'latest')],
-    ('matplotlib', '1.1.1'): [('numpy', '1.6.1')],
     ('matplotlib', '1.2.0'): [('numpy', '1.6.1')],
     ('matplotlib', 'latest'): [('numpy', 'latest')],
 }
@@ -528,6 +558,55 @@ _MAX_COOKIE_LENGTH = 4096
 
 
 _MAX_URL_LENGTH = 2047
+
+
+
+
+
+_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'python',
+                    'python27', 'java', 'java7', 'vm', 'custom')
+_all_runtimes = _CANNED_RUNTIMES
+_vm_runtimes = _CANNED_RUNTIMES
+
+
+def GetAllRuntimes():
+  """Returns the list of all valid runtimes.
+
+  This can include third-party runtimes as well as canned runtimes.
+
+  Returns:
+    Tuple of strings.
+  """
+  return _all_runtimes
+
+
+def SetAllRuntimes(runtimes):
+  """Sets the list of all valid runtimes.
+
+  Args:
+    runtimes: Tuple of strings defining the names of all valid runtimes.
+  """
+  global _all_runtimes
+  _all_runtimes = runtimes
+
+
+def GetVmRuntimes():
+  """Returns the list of runtimes for the vm_runtimes field.
+
+  Returns:
+    Tuple of strings.
+  """
+  return _vm_runtimes
+
+
+def SetVmRuntimes(runtimes):
+  """Sets the list of all runtimes valid for the vm_runtimes field.
+
+  Args:
+    runtimes: Tuple of strings defining all valid vm runtimes.
+  """
+  global _vm_runtimes
+  _vm_runtimes = runtimes
 
 
 class HandlerBase(validation.Validated):
@@ -1424,6 +1503,10 @@ def VmSafeSetRuntime(appyaml, runtime):
       appyaml.vm_settings['has_docker_image'] = True
 
 
+    elif runtime not in GetVmRuntimes():
+      runtime = 'custom'
+
+
 
     appyaml.vm_settings['vm_runtime'] = runtime
     appyaml.runtime = 'vm'
@@ -1455,25 +1538,26 @@ def NormalizeVmSettings(appyaml):
       appyaml = VmSafeSetRuntime(appyaml, appyaml.runtime)
 
 
+
     if hasattr(appyaml, 'beta_settings') and appyaml.beta_settings:
 
 
 
-      if 'vm_runtime' not in appyaml.beta_settings:
 
-        appyaml.beta_settings['vm_runtime'] = appyaml.vm_settings[
-            'vm_runtime']
-      if ('has_docker_image' not in appyaml.beta_settings and
-          'has_docker_image' in appyaml.vm_settings):
-        appyaml.beta_settings['has_docker_image'] = appyaml.vm_settings[
-            'has_docker_image']
+      for field in ['vm_runtime',
+                    'has_docker_image',
+                    'image',
+                    'module_yaml_path']:
+        if field not in appyaml.beta_settings and field in appyaml.vm_settings:
+          appyaml.beta_settings[field] = appyaml.vm_settings[field]
 
   return appyaml
 
 
-class VmHealthCheck(validation.Validated):
-  """Class representing the configuration of VM health check."""
+class HealthCheck(validation.Validated):
+  """Class representing the health check configuration.
 
+  """
   ATTRIBUTES = {
       ENABLE_HEALTH_CHECK: validation.Optional(validation.TYPE_BOOL),
       CHECK_INTERVAL_SEC: validation.Optional(validation.Range(0, sys.maxint)),
@@ -1484,10 +1568,10 @@ class VmHealthCheck(validation.Validated):
       HOST: validation.Optional(validation.TYPE_STR)}
 
 
-class HealthCheck(VmHealthCheck):
-  """Class representing the health check configuration.
+class VmHealthCheck(HealthCheck):
+  """Class representing the configuration of VM health check.
 
-  This class is meant to replace VmHealthCheck eventually.
+     This class is deprecated and will be removed (use HealthCheck).
   """
   pass
 
@@ -1495,13 +1579,10 @@ class HealthCheck(VmHealthCheck):
 class Resources(validation.Validated):
   """Class representing the configuration of VM resources."""
 
-
-
-
-
   ATTRIBUTES = {
-      CPU: validation.Optional(validation.TYPE_FLOAT, default=.5),
-      MEMORY_GB: validation.Optional(validation.TYPE_FLOAT, default=1.3)
+      CPU: validation.Optional(validation.TYPE_FLOAT),
+      MEMORY_GB: validation.Optional(validation.TYPE_FLOAT),
+      DISK_SIZE_GB: validation.Optional(validation.TYPE_INT)
   }
 
 
@@ -1765,11 +1846,6 @@ class AppInfoExternal(validation.Validated):
   }
 
 
-
-
-
-  _skip_runtime_checks = False
-
   def CheckInitialized(self):
     """Performs non-regex-based validation.
 
@@ -1806,9 +1882,17 @@ class AppInfoExternal(validation.Validated):
           'Found more than %d URLMap entries in application configuration' %
           MAX_URL_MAPS)
 
+    vm_runtime_python27 = (
+        self.runtime == 'vm' and
+        (hasattr(self, 'vm_settings') and
+         self.vm_settings and
+         self.vm_settings.get('vm_runtime') == 'python27') or
+        (hasattr(self, 'beta_settings') and
+         self.beta_settings and
+         self.beta_settings.get('vm_runtime') == 'python27'))
+
     if (self.threadsafe is None and
-        self.runtime == 'python27' and
-        not self._skip_runtime_checks):
+        (self.runtime == 'python27' or vm_runtime_python27)):
       raise appinfo_errors.MissingThreadsafe(
           'threadsafe must be present and set to either "yes" or "no"')
 
@@ -1827,16 +1911,7 @@ class AppInfoExternal(validation.Validated):
           + datastore_auto_ids_url + '\n' + appcfg_auto_ids_url + '\n')
 
     if self.libraries:
-      vm_runtime_python27 = (
-          self.runtime == 'vm' and
-          (hasattr(self, 'vm_settings') and
-           self.vm_settings and
-           self.vm_settings['vm_runtime'] == 'python27') or
-          (hasattr(self, 'beta_settings') and
-           self.beta_settings and
-           self.beta_settings['vm_runtime'] == 'python27'))
-      if not self._skip_runtime_checks and not (
-          vm_runtime_python27 or self.runtime == 'python27'):
+      if not (vm_runtime_python27 or self.runtime == 'python27'):
         raise appinfo_errors.RuntimeDoesNotSupportLibraries(
             'libraries entries are only supported by the "python27" runtime')
 
@@ -1862,9 +1937,9 @@ class AppInfoExternal(validation.Validated):
         raise appinfo_errors.MissingApiConfig(
             'An api_endpoint handler was specified, but the required '
             'api_config stanza was not configured.')
-      if (self.threadsafe and
-          self.runtime == 'python27' and
-          not self._skip_runtime_checks):
+      if self.threadsafe and self.runtime == 'python27':
+
+
         for handler in self.handlers:
           if (handler.script and (handler.script.endswith('.py') or
                                   '/' in handler.script)):
@@ -1877,7 +1952,6 @@ class AppInfoExternal(validation.Validated):
       raise appinfo_errors.TooManyScalingSettingsError(
           "There may be only one of 'automatic_scaling', 'manual_scaling', "
           "or 'basic_scaling'.")
-
 
   def GetAllLibraries(self):
     """Returns a list of all Library instances active for this configuration.

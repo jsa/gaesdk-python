@@ -60,7 +60,7 @@ def RequestID():
   return os.environ.get(REQUEST_LOG_ID, None)
 
 
-def _StrictParseLogEntry(entry):
+def _StrictParseLogEntry(entry, clean_message=True):
   """Parses a single log entry emitted by app_logging.AppLogsHandler.
 
   Parses a log entry of the form LOG <level> <timestamp> <message> where the
@@ -69,6 +69,7 @@ def _StrictParseLogEntry(entry):
 
   Args:
     entry: The log entry to parse.
+    clean_message: should the message be cleaned (i.e. \0 -> \n).
 
   Returns:
     A (timestamp, level, message) tuple.
@@ -84,7 +85,7 @@ def _StrictParseLogEntry(entry):
   if level not in LOG_LEVELS:
     raise ValueError()
 
-  return timestamp, level, _Clean(message)
+  return timestamp, level, _Clean(message) if clean_message else message
 
 
 def ParseLogEntry(entry):
@@ -122,3 +123,101 @@ def ParseLogs(logs):
     A list of (timestamp, level, message) tuples.
   """
   return [ParseLogEntry(line) for line in logs.split('\n') if line]
+
+
+class LoggingRecord(object):
+  """A record with all logging information.
+
+  A record that came through the Python logging infrastructure that has various
+  metadata in addition to the message itself.
+
+  Note: the record may also come from stderr or logservice.write if the message
+  matches the classic format used by streaming logservice.
+  """
+
+  def __init__(self, level, created, message):
+    self.level = level
+    self.created = created
+    self.message = message
+
+  def IsBlank(self):
+    return False
+
+  def IsComplete(self):
+    return True
+
+  def __len__(self):
+    return len(str(self))
+
+  def __str__(self):
+    return 'LOG %d %d %s\n' % (self.level, self.created, self.message)
+
+
+class StderrRecord(object):
+  """A record with just a message.
+
+  A record that came from stderr or logservice.write where only a message
+  is available.
+  """
+
+  def __init__(self, message):
+    self.message = message
+    self._created = _CurrentTimeMicro()
+
+  @property
+  def level(self):
+    return _DEFAULT_LEVEL
+
+  @property
+  def created(self):
+
+
+
+
+    return self._created
+
+  def IsBlank(self):
+    return self.message in ['', '\n']
+
+  def IsComplete(self):
+    return self.message and self.message[-1] == '\n'
+
+  def __len__(self):
+    return len(self.message)
+
+  def __str__(self):
+    return self.message
+
+
+def RecordFromLine(line):
+  """Create the correct type of record based on what the line looks like.
+
+  With the classic streaming API, we did not distinguish between a message
+  that came through the logging infrastructure and one that came throught stderr
+  or logservice.write but had been written to look like it came from logging.
+
+  Note that this code does not provide 100% accuracy with the old stream
+  service. In the past, they could have written:
+    sys.stderr.write('LOG %d %d' % (level, time))
+    sys.stderr.write(' %s' % message)
+  and that would have magically turned into a single full record. Trying to
+  handle every single corner case seems like a poor use of time.
+
+  Args:
+    line: a single line written to stderr or logservice.write.
+
+  Returns:
+    The appropriate type of record.
+  """
+  try:
+    created, level, message = _StrictParseLogEntry(line, clean_message=False)
+
+
+    if message[-1] == '\n':
+      message = message[:-1]
+    return LoggingRecord(level, created, message)
+  except ValueError:
+    return StderrRecord(line)
+
+
+
