@@ -252,7 +252,7 @@ class Descriptor(_NestedDescriptorBase):
                 file=None, serialized_start=None, serialized_end=None,
                 syntax=None):
       _message.Message._CheckCalledFromGeneratedFile()
-      return _message.Message._GetMessageDescriptor(full_name)
+      return _message.default_pool.FindMessageTypeByName(full_name)
 
 
 
@@ -482,9 +482,9 @@ class FieldDescriptor(DescriptorBase):
                 has_default_value=True, containing_oneof=None):
       _message.Message._CheckCalledFromGeneratedFile()
       if is_extension:
-        return _message.Message._GetExtensionDescriptor(full_name)
+        return _message.default_pool.FindExtensionByName(full_name)
       else:
-        return _message.Message._GetFieldDescriptor(full_name)
+        return _message.default_pool.FindFieldByName(full_name)
 
   def __init__(self, name, full_name, index, number, type, cpp_type, label,
                default_value, message_type, enum_type, containing_type,
@@ -515,14 +515,9 @@ class FieldDescriptor(DescriptorBase):
     self.containing_oneof = containing_oneof
     if api_implementation.Type() == 'cpp':
       if is_extension:
-
-        self._cdescriptor = (
-            _message.Message._GetExtensionDescriptor(full_name))
-
+        self._cdescriptor = _message.default_pool.FindExtensionByName(full_name)
       else:
-
-        self._cdescriptor = _message.Message._GetFieldDescriptor(full_name)
-
+        self._cdescriptor = _message.default_pool.FindFieldByName(full_name)
     else:
       self._cdescriptor = None
 
@@ -579,7 +574,7 @@ class EnumDescriptor(_NestedDescriptorBase):
                 containing_type=None, options=None, file=None,
                 serialized_start=None, serialized_end=None):
       _message.Message._CheckCalledFromGeneratedFile()
-      return _message.Message._GetEnumDescriptor(full_name)
+      return _message.default_pool.FindEnumTypeByName(full_name)
 
   def __init__(self, name, full_name, filename, values,
                containing_type=None, options=None, file=None,
@@ -664,7 +659,7 @@ class OneofDescriptor(object):
 
     def __new__(cls, name, full_name, index, containing_type, fields):
       _message.Message._CheckCalledFromGeneratedFile()
-      return _message.Message._GetOneofDescriptor(full_name)
+      return _message.default_pool.FindOneofByName(full_name)
 
   def __init__(self, name, full_name, index, containing_type, fields):
     """Arguments are as described in the attribute description above."""
@@ -775,12 +770,8 @@ class FileDescriptor(DescriptorBase):
                 dependencies=None, syntax=None):
 
 
-
-
       if serialized_pb:
-
-        return _message.Message._BuildFile(serialized_pb)
-
+        return _message.default_pool.AddSerializedFile(serialized_pb)
       else:
         return super(FileDescriptor, cls).__new__(cls)
 
@@ -801,9 +792,7 @@ class FileDescriptor(DescriptorBase):
 
     if (api_implementation.Type() == 'cpp' and
         self.serialized_pb is not None):
-
-      _message.Message._BuildFile(self.serialized_pb)
-
+      _message.default_pool.AddSerializedFile(self.serialized_pb)
 
   def CopyToProto(self, proto):
     """Copies this to a descriptor_pb2.FileDescriptorProto.
@@ -864,10 +853,8 @@ def MakeDescriptor(desc_proto, package='', build_file_if_cpp=True,
     else:
       file_descriptor_proto.name = proto_name + '.proto'
 
-
-    result = _message.Message._BuildFile(
-        file_descriptor_proto.SerializeToString())
-
+    _message.default_pool.Add(file_descriptor_proto)
+    result = _message.default_pool.FindFileByName(file_descriptor_proto.name)
 
     if _USE_C_DESCRIPTORS:
       return result.message_types_by_name[desc_proto.name]

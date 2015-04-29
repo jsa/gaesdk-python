@@ -162,6 +162,12 @@ SERVICE_ACCOUNT_BASE = (
 
 APP_YAML_FILENAME = 'app.yaml'
 
+_OAUTH2_WARNING = (
+    '####################################################\n'
+    'OAuth2 is now the recommended authentication method.\n'
+    'Use the --oauth2 flag to enable.\n'
+    '####################################################')
+
 
 
 
@@ -3251,6 +3257,7 @@ class AppCfgApp(object):
 
 
     dev_appserver = self.options.host == 'localhost'
+
     if self.options.oauth2 and not dev_appserver:
       if not appengine_rpc_httplib2:
 
@@ -3274,6 +3281,10 @@ class AppCfgApp(object):
             self.options.auth_local_webserver)
     else:
       if not self.rpc_server_class:
+        if not dev_appserver and not self.options.oauth2:
+          print >> self.error_fh, _OAUTH2_WARNING
+
+          time.sleep(5)
         self.rpc_server_class = appengine_rpc.HttpRpcServerWithOAuth2Suggestion
         if hasattr(self, 'runtime'):
           self.rpc_server_class.RUNTIME = self.runtime
@@ -3396,8 +3407,9 @@ class AppCfgApp(object):
                             'configuration file nor a WEB-INF subdirectory '
                             'with web.xml and appengine-web.xml.' % basename)
       else:
-        self.parser.error('Directory does not contain an %s.yaml configuration '
-                          'file' % basename)
+        self.parser.error('Directory %r does not contain configuration file '
+                          '%s.yaml' %
+                          (os.path.abspath(basepath), basename))
 
     orig_application = appyaml.application
     orig_module = appyaml.module
@@ -3729,6 +3741,7 @@ class AppCfgApp(object):
                              '(-nobuild_files applied)')
         gab_argv = [
             gab,
+            '-api_version', appyaml.api_version,
             '-app_base', self.basepath,
             '-arch', '6',
             '-gopath', gopath,
@@ -4539,9 +4552,11 @@ class AppCfgApp(object):
 
   def MigrateTraffic(self):
     """Migrates traffic."""
+    module = 'default'
     if len(self.args) == 1:
       appyaml = self._ParseAppInfoFromYaml(self.args[0])
       app_id = appyaml.application
+      module = appyaml.module or 'default'
       version = appyaml.version
     elif not self.args:
       if not (self.options.app_id and self.options.version):
@@ -4554,8 +4569,15 @@ class AppCfgApp(object):
 
     if self.options.app_id:
       app_id = self.options.app_id
+    if self.options.module:
+      module = self.options.module
     if self.options.version:
       version = self.options.version
+
+    if module not in ['', 'default']:
+      StatusUpdate('migrate_traffic does not support non-default module at '
+                   'this time.')
+      return
 
     traffic_migrator = TrafficMigrator(
         self._GetRpcServer(), app_id, version, self.error_fh)

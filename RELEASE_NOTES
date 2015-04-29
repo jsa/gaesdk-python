@@ -1,7 +1,45 @@
-Copyright 2013 Google Inc.
+Copyright Google Inc.
 All rights reserved.
 
 App Engine SDK - Release Notes
+
+Version 1.9.19
+
+All
+==================================
+- appcfg now outputs a warning if OAuth2 is not used for authentication
+  when deploying or managing an application. OAuth2 will become the default
+  in the 1.9.20 release.
+- Many Admin Console pages now redirect to the Developer Console.
+  Users may still choose to return to the Admin Console.
+- App creation feature is now disabled on the Admin Console. Users
+  will need to create Cloud Projects in the Developer Console.
+- Removed Memcache top keys report by ops rate. Users still have
+  access to Memcache top keys report by MCU (Memcache unit)
+
+Managed VMs
+==================================
+- Added ability to specify the GCE network in which to create
+  Managed VMs. If unspecified, the 'default' network is used.
+
+Python
+==================================
+- Fixed a bug in Dev App server that prevented Google Cloud Endpoints
+  APIs from accepting gzipped responses in local testing.
+    https://code.google.com/p/googleappengine/issues/detail?id=9140
+- Updated Openssl to v1.0.1l
+
+PHP
+==================================
+- Updated Openssl to v1.0.1l
+- The following headers can be set when writing objects to Google
+  Cloud Storage: 'Cache-Control', 'Content-Disposition',
+  'Content-Encoding', 'Content-Language', and 'Content-Type'
+    https://code.google.com/p/googleappengine/issues/detail?id=11651
+- Fixed misleading filesystem errors due to the read-only production
+  filesystem
+- Enabled stat cache for Google Cloud Storage
+- Removed the glob:// stream wrapper
 
 Version 1.9.18
 

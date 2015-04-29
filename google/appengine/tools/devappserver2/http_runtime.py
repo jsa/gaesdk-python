@@ -42,15 +42,27 @@ import subprocess
 import sys
 import time
 import threading
+from google.net.util.python import portpicker
 
 from google.appengine.tools.devappserver2 import application_configuration
 from google.appengine.tools.devappserver2 import http_proxy
+from google.appengine.tools.devappserver2 import http_runtime_constants
 from google.appengine.tools.devappserver2 import instance
 from google.appengine.tools.devappserver2 import safe_subprocess
 from google.appengine.tools.devappserver2 import tee
 
+# These are different approaches to passing configuration into the runtimes
+# and getting configuration back out of the runtime.
+
+# Works by passing config in via stdin and reading the port over stdout.
 START_PROCESS = -1
+
+# Works by passing config in via a file and reading the port over a file.
 START_PROCESS_FILE = -2
+
+# Works by passing config in via a file and passes the port in via an
+# environment variable.
+START_PROCESS_REVERSE = -3
 
 
 def _sleep_between_retries(attempt, max_attempts, sleep_base):
@@ -109,10 +121,32 @@ def _remove_retry_sharing_violation(path, max_attempts=10, sleep_base=.125):
     os.remove(path)
 
 
+def get_vm_environment_variables(module_configuration, runtime_config):
+  """Returns VM-specific environment variables."""
+  keys_values = [
+      ('API_HOST', runtime_config.api_host),
+      ('API_PORT', runtime_config.api_port),
+      ('GAE_LONG_APP_ID', module_configuration.application_external_name),
+      ('GAE_PARTITION', module_configuration.partition),
+      ('GAE_MODULE_NAME', module_configuration.module_name),
+      ('GAE_MODULE_VERSION', module_configuration.major_version),
+      ('GAE_MINOR_VERSION', module_configuration.minor_version),
+      ('GAE_MODULE_INSTANCE', runtime_config.instance_id),
+      ('GAE_SERVER_PORT', runtime_config.server_port),
+      ('MODULE_YAML_PATH', os.path.basename(module_configuration.config_path)),
+      ('SERVER_SOFTWARE', http_runtime_constants.SERVER_SOFTWARE),
+  ]
+  for entry in runtime_config.environ:
+    keys_values.append((entry.key, entry.value))
+
+  return {key: str(value) for key, value in keys_values}
+
+
 class HttpRuntimeProxy(instance.RuntimeProxy):
   """Manages a runtime subprocess used to handle dynamic content."""
 
-  _VALID_START_PROCESS_FLAVORS = [START_PROCESS, START_PROCESS_FILE]
+  _VALID_START_PROCESS_FLAVORS = [START_PROCESS, START_PROCESS_FILE,
+                                  START_PROCESS_REVERSE]
 
   # TODO: Determine if we can always use SIGTERM.
   # Set this to True to quit with SIGTERM rather than SIGKILL
@@ -150,8 +184,8 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
           runtime.
       env: A dict of environment variables to pass to the runtime subprocess.
       start_process_flavor: Which version of start process to start your
-        runtime process. SUpported flavors are START_PROCESS and
-        START_PROCESS_FILE.
+        runtime process. Supported flavors are START_PROCESS, START_PROCESS_FILE
+        and START_PROCESS_REVERSE
 
     Raises:
       ValueError: An unknown value for start_process_flavor was used.
@@ -164,6 +198,14 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
     self._args = args
     self._module_configuration = module_configuration
     self._env = env
+    # This sets environment variables at the process level and works for
+    # Java and Go. Python hacks os.environ to not really return the environment
+    # variables, so Python needs to set these elsewhere.
+    runtime_config = self._runtime_config_getter()
+    if runtime_config.vm:
+      self._env.update(get_vm_environment_variables(
+          self._module_configuration, runtime_config))
+
     if start_process_flavor not in self._VALID_START_PROCESS_FLAVORS:
       raise ValueError('Invalid start_process_flavor.')
     self._start_process_flavor = start_process_flavor
@@ -176,6 +218,10 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
 
   def _instance_died_unexpectedly(self):
     with self._process_lock:
+      # If self._process is None then the process hasn't started yet, so it
+      # it hasn't died either. Otherwise, if self._process.poll() returns a
+      # non-None value then the process has exited and the poll() value is
+      # its return code.
       return self._process and self._process.poll() is not None
 
   def handle(self, environ, start_response, url_map, match, request_id,
@@ -257,7 +303,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
             stderr=subprocess.PIPE,
             env=self._env,
             cwd=self._module_configuration.application_root)
-      line = self._process.stdout.readline()
+      port = self._process.stdout.readline()
     elif self._start_process_flavor == START_PROCESS_FILE:
       serialized_config = runtime_config.SerializeToString()
       with self._process_lock:
@@ -268,20 +314,31 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
             env=self._env,
             cwd=self._module_configuration.application_root,
             stderr=subprocess.PIPE)
-      line = self._read_start_process_file()
+      port = self._read_start_process_file()
       _remove_retry_sharing_violation(self._process.child_out.name)
+    elif self._start_process_flavor == START_PROCESS_REVERSE:
+      serialized_config = runtime_config.SerializeToString()
+      with self._process_lock:
+        assert not self._process, 'start() can only be called once'
+        port = portpicker.PickUnusedPort()
+        self._env['PORT'] = str(port)
+        self._process = safe_subprocess.start_process_file(
+            args=self._args,
+            input_string=serialized_config,
+            env=self._env,
+            cwd=self._module_configuration.application_root,
+            stderr=subprocess.PIPE)
 
     # _stderr_tee may be pre-set by unit tests.
     if self._stderr_tee is None:
       self._stderr_tee = tee.Tee(self._process.stderr, sys.stderr)
       self._stderr_tee.start()
 
-    port = None
     error = None
     try:
-      port = int(line)
+      port = int(port)
     except ValueError:
-      error = 'bad runtime process port [%r]' % line
+      error = 'bad runtime process port [%r]' % port
       logging.error(error)
     finally:
       self._proxy = http_proxy.HttpProxy(

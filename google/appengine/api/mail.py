@@ -399,7 +399,7 @@ def send_mail(sender,
   kw['subject'] = subject
   kw['body'] = body
   message = EmailMessage(**kw)
-  message.send(make_sync_call)
+  message.send(make_sync_call=make_sync_call)
 
 
 SendMail = send_mail
@@ -427,7 +427,7 @@ def send_mail_to_admins(sender,
   kw['subject'] = subject
   kw['body'] = body
   message = AdminEmailMessage(**kw)
-  message.send(make_sync_call)
+  message.send(make_sync_call=make_sync_call)
 
 
 SendMailToAdmins = send_mail_to_admins

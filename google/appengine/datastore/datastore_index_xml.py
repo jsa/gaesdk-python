@@ -32,13 +32,6 @@ Index: describes a single index specified in datastore-indexes.xml
 
 
 
-
-
-
-
-
-
-
 from xml.etree import ElementTree
 
 from google.appengine.api.validation import ValidationError

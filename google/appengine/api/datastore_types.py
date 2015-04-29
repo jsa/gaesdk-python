@@ -69,7 +69,9 @@ from google.appengine.datastore import sortable_pb_encoder
 
 
 
-_MAX_STRING_LENGTH = 500
+
+_MAX_STRING_LENGTH = 1500
+
 
 
 
@@ -85,8 +87,7 @@ _MAX_LINK_PROPERTY_LENGTH = 2083
 
 
 
-
-_MAX_RAW_PROPERTY_BYTES = 1000 * 1000
+_MAX_RAW_PROPERTY_BYTES = 1048487
 
 
 
@@ -1379,6 +1380,10 @@ def ValidateStringLength(name, value, max_len):
   Raises:
     OverflowError if the value is larger than the maximum length.
   """
+
+  if isinstance(value, unicode):
+    value = value.encode('utf-8')
+
   if len(value) > max_len:
     raise datastore_errors.BadValueError(
       'Property %s is %d bytes long; it must be %d or less. '

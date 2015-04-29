@@ -31,8 +31,6 @@ else:
   _extension_runtime = False
   _ExtendableProtocolMessage = ProtocolBuffer.ProtocolMessage
 
-from google.appengine.datastore.acl_pb import *
-import google.appengine.datastore.acl_pb
 class FieldValue_Geo(ProtocolBuffer.ProtocolMessage):
   has_lat_ = 0
   lat_ = 0.0
@@ -671,10 +669,11 @@ class FieldTypes(ProtocolBuffer.ProtocolMessage):
   _PROTO_DESCRIPTOR_NAME = 'storage_onestore_v3.FieldTypes'
 class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
   has_num_shards_ = 0
-  num_shards_ = 0
+  num_shards_ = 1
 
   def __init__(self, contents=None):
     self.prev_num_shards_ = []
+    self.prev_num_shards_search_false_ = []
     if contents is not None: self.MergeFromString(contents)
 
   def prev_num_shards_size(self): return len(self.prev_num_shards_)
@@ -701,15 +700,31 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
   def clear_num_shards(self):
     if self.has_num_shards_:
       self.has_num_shards_ = 0
-      self.num_shards_ = 0
+      self.num_shards_ = 1
 
   def has_num_shards(self): return self.has_num_shards_
+
+  def prev_num_shards_search_false_size(self): return len(self.prev_num_shards_search_false_)
+  def prev_num_shards_search_false_list(self): return self.prev_num_shards_search_false_
+
+  def prev_num_shards_search_false(self, i):
+    return self.prev_num_shards_search_false_[i]
+
+  def set_prev_num_shards_search_false(self, i, x):
+    self.prev_num_shards_search_false_[i] = x
+
+  def add_prev_num_shards_search_false(self, x):
+    self.prev_num_shards_search_false_.append(x)
+
+  def clear_prev_num_shards_search_false(self):
+    self.prev_num_shards_search_false_ = []
 
 
   def MergeFrom(self, x):
     assert x is not self
     for i in xrange(x.prev_num_shards_size()): self.add_prev_num_shards(x.prev_num_shards(i))
     if (x.has_num_shards()): self.set_num_shards(x.num_shards())
+    for i in xrange(x.prev_num_shards_search_false_size()): self.add_prev_num_shards_search_false(x.prev_num_shards_search_false(i))
 
   def Equals(self, x):
     if x is self: return 1
@@ -718,6 +733,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
       if e1 != e2: return 0
     if self.has_num_shards_ != x.has_num_shards_: return 0
     if self.has_num_shards_ and self.num_shards_ != x.num_shards_: return 0
+    if len(self.prev_num_shards_search_false_) != len(x.prev_num_shards_search_false_): return 0
+    for e1, e2 in zip(self.prev_num_shards_search_false_, x.prev_num_shards_search_false_):
+      if e1 != e2: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -733,6 +751,8 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     n += 1 * len(self.prev_num_shards_)
     for i in xrange(len(self.prev_num_shards_)): n += self.lengthVarInt64(self.prev_num_shards_[i])
     n += self.lengthVarInt64(self.num_shards_)
+    n += 1 * len(self.prev_num_shards_search_false_)
+    for i in xrange(len(self.prev_num_shards_search_false_)): n += self.lengthVarInt64(self.prev_num_shards_search_false_[i])
     return n + 1
 
   def ByteSizePartial(self):
@@ -742,11 +762,14 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     if (self.has_num_shards_):
       n += 1
       n += self.lengthVarInt64(self.num_shards_)
+    n += 1 * len(self.prev_num_shards_search_false_)
+    for i in xrange(len(self.prev_num_shards_search_false_)): n += self.lengthVarInt64(self.prev_num_shards_search_false_[i])
     return n
 
   def Clear(self):
     self.clear_prev_num_shards()
     self.clear_num_shards()
+    self.clear_prev_num_shards_search_false()
 
   def OutputUnchecked(self, out):
     for i in xrange(len(self.prev_num_shards_)):
@@ -754,6 +777,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(self.prev_num_shards_[i])
     out.putVarInt32(16)
     out.putVarInt32(self.num_shards_)
+    for i in xrange(len(self.prev_num_shards_search_false_)):
+      out.putVarInt32(24)
+      out.putVarInt32(self.prev_num_shards_search_false_[i])
 
   def OutputPartial(self, out):
     for i in xrange(len(self.prev_num_shards_)):
@@ -762,6 +788,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     if (self.has_num_shards_):
       out.putVarInt32(16)
       out.putVarInt32(self.num_shards_)
+    for i in xrange(len(self.prev_num_shards_search_false_)):
+      out.putVarInt32(24)
+      out.putVarInt32(self.prev_num_shards_search_false_[i])
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -771,6 +800,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
         continue
       if tt == 16:
         self.set_num_shards(d.getVarInt32())
+        continue
+      if tt == 24:
+        self.add_prev_num_shards_search_false(d.getVarInt32())
         continue
 
 
@@ -787,6 +819,12 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
       res+=prefix+("prev_num_shards%s: %s\n" % (elm, self.DebugFormatInt32(e)))
       cnt+=1
     if self.has_num_shards_: res+=prefix+("num_shards: %s\n" % self.DebugFormatInt32(self.num_shards_))
+    cnt=0
+    for e in self.prev_num_shards_search_false_:
+      elm=""
+      if printElemNumber: elm="(%d)" % cnt
+      res+=prefix+("prev_num_shards_search_false%s: %s\n" % (elm, self.DebugFormatInt32(e)))
+      cnt+=1
     return res
 
 
@@ -795,18 +833,21 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
 
   kprev_num_shards = 1
   knum_shards = 2
+  kprev_num_shards_search_false = 3
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
     1: "prev_num_shards",
     2: "num_shards",
-  }, 2)
+    3: "prev_num_shards_search_false",
+  }, 3)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.NUMERIC,
     2: ProtocolBuffer.Encoder.NUMERIC,
-  }, 2, ProtocolBuffer.Encoder.MAX_TYPE)
+    3: ProtocolBuffer.Encoder.NUMERIC,
+  }, 3, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
@@ -1391,13 +1432,10 @@ class Document(ProtocolBuffer.ProtocolMessage):
   order_id_ = 0
   has_storage_ = 0
   storage_ = 0
-  has_acl_ = 0
-  acl_ = None
 
   def __init__(self, contents=None):
     self.field_ = []
     self.facet_ = []
-    self.lazy_init_lock_ = thread.allocate_lock()
     if contents is not None: self.MergeFromString(contents)
 
   def id(self): return self.id_
@@ -1468,25 +1506,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
 
   def has_storage(self): return self.has_storage_
 
-  def acl(self):
-    if self.acl_ is None:
-      self.lazy_init_lock_.acquire()
-      try:
-        if self.acl_ is None: self.acl_ = AccessControlList()
-      finally:
-        self.lazy_init_lock_.release()
-    return self.acl_
-
-  def mutable_acl(self): self.has_acl_ = 1; return self.acl()
-
-  def clear_acl(self):
-
-    if self.has_acl_:
-      self.has_acl_ = 0;
-      if self.acl_ is not None: self.acl_.Clear()
-
-  def has_acl(self): return self.has_acl_
-
   def facet_size(self): return len(self.facet_)
   def facet_list(self): return self.facet_
 
@@ -1511,7 +1530,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     for i in xrange(x.field_size()): self.add_field().CopyFrom(x.field(i))
     if (x.has_order_id()): self.set_order_id(x.order_id())
     if (x.has_storage()): self.set_storage(x.storage())
-    if (x.has_acl()): self.mutable_acl().MergeFrom(x.acl())
     for i in xrange(x.facet_size()): self.add_facet().CopyFrom(x.facet(i))
 
   def Equals(self, x):
@@ -1527,8 +1545,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     if self.has_order_id_ and self.order_id_ != x.order_id_: return 0
     if self.has_storage_ != x.has_storage_: return 0
     if self.has_storage_ and self.storage_ != x.storage_: return 0
-    if self.has_acl_ != x.has_acl_: return 0
-    if self.has_acl_ and self.acl_ != x.acl_: return 0
     if len(self.facet_) != len(x.facet_): return 0
     for e1, e2 in zip(self.facet_, x.facet_):
       if e1 != e2: return 0
@@ -1538,7 +1554,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     initialized = 1
     for p in self.field_:
       if not p.IsInitialized(debug_strs): initialized=0
-    if (self.has_acl_ and not self.acl_.IsInitialized(debug_strs)): initialized = 0
     for p in self.facet_:
       if not p.IsInitialized(debug_strs): initialized=0
     return initialized
@@ -1551,7 +1566,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.field_)): n += self.lengthString(self.field_[i].ByteSize())
     if (self.has_order_id_): n += 1 + self.lengthVarInt64(self.order_id_)
     if (self.has_storage_): n += 1 + self.lengthVarInt64(self.storage_)
-    if (self.has_acl_): n += 1 + self.lengthString(self.acl_.ByteSize())
     n += 1 * len(self.facet_)
     for i in xrange(len(self.facet_)): n += self.lengthString(self.facet_[i].ByteSize())
     return n
@@ -1564,7 +1578,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.field_)): n += self.lengthString(self.field_[i].ByteSizePartial())
     if (self.has_order_id_): n += 1 + self.lengthVarInt64(self.order_id_)
     if (self.has_storage_): n += 1 + self.lengthVarInt64(self.storage_)
-    if (self.has_acl_): n += 1 + self.lengthString(self.acl_.ByteSizePartial())
     n += 1 * len(self.facet_)
     for i in xrange(len(self.facet_)): n += self.lengthString(self.facet_[i].ByteSizePartial())
     return n
@@ -1575,7 +1588,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     self.clear_field()
     self.clear_order_id()
     self.clear_storage()
-    self.clear_acl()
     self.clear_facet()
 
   def OutputUnchecked(self, out):
@@ -1595,10 +1607,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     if (self.has_storage_):
       out.putVarInt32(40)
       out.putVarInt32(self.storage_)
-    if (self.has_acl_):
-      out.putVarInt32(50)
-      out.putVarInt32(self.acl_.ByteSize())
-      self.acl_.OutputUnchecked(out)
     for i in xrange(len(self.facet_)):
       out.putVarInt32(66)
       out.putVarInt32(self.facet_[i].ByteSize())
@@ -1621,10 +1629,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     if (self.has_storage_):
       out.putVarInt32(40)
       out.putVarInt32(self.storage_)
-    if (self.has_acl_):
-      out.putVarInt32(50)
-      out.putVarInt32(self.acl_.ByteSizePartial())
-      self.acl_.OutputPartial(out)
     for i in xrange(len(self.facet_)):
       out.putVarInt32(66)
       out.putVarInt32(self.facet_[i].ByteSizePartial())
@@ -1650,12 +1654,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
         continue
       if tt == 40:
         self.set_storage(d.getVarInt32())
-        continue
-      if tt == 50:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.mutable_acl().TryMerge(tmp)
         continue
       if tt == 66:
         length = d.getVarInt32()
@@ -1683,10 +1681,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
       cnt+=1
     if self.has_order_id_: res+=prefix+("order_id: %s\n" % self.DebugFormatInt32(self.order_id_))
     if self.has_storage_: res+=prefix+("storage: %s\n" % self.DebugFormatInt32(self.storage_))
-    if self.has_acl_:
-      res+=prefix+"acl <\n"
-      res+=self.acl_.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
     cnt=0
     for e in self.facet_:
       elm=""
@@ -1706,7 +1700,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
   kfield = 3
   korder_id = 4
   kstorage = 5
-  kacl = 6
   kfacet = 8
 
   _TEXT = _BuildTagLookupTable({
@@ -1716,7 +1709,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     3: "field",
     4: "order_id",
     5: "storage",
-    6: "acl",
     8: "facet",
   }, 8)
 
@@ -1727,7 +1719,6 @@ class Document(ProtocolBuffer.ProtocolMessage):
     3: ProtocolBuffer.Encoder.STRING,
     4: ProtocolBuffer.Encoder.NUMERIC,
     5: ProtocolBuffer.Encoder.NUMERIC,
-    6: ProtocolBuffer.Encoder.STRING,
     8: ProtocolBuffer.Encoder.STRING,
   }, 8, ProtocolBuffer.Encoder.MAX_TYPE)
 

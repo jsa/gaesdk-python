@@ -62,7 +62,9 @@ def GetFieldInDocument(document, field_name, return_type=None):
   if return_type is not None:
 
     field_list = [f for f in document.field_list() if f.name() == field_name]
-    field_types_dict = dict((f.value().type(), f) for f in field_list)
+    field_types_dict = {}
+    for f in field_list:
+      field_types_dict.setdefault(f.value().type(), f)
     if return_type == EXPRESSION_RETURN_TYPE_TEXT:
       if document_pb.FieldValue.HTML in field_types_dict:
         return field_types_dict[document_pb.FieldValue.HTML]

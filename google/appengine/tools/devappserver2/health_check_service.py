@@ -159,7 +159,7 @@ class HealthChecker(object):
     logging.debug('Health check response %s and status %s for instance %s.',
                   response, start_response.status, self._instance.instance_id)
 
-    return start_response.status == '200 OK'
+    return start_response.status.split()[0] == '200'
 
   def _restart_instance(self):
     """Restarts the running instance, and stops the current health checker."""

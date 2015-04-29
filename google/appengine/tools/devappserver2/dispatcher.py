@@ -82,7 +82,8 @@ class Dispatcher(request_info.Dispatcher):
                use_mtime_file_watcher,
                automatic_restart,
                allow_skipped_files,
-               module_to_threadsafe_override):
+               module_to_threadsafe_override,
+               external_port):
     """Initializer for Dispatcher.
 
     Args:
@@ -116,13 +117,17 @@ class Dispatcher(request_info.Dispatcher):
           monitor file changes even if other options are available on the
           current platform.
       automatic_restart: If True then instances will be restarted when a
-          file or configuration change that effects them is detected.
+          file or configuration change that affects them is detected.
       allow_skipped_files: If True then all files in the application's directory
           are readable, even if they appear in a static handler or "skip_files"
           directive.
       module_to_threadsafe_override: A mapping between the module name and what
           to override the module's YAML threadsafe configuration (so modules
           not named continue to use their YAML configuration).
+      external_port: The port on which the single external module is expected
+          to listen, or None if there are no external modules. This will later
+          be changed so that the association between external modules and their
+          ports is more flexible.
     """
     self._configuration = configuration
     self._php_config = php_config
@@ -152,6 +157,7 @@ class Dispatcher(request_info.Dispatcher):
     self._module_to_threadsafe_override = module_to_threadsafe_override
     self._executor = scheduled_executor.ScheduledExecutor(_THREAD_POOL)
     self._port_registry = PortRegistry()
+    self._external_port = external_port
 
   def start(self, api_host, api_port, request_data):
     """Starts the configured modules.
@@ -229,9 +235,13 @@ class Dispatcher(request_info.Dispatcher):
     threadsafe_override = self._module_to_threadsafe_override.get(
         module_configuration.module_name)
 
-    # TODO: Remove this 'or' statement when we support auto-scaled VMs.
-    if (module_configuration.manual_scaling or
-        module_configuration.runtime == 'vm'):
+    if self._external_port:
+      # TODO: clean this up
+      module_configuration.external_port = self._external_port
+      module_class = module.ExternalModule
+    elif (module_configuration.manual_scaling or
+          module_configuration.runtime == 'vm'):
+      # TODO: Remove this 'or' when we support auto-scaled VMs.
       module_class = module.ManualScalingModule
     elif module_configuration.basic_scaling:
       module_class = module.BasicScalingModule
@@ -633,9 +643,13 @@ class Dispatcher(request_info.Dispatcher):
                                     start_response,
                                     _module,
                                     inst)
+
+    # merged_response can have side effects which modify start_response.*, so
+    # we cannot safely inline it into the ResponseTuple initialization below.
+    merged = start_response.merged_response(response)
     return request_info.ResponseTuple(start_response.status,
                                       start_response.response_headers,
-                                      start_response.merged_response(response))
+                                      merged)
 
   def _resolve_target(self, hostname, path):
     """Returns the module and instance that should handle this request.

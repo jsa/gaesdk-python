@@ -1707,16 +1707,19 @@ class TextProperty(BlobProperty):
     if isinstance(value, str):
       # Decode from UTF-8 -- if this fails, we can't write it.
       try:
-        value = unicode(value, 'utf-8')
+        length = len(value)
+        value = value.decode('utf-8')
       except UnicodeError:
         raise datastore_errors.BadValueError('Expected valid UTF-8, got %r' %
                                              (value,))
-    elif not isinstance(value, unicode):
+    elif isinstance(value, unicode):
+      length = len(value.encode('utf-8'))
+    else:
       raise datastore_errors.BadValueError('Expected string, got %r' %
                                            (value,))
-    if self._indexed and len(value) > _MAX_STRING_LENGTH:
+    if self._indexed and length > _MAX_STRING_LENGTH:
       raise datastore_errors.BadValueError(
-        'Indexed value %s must be at most %d characters' %
+        'Indexed value %s must be at most %d bytes' %
         (self._name, _MAX_STRING_LENGTH))
 
   def _to_base_type(self, value):
@@ -2564,12 +2567,13 @@ class GenericProperty(Property):
       return zlib.decompress(value.z_val)
 
   def _validate(self, value):
-    if (isinstance(value, basestring) and
-        self._indexed and
-        len(value) > _MAX_STRING_LENGTH):
-      raise datastore_errors.BadValueError(
-        'Indexed value %s must be at most %d bytes' %
-        (self._name, _MAX_STRING_LENGTH))
+    if self._indexed:
+      if isinstance(value, unicode):
+        value = value.encode('utf-8')
+      if isinstance(value, basestring) and len(value) > _MAX_STRING_LENGTH:
+        raise datastore_errors.BadValueError(
+          'Indexed value %s must be at most %d bytes' %
+          (self._name, _MAX_STRING_LENGTH))
 
   def _db_get_value(self, v, p):
     # This is awkward but there seems to be no faster way to inspect

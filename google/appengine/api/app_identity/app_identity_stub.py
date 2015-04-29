@@ -180,14 +180,15 @@ class AppIdentityServiceStub(apiproxy_stub.APIProxyStub):
     response.set_expiration_time(int(time.time()) + 1800)
 
   @staticmethod
-  def Create(email_address=None, private_key_path=None):
+  def Create(email_address=None, private_key_path=None, oauth_url=None):
     if email_address:
       from google.appengine.api.app_identity import app_identity_keybased_stub
 
       logging.debug('Using the KeyBasedAppIdentityServiceStub.')
       return app_identity_keybased_stub.KeyBasedAppIdentityServiceStub(
           email_address=email_address,
-          private_key_path=private_key_path)
+          private_key_path=private_key_path,
+          oauth_url=oauth_url)
     elif sys.version_info >= (2, 6):
       from oauth2client import client
       from google.appengine.api.app_identity import app_identity_defaultcredentialsbased_stub as ai_stub

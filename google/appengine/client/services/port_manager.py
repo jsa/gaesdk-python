@@ -17,6 +17,7 @@
 """A helper file with a helper class for opening ports."""
 
 import logging
+import re
 
 # These ports are used by our code or critical system daemons.
 RESERVED_HOST_PORTS = [22,  # SSH
@@ -29,6 +30,8 @@ RESERVED_DOCKER_PORTS = [22,  # SSH
                          5000,  # Docker registry
                          10001,  # Nanny stubby proxy endpoint
                         ]
+
+PROTOCOL_RE = '^tcp|udp$'  # Matches only exactly tcp or udp.
 
 
 class InconsistentPortConfigurationError(Exception):
@@ -45,8 +48,10 @@ class PortManager(object):
   """A helper class for VmManager to deal with port mappings."""
 
   def __init__(self):
-    self.used_host_ports = {}
-    self._port_mappings = {}
+    self.used_host_ports = {'tcp': {},
+                            'udp': {}}
+    self._port_mappings = {'tcp': {},
+                           'udp': {}}
     self._port_names = {}
 
   def Add(self, ports, kind, allow_privileged=False, prohibited_host_ports=()):
@@ -78,16 +83,25 @@ class PortManager(object):
     if isinstance(ports, basestring):
       # split a csv
       ports = [port.strip() for port in ports.split(',')]
-    port_translations = {}
+    port_translations = {'tcp': {}, 'udp': {}}
     for port in ports:
       try:
+        if '/' in port:
+          tmp = port.split('/')
+          if len(tmp) != 2 or not re.match(PROTOCOL_RE, tmp[1].lower()):
+            raise IllegalPortConfigurationError(
+                '%r was not recognized as a valid port configuration.' % port)
+          port = tmp[0]
+          protocol = tmp[1].lower()
+        else:
+          protocol = 'tcp'  # This is the default.
         if ':' in port:
           host_port, docker_port = (int(p.strip()) for p in port.split(':'))
-          port_translations[host_port] = docker_port
+          port_translations[protocol][host_port] = docker_port
         else:
           host_port = int(port)
           docker_port = host_port
-          port_translations[host_port] = host_port
+          port_translations[protocol][host_port] = host_port
         if host_port in prohibited_host_ports:
           raise InconsistentPortConfigurationError(
               'Configuration conflict, port %d cannot be used by the '
@@ -121,7 +135,8 @@ class PortManager(object):
             'Failed to load %s port configuration: "%s" error: "%s"'
             % (kind, port, e))
     # At this point we know they are not destructive.
-    self._port_mappings.update(port_translations)
+    self._port_mappings['tcp'].update(port_translations['tcp'])
+    self._port_mappings['udp'].update(port_translations['udp'])
     # TODO: This is a bit of a hack.
     self._port_names[kind] = port_translations
     return port_translations
@@ -132,10 +147,7 @@ class PortManager(object):
     Returns:
       A dict of port mappings {host: docker}
     """
-    if not self._port_mappings:
-      return {}
-    else:
-      return self._port_mappings
+    return self._port_mappings
 
   # TODO: look into moving this into a DockerManager.
   def _BuildDockerPublishArgumentString(self):
@@ -146,8 +158,9 @@ class PortManager(object):
     """
     port_map = self.GetAllMappedPorts()
     result = ''
-    for k, v in port_map.iteritems():
-      result += '--publish=%d:%s ' % (k, v)
+    for protocol in sorted(port_map):
+      for k, v in sorted(port_map[protocol].items()):
+        result += '--publish=%d:%s/%s ' % (k, v, protocol)
     return result
 
   def GetReplicaPoolParameters(self):
@@ -173,6 +186,6 @@ class PortManager(object):
       name: Name used when adding the ports to port manager.
 
     Returns:
-      A dict of mappings {host: docker}.
+      A dict of mappings {protocol: {host: docker}}.
     """
-    return self._port_names.get(name) or {}
+    return self._port_names.get(name) or {'tcp': {}, 'udp': {}}

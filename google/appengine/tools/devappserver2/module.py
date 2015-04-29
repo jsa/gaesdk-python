@@ -18,6 +18,7 @@
 
 
 
+import cgi
 import collections
 import cStringIO
 import functools
@@ -52,6 +53,8 @@ from google.appengine.tools.devappserver2 import file_watcher
 from google.appengine.tools.devappserver2 import gcs_server
 from google.appengine.tools.devappserver2 import go_runtime
 from google.appengine.tools.devappserver2 import health_check_service
+from google.appengine.tools.devappserver2 import http_proxy
+from google.appengine.tools.devappserver2 import http_runtime
 from google.appengine.tools.devappserver2 import http_runtime_constants
 from google.appengine.tools.devappserver2 import instance
 try:
@@ -122,6 +125,23 @@ _CHANGE_POLLING_MS = 1000
 # specific resources prefixes we don't want to see pollute the info level on
 # access.
 _QUIETER_RESOURCES = ('/_ah/health',)
+
+# TODO: Remove after the Files API is really gone.
+_FILESAPI_DEPRECATION_WARNING_PYTHON = (
+    'The Files API is deprecated and will soon be removed. Please use the'
+    ' Google Cloud Storage Client library instead. Migration documentation is'
+    ' available here: https://cloud.google.com/appengine/docs'
+    '/python/googlecloudstorageclient/migrate')
+_FILESAPI_DEPRECATION_WARNING_JAVA = (
+    'The Google Cloud Storage Java API is deprecated and will soon be'
+    ' removed. Please use the Google Cloud Storage Client library instead.'
+    ' Migration documentation is available here: https://cloud.google.com'
+    '/appengine/docs/java/googlecloudstorageclient/migrate')
+_FILESAPI_DEPRECATION_WARNING_GO = (
+    'The Files API is deprecated and will soon be removed. Please use the'
+    ' Google Cloud Storage Client library instead. Documentation is'
+    ' available here: https://cloud.google.com/appengine/docs'
+    '/go/googlecloudstorageclient')
 
 
 def _static_files_regex_from_handlers(handlers):
@@ -525,6 +545,16 @@ class Module(object):
         (self._host, self._balanced_port), self)
     self._quit_event = threading.Event()  # Set when quit() has been called.
 
+    # TODO: Remove after the Files API is really gone.
+    if self._module_configuration.runtime.startswith('python'):
+      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_PYTHON
+    elif self._module_configuration.runtime.startswith('java'):
+      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_JAVA
+    elif self._module_configuration.runtime.startswith('go'):
+      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_GO
+    else:
+      self._filesapi_warning_message = None
+
   def vm_enabled(self):
     # TODO: change when GA
     return self._vm_config
@@ -635,8 +665,12 @@ class Module(object):
   def _no_handler_for_request(self, environ, start_response, request_id):
     """Handle a HTTP request that does not match any user-defined handlers."""
     self._insert_log_message('No handlers matched this URL.', 2, request_id)
-    start_response('404 Not Found', [('Content-Type', 'text/plain')])
-    return ['The url "%s" does not match any handlers.' % environ['PATH_INFO']]
+    start_response('404 Not Found', [('Content-Type', 'text/html')])
+    return [
+        '<html><head><title>Not Found</title></head>',
+        ('<body>The url "%s" does not match any handlers.</body></html>' %
+         cgi.escape(environ['PATH_INFO']))
+    ]
 
   def _error_response(self, environ, start_response, status, body=None):
     if body:
@@ -675,6 +709,17 @@ class Module(object):
       environ['SERVER_NAME'] = environ['HTTP_HOST'].split(':', 1)[0]
     environ['DEFAULT_VERSION_HOSTNAME'] = '%s:%s' % (
         environ['SERVER_NAME'], self._default_version_port)
+
+    runtime_config = self._get_runtime_config()
+    # Python monkey-patches out os.environ because some environment variables
+    # are set per-request (REQUEST_ID_HASE and REQUEST_LOG_ID for example).
+    # This means that although these environment variables could be set once
+    # at startup, they must be passed in during each request.
+    if (runtime_config.vm and
+        self._module_configuration.effective_runtime == 'python27'):
+      environ.update(http_runtime.get_vm_environment_variables(
+          self._module_configuration, runtime_config))
+
     with self._request_data.request(
         environ,
         self._module_configuration) as request_id:
@@ -721,6 +766,12 @@ class Module(object):
           headers = wsgiref.headers.Headers(response_headers)
           status_code = int(status.split(' ', 1)[0])
           content_length = int(headers.get('Content-Length', 0))
+          # TODO: Remove after the Files API is really gone.
+          if (self._filesapi_warning_message is not None
+              and self._request_data.was_filesapi_used(request_id)):
+            logging.warning(self._filesapi_warning_message)
+            self._insert_log_message(self._filesapi_warning_message,
+                                     2, request_id)
           logservice.end_request(request_id, status_code, content_length)
           if any(resource.startswith(prefix) for prefix in _QUIETER_RESOURCES):
             level = logging.DEBUG
@@ -1608,6 +1659,7 @@ class ManualScalingModule(Module):
     else:
       environ['BACKEND_ID'] = (
           self._module_configuration.version_id.split('.', 1)[0])
+
     if inst is not None:
       return self._handle_instance_request(
           environ, start_response, url_map, match, request_id, inst,
@@ -1659,7 +1711,8 @@ class ManualScalingModule(Module):
       future = self._async_start_instance(wsgi_servr, inst)
       health_check_config = self.module_configuration.health_check
       if (self.module_configuration.runtime == 'vm' and
-          health_check_config.enable_health_check):
+          health_check_config.enable_health_check and
+          'GAE_LOCAL_VM_RUNTIME' not in os.environ):
         # Health checks should only get added after the build is done and the
         # container starts.
         def _add_health_checks_callback(unused_future):
@@ -1917,6 +1970,336 @@ class ManualScalingModule(Module):
   @property
   def supports_individually_addressable_instances(self):
     return True
+
+
+class ExternalModule(Module):
+  """A module with a single instance that is run externally on a given port."""
+  # TODO: reduce code duplication between the various Module classes.
+
+  def __init__(self, **kwargs):
+    """Initializer for ManualScalingModule.
+
+    Args:
+      **kwargs: Arguments to forward to Module.__init__.
+    """
+    super(ExternalModule, self).__init__(**kwargs)
+
+    self._instance = None  # Protected by self._condition.
+    self._wsgi_server = None  # Protected by self._condition.
+    # Whether the module has been stopped. Protected by self._condition.
+    self._suspended = False
+
+    self._condition = threading.Condition()  # Protects instance state.
+
+    # Serializes operations that modify the serving state of the instance.
+    self._instance_change_lock = threading.RLock()
+
+    self._change_watcher_thread = threading.Thread(
+        target=self._loop_watching_for_changes, name='Change Watcher')
+
+  # Override this method from the parent class
+  def _create_instance_factory(self, module_configuration):
+    return _ExternalInstanceFactory(
+        request_data=self._request_data,
+        module_configuration=module_configuration)
+
+  def start(self):
+    """Start background management of the Module."""
+    self._balanced_module.start()
+    self._port_registry.add(self.balanced_port, self, None)
+    if self._watcher:
+      self._watcher.start()
+    self._change_watcher_thread.start()
+    with self._instance_change_lock:
+      self._add_instance()
+
+  def quit(self):
+    """Stops the Module."""
+    self._quit_event.set()
+    # The instance adjustment thread depends on the balanced module and the
+    # watcher so wait for it exit before quitting them.
+    if self._watcher:
+      self._watcher.quit()
+    self._change_watcher_thread.join()
+    self._balanced_module.quit()
+    self._wsgi_server.quit()
+
+  def get_instance_port(self, instance_id):
+    """Returns the port of the HTTP server for an instance."""
+    if instance_id != 0:
+      raise request_info.InvalidInstanceIdError()
+    return self._wsgi_servr.port
+
+  @property
+  def instances(self):
+    """A set of all the instances currently in the Module."""
+    return {self._instance}
+
+  def _handle_instance_request(self,
+                               environ,
+                               start_response,
+                               url_map,
+                               match,
+                               request_id,
+                               inst,
+                               request_type):
+    """Handles a request routed a particular Instance.
+
+    Args:
+      environ: An environ dict for the request as defined in PEP-333.
+      start_response: A function with semantics defined in PEP-333.
+      url_map: An appinfo.URLMap instance containing the configuration for the
+          handler that matched.
+      match: A re.MatchObject containing the result of the matched URL pattern.
+      request_id: A unique string id associated with the request.
+      inst: The instance.Instance to send the request to.
+      request_type: The type of the request. See instance.*_REQUEST module
+          constants.
+
+    Returns:
+      An iterable over strings containing the body of the HTTP response.
+    """
+    start_time = time.time()
+    timeout_time = start_time + self._get_wait_time()
+    try:
+      while time.time() < timeout_time:
+        logging.debug('Dispatching request to %s after %0.4fs pending',
+                      inst, time.time() - start_time)
+        try:
+          return inst.handle(environ, start_response, url_map, match,
+                             request_id, request_type)
+        except instance.CannotAcceptRequests:
+          pass
+        inst.wait(timeout_time)
+        if inst.has_quit:
+          return self._error_response(environ, start_response, 503)
+      return self._error_response(environ, start_response, 503)
+    finally:
+      with self._condition:
+        self._condition.notify()
+
+  def _handle_script_request(self,
+                             environ,
+                             start_response,
+                             url_map,
+                             match,
+                             request_id,
+                             inst=None,
+                             request_type=instance.NORMAL_REQUEST):
+    """Handles a HTTP request that has matched a script handler.
+
+    Args:
+      environ: An environ dict for the request as defined in PEP-333.
+      start_response: A function with semantics defined in PEP-333.
+      url_map: An appinfo.URLMap instance containing the configuration for the
+          handler that matched.
+      match: A re.MatchObject containing the result of the matched URL pattern.
+      request_id: A unique string id associated with the request.
+      inst: The instance.Instance to send the request to. If None then an
+          appropriate instance.Instance will be chosen.
+      request_type: The type of the request. See instance.*_REQUEST module
+          constants.
+
+    Returns:
+      An iterable over strings containing the body of the HTTP response.
+    """
+    if ((request_type in (instance.NORMAL_REQUEST, instance.READY_REQUEST) and
+         self._suspended) or self._quit_event.is_set()):
+      return self._error_response(environ, start_response, 404)
+    environ['BACKEND_ID'] = (
+        self._module_configuration.module_name
+        if self._module_configuration.is_backend
+        else self._module_configuration.version_id.split('.', 1)[0])
+    return self._handle_instance_request(
+        environ, start_response, url_map, match, request_id,
+        inst or self._instance, request_type)
+
+  def _add_instance(self):
+    """Creates and adds a new instance.Instance to the Module.
+
+    This must be called with _instances_change_lock held.
+    """
+    inst = self._instance_factory.new_instance(0)
+    wsgi_servr = wsgi_server.WsgiServer(
+        (self._host, 0), functools.partial(self._handle_request, inst=inst))
+    wsgi_servr.start()
+    self._port_registry.add(wsgi_servr.port, self, inst)
+
+    with self._condition:
+      if self._quit_event.is_set():
+        return
+      self._wsgi_server = wsgi_servr
+      self._instance = inst
+      suspended = self._suspended
+    if not suspended:
+      self._async_start_instance(wsgi_servr, inst)
+
+  def _async_start_instance(self, wsgi_servr, inst):
+    return _THREAD_POOL.submit(self._start_instance, wsgi_servr, inst)
+
+  def _start_instance(self, wsgi_servr, inst):
+    try:
+      if not inst.start():
+        return
+    except:
+      logging.exception('Internal error while starting instance.')
+      raise
+
+    logging.debug('Started instance: %s at http://%s:%s', inst, self.host,
+                  wsgi_servr.port)
+    logging.info('New instance for module "%s" serving on:\nhttp://%s\n',
+                 self.name, self.balanced_address)
+
+  def _handle_changes(self, timeout=0):
+    """Handle file or configuration changes."""
+    # Always check for config changes because checking also clears
+    # pending changes.
+    config_changes = self._module_configuration.check_for_updates()
+    if application_configuration.HANDLERS_CHANGED in config_changes:
+      handlers = self._create_url_handlers()
+      with self._handler_lock:
+        self._handlers = handlers
+
+    if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
+      self._instance_factory.configuration_changed(config_changes)
+      with self._instances_change_lock:
+        if not self._suspended:
+          self.restart()
+
+  def _loop_watching_for_changes(self):
+    """Loops until the InstancePool is done watching for file changes."""
+    while not self._quit_event.is_set():
+      if self.ready:
+        if self._automatic_restarts:
+          self._handle_changes(_CHANGE_POLLING_MS)
+        else:
+          time.sleep(_CHANGE_POLLING_MS/1000.0)
+
+  def get_num_instances(self):
+    return 1
+
+  def set_num_instances(self, instances):
+    pass
+
+  def _async_quit_instance(self, inst, wsgi_servr):
+    return _THREAD_POOL.submit(self._quit_instance, inst, wsgi_servr)
+
+  def _quit_instance(self, inst, wsgi_servr):
+    port = wsgi_servr.port
+    wsgi_servr.quit()
+    inst.quit(expect_shutdown=True)
+    self._shutdown_instance(inst, port)
+
+  def suspend(self):
+    """Suspends serving for this module, quitting all running instances."""
+    with self._instance_change_lock:
+      if self._suspended:
+        raise request_info.VersionAlreadyStoppedError()
+      self._suspended = True
+      with self._condition:
+        self._wsgi_server.set_error(404)
+    return _THREAD_POOL.submit(
+        self._suspend_instance, self._instance, self._wsgi_server.port)
+
+  def _suspend_instance(self, inst, port):
+    inst.quit(expect_shutdown=True)
+    self._shutdown_instance(inst, port)
+
+  def resume(self):
+    """Resumes serving for this module."""
+    with self._instance_change_lock:
+      if not self._suspended:
+        raise request_info.VersionAlreadyStartedError()
+      self._suspended = False
+      with self._condition:
+        if self._quit_event.is_set():
+          return
+      inst = self._instance_factory.new_instance(0, expect_ready_request=True)
+      self._instance = inst
+      self._wsgi_server.set_app(
+          functools.partial(self._handle_request, inst=inst))
+      self._port_registry.add(self._wsgi_server.port, self, inst)
+    self._async_start_instance(self._wsgi_server, inst)
+
+  def restart(self):
+    """Restarts the module, replacing all running instances."""
+    with self._instance_change_lock:
+      with self._condition:
+        if self._quit_event.is_set():
+          return
+      inst = self._instance_factory.new_instance(0, expect_ready_request=True)
+      self._wsgi_server.set_app(
+          functools.partial(self._handle_request, inst=inst))
+      self._port_registry.add(self._wsgi_server.port, self, inst)
+      self._instance = inst
+
+    # Just force instance to stop for a faster restart.
+    inst.quit(force=True)
+
+    logging.info('Waiting for instances to restart')
+    self._start_instance(self._wsgi_server, inst)
+    logging.info('Instances restarted')
+
+  def get_instance(self, instance_id):
+    """Returns the instance with the provided instance ID."""
+    if instance_id == 0:
+      return self._instance
+    raise request_info.InvalidInstanceIdError()
+
+  def __call__(self, environ, start_response, inst=None):
+    return self._handle_request(environ, start_response, inst)
+
+  @property
+  def supports_individually_addressable_instances(self):
+    return True
+
+
+class _ExternalInstanceFactory(instance.InstanceFactory):
+  """Factory for instances that are started externally rather than by us."""
+
+  _MAX_CONCURRENT_REQUESTS = 20
+
+  # TODO: reconsider this
+  START_URL_MAP = appinfo.URLMap(
+      url='/_ah/start',
+      script='ignored',
+      login='admin')
+  WARMUP_URL_MAP = appinfo.URLMap(
+      url='/_ah/warmup',
+      script='ignored',
+      login='admin')
+
+  def __init__(self, request_data, module_configuration):
+    super(_ExternalInstanceFactory, self).__init__(
+        request_data, self._MAX_CONCURRENT_REQUESTS)
+    self._module_configuration = module_configuration
+
+  def new_instance(self, instance_id, expect_ready_request=False):
+    assert instance_id == 0
+    proxy = _ExternalRuntimeProxy(self._module_configuration)
+    return instance.Instance(self.request_data,
+                             instance_id,
+                             proxy,
+                             self.max_concurrent_requests,
+                             self.max_background_threads,
+                             expect_ready_request)
+
+
+class _ExternalRuntimeProxy(instance.RuntimeProxy):
+
+  def __init__(self, module_configuration):
+    super(_ExternalRuntimeProxy, self).__init__()
+    self._module_configuration = module_configuration
+
+  def start(self):
+    self._proxy = http_proxy.HttpProxy(
+        host='localhost', port=self._module_configuration.external_port,
+        instance_died_unexpectedly=lambda: False,
+        instance_logs_getter=lambda: '',
+        error_handler_file=application_configuration.get_app_error_file(
+            self._module_configuration),
+        prior_error=None)
+    self.handle = self._proxy.handle
 
 
 class BasicScalingModule(Module):

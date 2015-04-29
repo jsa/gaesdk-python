@@ -152,7 +152,7 @@ class PHPRuntime(object):
     """Returns an array of args for php-cgi based on self.config."""
 
     # See http://www.php.net/manual/en/ini.core.php#ini.include-path.
-    include_paths = [self.config.application_root, SDK_PATH]
+    include_paths = ['.', self.config.application_root, SDK_PATH]
     if sys.platform == 'win32':
       # See https://bugs.php.net/bug.php?id=46034 for quoting requirements.
       include_path = 'include_path="%s"' % ';'.join(include_paths)

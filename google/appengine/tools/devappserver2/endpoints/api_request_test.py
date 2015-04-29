@@ -23,9 +23,9 @@
 
 
 import cStringIO
+import gzip
 import json
 import unittest
-import zlib
 
 from google.appengine.tools.devappserver2.endpoints import api_request
 from google.appengine.tools.devappserver2.endpoints import test_utils
@@ -57,8 +57,14 @@ class RequestTest(unittest.TestCase):
     self.assertEqual(None, request.request_id)
 
   def test_parse_gzipped_body(self):
+    def gzip_encode(content):
+      out = cStringIO.StringIO()
+      with gzip.GzipFile(fileobj=out, mode='w') as f:
+        f.write(content)
+      return out.getvalue()
+
     uncompressed = '{"test": "body"}'
-    compressed = zlib.compress(uncompressed)
+    compressed = gzip_encode(uncompressed)
     request = test_utils.build_request('/_ah/api/foo?bar=baz', compressed,
                                        [('Content-encoding', 'gzip')])
     self.assertEqual('foo', request.path)

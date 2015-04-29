@@ -263,7 +263,10 @@ class IntervalTimeSpecification(TimeSpecification):
     """
     if self.start_time is None:
 
-      return start + datetime.timedelta(seconds=self.seconds)
+
+
+      result = start + datetime.timedelta(seconds=self.seconds)
+      return result - datetime.timedelta(seconds=result.second)
 
 
     t = _ToTimeZone(start, self.timezone)

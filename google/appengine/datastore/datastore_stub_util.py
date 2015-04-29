@@ -354,6 +354,9 @@ def CheckValidUTF8(string, desc):
   Raises:
     apiproxy_errors.ApplicationError: if the string is not valid UTF-8.
   """
+
+  if isinstance(string, unicode):
+    return True
   try:
     string.decode('utf-8')
   except UnicodeDecodeError:
@@ -499,16 +502,10 @@ def CheckPropertyValue(name, value, max_length, meaning):
         ' has multiple value fields set')
 
   if value.has_stringvalue():
-
-
-
-
-
-
-
-    s16 = value.stringvalue().decode('utf-8', 'replace').encode('utf-16')
-
-    Check((len(s16) - 2) / 2 <= max_length,
+    s = value.stringvalue()
+    if isinstance(s, unicode):
+      s = s.encode('utf-8')
+    Check(len(s) <= max_length,
           'Property %s is too long. Maximum length is %d.' % (name, max_length))
     if (meaning not in _BLOB_MEANINGS and
         meaning != entity_pb.Property.BYTESTRING):
@@ -3471,12 +3468,6 @@ class StubQueryConverter(datastore_pbs._QueryConverter):
       v4_filter: a datastore_v4_pb.Filter
       v3_query: a datastore_pb.Query to populate with filters
     """
-
-    datastore_pbs.check_conversion(not v4_filter.has_bounding_circle_filter(),
-                                   'bounding circle filter not supported')
-    datastore_pbs.check_conversion(not v4_filter.has_bounding_box_filter(),
-                                   'bounding box filter not supported')
-
     if v4_filter.has_property_filter():
       v4_property_filter = v4_filter.property_filter()
       if (v4_property_filter.operator()

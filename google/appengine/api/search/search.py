@@ -136,12 +136,12 @@ MAXIMUM_QUERY_LENGTH = 2000
 MAXIMUM_DOCUMENTS_RETURNED_PER_SEARCH = 1000
 MAXIMUM_DEPTH_FOR_FACETED_SEARCH = 10000
 MAXIMUM_FACETS_TO_RETURN = 100
-MAXIMUM_FACET_VALUES_TO_RETURN = 100
+MAXIMUM_FACET_VALUES_TO_RETURN = 20
 MAXIMUM_SEARCH_OFFSET = 1000
 
 MAXIMUM_SORTED_DOCUMENTS = 10000
-MAXIMUM_NUMBER_FOUND_ACCURACY = 10000
-MAXIMUM_FIELDS_RETURNED_PER_SEARCH = 100
+MAXIMUM_NUMBER_FOUND_ACCURACY = 25000
+MAXIMUM_FIELDS_RETURNED_PER_SEARCH = 1000
 MAXIMUM_INDEXES_RETURNED_PER_GET_REQUEST = 1000
 MAXIMUM_GET_INDEXES_OFFSET = 1000
 
@@ -2670,9 +2670,9 @@ class FacetOptions(object):
     If you wish to discovering 5 facets with 10 values each in 6000 search
     results, you can use a FacetOption object like this:
 
-    facet_option = FacetOption(discover_facet_limit=5,
-                               discover_facet_value_limit=10,
-                               depth=6000)
+    facet_option = FacetOptions(discover_facet_limit=5,
+                                discover_facet_value_limit=10,
+                                depth=6000)
 
     Args:
       discovery_limit: Number of facets to discover if facet discovery is
@@ -2997,14 +2997,14 @@ class Query(object):
     # included specific facets with search result
     results = index.search(
         Query(query_string='movies',
-              include_facets=['rating', 'shipping_method']))
+              return_facets=['rating', 'shipping_method']))
 
     # discover only 5 facets and two manual facets with customized value
     facet_option = FacetOption(discovery_limit=5)
     facet1 = FacetRequest('Rating', ranges=[
-        FacetRange(1.0, 2.0),
-        FacetRange(2.0, 3.5),
-        FacetRange(3.5, 4.0)]
+        FacetRange(start=1.0, end=2.0),
+        FacetRange(start=2.0, end=3.5),
+        FacetRange(start=3.5, end=4.0)]
     results = index.search(
         Query(query_string='movies',
               enable_facet_discovery=true,

@@ -451,9 +451,9 @@ class InstanceFactory(object):
     max_concurrent_requests: The maximum number of concurrent requests that
         Instances created by this factory can handle. If the Instances do not
         support concurrent requests then the value should be 1.
-    START_URL_MAP: An apinfo.URLMap that should be used as the default
+    START_URL_MAP: An appinfo.URLMap that should be used as the default
         /_ah/start handler if no user-specified script handler matches.
-    WARMUP_URL_MAP: An apinfo.URLMap that should be used as the default
+    WARMUP_URL_MAP: An appinfo.URLMap that should be used as the default
         /_ah/warmup handler if no user-specified script handler matches.
   """
 

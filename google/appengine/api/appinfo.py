@@ -160,6 +160,8 @@ _PENDING_LATENCY_REGEX = r'^(\d+((\.\d{1,3})?s|ms)|automatic)$'
 
 _IDLE_TIMEOUT_REGEX = r'^[\d]+(s|m)$'
 
+GCE_RESOURCE_NAME_REGEX = r'^[a-z]([a-z\d-]{0,61}[a-z\d])?$'
+
 ALTERNATE_HOSTNAME_SEPARATOR = '-dot-'
 
 
@@ -227,6 +229,7 @@ REDIRECT_HTTP_RESPONSE_CODE = 'redirect_http_response_code'
 
 
 APPLICATION = 'application'
+PROJECT = 'project'
 MODULE = 'module'
 AUTOMATIC_SCALING = 'automatic_scaling'
 MANUAL_SCALING = 'manual_scaling'
@@ -325,6 +328,7 @@ DISK_SIZE_GB = 'disk_size_gb'
 
 FORWARDED_PORTS = 'forwarded_ports'
 INSTANCE_TAG = 'instance_tag'
+NETWORK_NAME = 'name'
 
 
 class _VersionedLibrary(object):
@@ -1592,11 +1596,13 @@ class Network(validation.Validated):
   ATTRIBUTES = {
 
       FORWARDED_PORTS: validation.Optional(validation.Repeated(validation.Regex(
-          '[0-9]+(:[0-9]+)?'))),
-
+          '[0-9]+(:[0-9]+)?(/(udp|tcp))?'))),
 
       INSTANCE_TAG: validation.Optional(validation.Regex(
-          r'^[a-z\d]([a-z\d-]{0,61}[a-z\d])?$'))
+          GCE_RESOURCE_NAME_REGEX)),
+
+      NETWORK_NAME: validation.Optional(validation.Regex(
+          GCE_RESOURCE_NAME_REGEX)),
   }
 
 
@@ -1800,6 +1806,8 @@ class AppInfoExternal(validation.Validated):
 
 
       APPLICATION: validation.Optional(APPLICATION_RE_STRING),
+
+      PROJECT: validation.Optional(APPLICATION_RE_STRING),
       MODULE: validation.Optional(MODULE_ID_RE_STRING),
       VERSION: validation.Optional(MODULE_VERSION_ID_RE_STRING),
       RUNTIME: RUNTIME_RE_STRING,
@@ -2089,9 +2097,11 @@ def LoadSingleAppInfo(app_info):
     ValueError: if a specified service is not valid.
     EmptyConfigurationFile: when there are no documents in YAML file.
     MultipleConfigurationFile: when there is more than one document in YAML
-    file.
+      file.
     DuplicateBackend: if backend is found more than once in 'backends'.
     yaml_errors.EventError: if the app.yaml fails validation.
+    appinfo_errors.MultipleProjectNames: if the app.yaml has both 'application'
+      and 'project'.
   """
   builder = yaml_object.ObjectBuilder(AppInfoExternal)
   handler = yaml_builder.BuilderHandler(builder)
@@ -2108,6 +2118,17 @@ def LoadSingleAppInfo(app_info):
   ValidateHandlers(appyaml.handlers)
   if appyaml.builtins:
     BuiltinHandler.Validate(appyaml.builtins, appyaml.runtime)
+
+
+
+
+
+  if appyaml.application and appyaml.project:
+    raise appinfo_errors.MultipleProjectNames(
+        'Specify one of "application: name" or "project: name"')
+  elif appyaml.project:
+    appyaml.application = appyaml.project
+    appyaml.project = None
 
   return NormalizeVmSettings(appyaml)
 

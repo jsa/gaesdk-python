@@ -401,7 +401,7 @@ class AppEngineWebXmlParser(object):
     network = Network()
     for child in node:
       tag = xml_parser_utils.GetTag(child)
-      if tag == 'instance-tag':
+      if tag in ('instance-tag', 'name'):
         text = child.text or ''
         setattr(network, tag.replace('-', '_'), text)
       elif tag == 'forwarded-port':

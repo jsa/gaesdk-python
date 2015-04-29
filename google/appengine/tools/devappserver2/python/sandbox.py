@@ -172,7 +172,12 @@ def enable_sandbox(config):
   sys.platform = 'linux3'
   _install_import_hooks(config, path_override_hook)
   sys.path_importer_cache = {}
-  sys.path = python_lib_paths[:]
+  if not config.vm:
+    sys.path = python_lib_paths[:]
+  else:
+    # Use anything present on the sys.path if the runtime is on a vm.
+    # This lets users use deps installed with pip.
+    sys.path.extend(python_lib_paths)
 
   thread = __import__('thread')
   __import__('%s.threading' % dist27.__name__)

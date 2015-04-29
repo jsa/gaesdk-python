@@ -36,7 +36,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='apphosting/tools/devappserver2/runtime_config.proto',
   package='apphosting.tools.devappserver2',
   syntax='proto2',
-  serialized_pb=_b('\n3apphosting/tools/devappserver2/runtime_config.proto\x12\x1e\x61pphosting.tools.devappserver2\"\x98\x06\n\x06\x43onfig\x12\x0e\n\x06\x61pp_id\x18\x01 \x02(\x0c\x12\x12\n\nversion_id\x18\x02 \x02(\x0c\x12\x18\n\x10\x61pplication_root\x18\x03 \x02(\x0c\x12\x19\n\nthreadsafe\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x1b\n\x08\x61pi_host\x18\x11 \x01(\t:\tlocalhost\x12\x10\n\x08\x61pi_port\x18\x05 \x02(\x05\x12:\n\tlibraries\x18\x06 \x03(\x0b\x32\'.apphosting.tools.devappserver2.Library\x12\x16\n\nskip_files\x18\x07 \x01(\t:\x02^$\x12\x18\n\x0cstatic_files\x18\x08 \x01(\t:\x02^$\x12\x43\n\rpython_config\x18\x0e \x01(\x0b\x32,.apphosting.tools.devappserver2.PythonConfig\x12=\n\nphp_config\x18\t \x01(\x0b\x32).apphosting.tools.devappserver2.PhpConfig\x12?\n\x0bjava_config\x18\x15 \x01(\x0b\x32*.apphosting.tools.devappserver2.JavaConfig\x12\x38\n\x07\x65nviron\x18\n \x03(\x0b\x32\'.apphosting.tools.devappserver2.Environ\x12\x42\n\x10\x63loud_sql_config\x18\x0b \x01(\x0b\x32(.apphosting.tools.devappserver2.CloudSQL\x12\x12\n\ndatacenter\x18\x0c \x02(\t\x12\x13\n\x0binstance_id\x18\r \x02(\t\x12\x1b\n\x10stderr_log_level\x18\x0f \x01(\x03:\x01\x31\x12\x13\n\x0b\x61uth_domain\x18\x10 \x02(\t\x12\x15\n\rmax_instances\x18\x12 \x01(\x05\x12;\n\tvm_config\x18\x13 \x01(\x0b\x32(.apphosting.tools.devappserver2.VMConfig\x12\x13\n\x0bserver_port\x18\x14 \x01(\x05\x12\x11\n\x02vm\x18\x16 \x01(\x08:\x05\x66\x61lse\"|\n\tPhpConfig\x12\x1b\n\x13php_executable_path\x18\x01 \x01(\x0c\x12\x17\n\x0f\x65nable_debugger\x18\x03 \x02(\x08\x12\x1a\n\x12gae_extension_path\x18\x04 \x01(\x0c\x12\x1d\n\x15xdebug_extension_path\x18\x05 \x01(\x0c\"<\n\x0cPythonConfig\x12\x16\n\x0estartup_script\x18\x01 \x01(\t\x12\x14\n\x0cstartup_args\x18\x02 \x01(\t\"\x1e\n\nJavaConfig\x12\x10\n\x08jvm_args\x18\x01 \x03(\t\"t\n\x08\x43loudSQL\x12\x12\n\nmysql_host\x18\x01 \x02(\t\x12\x12\n\nmysql_port\x18\x02 \x02(\x05\x12\x12\n\nmysql_user\x18\x03 \x02(\t\x12\x16\n\x0emysql_password\x18\x04 \x02(\t\x12\x14\n\x0cmysql_socket\x18\x05 \x01(\t\"(\n\x07Library\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\t\"%\n\x07\x45nviron\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\"{\n\x08VMConfig\x12\x19\n\x11\x64ocker_daemon_url\x18\x01 \x01(\t\x12?\n\x0b\x64\x61rt_config\x18\x02 \x01(\x0b\x32*.apphosting.tools.devappserver2.DartConfig\x12\x13\n\x0b\x65nable_logs\x18\x03 \x01(\x08\"o\n\nDartConfig\x12\x10\n\x08\x64\x61rt_sdk\x18\x01 \x01(\t\x12\x15\n\rdart_dev_mode\x18\x02 \x01(\t\x12\x1b\n\x13\x64\x61rt_pub_serve_host\x18\x03 \x01(\t\x12\x1b\n\x13\x64\x61rt_pub_serve_port\x18\x04 \x01(\x05\x42\x32\n,com.google.appengine.tools.development.proto \x02P\x01')
+  serialized_pb=_b('\n3apphosting/tools/devappserver2/runtime_config.proto\x12\x1e\x61pphosting.tools.devappserver2\"\x98\x06\n\x06\x43onfig\x12\x0e\n\x06\x61pp_id\x18\x01 \x02(\x0c\x12\x12\n\nversion_id\x18\x02 \x02(\x0c\x12\x18\n\x10\x61pplication_root\x18\x03 \x02(\x0c\x12\x19\n\nthreadsafe\x18\x04 \x01(\x08:\x05\x66\x61lse\x12\x1b\n\x08\x61pi_host\x18\x11 \x01(\t:\tlocalhost\x12\x10\n\x08\x61pi_port\x18\x05 \x02(\x05\x12:\n\tlibraries\x18\x06 \x03(\x0b\x32\'.apphosting.tools.devappserver2.Library\x12\x16\n\nskip_files\x18\x07 \x01(\t:\x02^$\x12\x18\n\x0cstatic_files\x18\x08 \x01(\t:\x02^$\x12\x43\n\rpython_config\x18\x0e \x01(\x0b\x32,.apphosting.tools.devappserver2.PythonConfig\x12=\n\nphp_config\x18\t \x01(\x0b\x32).apphosting.tools.devappserver2.PhpConfig\x12?\n\x0bjava_config\x18\x15 \x01(\x0b\x32*.apphosting.tools.devappserver2.JavaConfig\x12\x38\n\x07\x65nviron\x18\n \x03(\x0b\x32\'.apphosting.tools.devappserver2.Environ\x12\x42\n\x10\x63loud_sql_config\x18\x0b \x01(\x0b\x32(.apphosting.tools.devappserver2.CloudSQL\x12\x12\n\ndatacenter\x18\x0c \x02(\t\x12\x13\n\x0binstance_id\x18\r \x02(\t\x12\x1b\n\x10stderr_log_level\x18\x0f \x01(\x03:\x01\x31\x12\x13\n\x0b\x61uth_domain\x18\x10 \x02(\t\x12\x15\n\rmax_instances\x18\x12 \x01(\x05\x12;\n\tvm_config\x18\x13 \x01(\x0b\x32(.apphosting.tools.devappserver2.VMConfig\x12\x13\n\x0bserver_port\x18\x14 \x01(\x05\x12\x11\n\x02vm\x18\x16 \x01(\x08:\x05\x66\x61lse\"|\n\tPhpConfig\x12\x1b\n\x13php_executable_path\x18\x01 \x01(\x0c\x12\x17\n\x0f\x65nable_debugger\x18\x03 \x02(\x08\x12\x1a\n\x12gae_extension_path\x18\x04 \x01(\x0c\x12\x1d\n\x15xdebug_extension_path\x18\x05 \x01(\x0c\"<\n\x0cPythonConfig\x12\x16\n\x0estartup_script\x18\x01 \x01(\t\x12\x14\n\x0cstartup_args\x18\x02 \x01(\t\"\x1e\n\nJavaConfig\x12\x10\n\x08jvm_args\x18\x01 \x03(\t\"t\n\x08\x43loudSQL\x12\x12\n\nmysql_host\x18\x01 \x02(\t\x12\x12\n\nmysql_port\x18\x02 \x02(\x05\x12\x12\n\nmysql_user\x18\x03 \x02(\t\x12\x16\n\x0emysql_password\x18\x04 \x02(\t\x12\x14\n\x0cmysql_socket\x18\x05 \x01(\t\"(\n\x07Library\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\t\"%\n\x07\x45nviron\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\":\n\x08VMConfig\x12\x19\n\x11\x64ocker_daemon_url\x18\x01 \x01(\t\x12\x13\n\x0b\x65nable_logs\x18\x03 \x01(\x08\x42\x32\n,com.google.appengine.tools.development.proto \x02P\x01')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -492,14 +492,7 @@ _VMCONFIG = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='dart_config', full_name='apphosting.tools.devappserver2.VMConfig.dart_config', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='enable_logs', full_name='apphosting.tools.devappserver2.VMConfig.enable_logs', index=2,
+      name='enable_logs', full_name='apphosting.tools.devappserver2.VMConfig.enable_logs', index=1,
       number=3, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
@@ -518,59 +511,7 @@ _VMCONFIG = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=1301,
-  serialized_end=1424,
-)
-
-
-_DARTCONFIG = _descriptor.Descriptor(
-  name='DartConfig',
-  full_name='apphosting.tools.devappserver2.DartConfig',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='dart_sdk', full_name='apphosting.tools.devappserver2.DartConfig.dart_sdk', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='dart_dev_mode', full_name='apphosting.tools.devappserver2.DartConfig.dart_dev_mode', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='dart_pub_serve_host', full_name='apphosting.tools.devappserver2.DartConfig.dart_pub_serve_host', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='dart_pub_serve_port', full_name='apphosting.tools.devappserver2.DartConfig.dart_pub_serve_port', index=3,
-      number=4, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto2',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1426,
-  serialized_end=1537,
+  serialized_end=1359,
 )
 
 _CONFIG.fields_by_name['libraries'].message_type = _LIBRARY
@@ -580,7 +521,6 @@ _CONFIG.fields_by_name['java_config'].message_type = _JAVACONFIG
 _CONFIG.fields_by_name['environ'].message_type = _ENVIRON
 _CONFIG.fields_by_name['cloud_sql_config'].message_type = _CLOUDSQL
 _CONFIG.fields_by_name['vm_config'].message_type = _VMCONFIG
-_VMCONFIG.fields_by_name['dart_config'].message_type = _DARTCONFIG
 DESCRIPTOR.message_types_by_name['Config'] = _CONFIG
 DESCRIPTOR.message_types_by_name['PhpConfig'] = _PHPCONFIG
 DESCRIPTOR.message_types_by_name['PythonConfig'] = _PYTHONCONFIG
@@ -589,7 +529,6 @@ DESCRIPTOR.message_types_by_name['CloudSQL'] = _CLOUDSQL
 DESCRIPTOR.message_types_by_name['Library'] = _LIBRARY
 DESCRIPTOR.message_types_by_name['Environ'] = _ENVIRON
 DESCRIPTOR.message_types_by_name['VMConfig'] = _VMCONFIG
-DESCRIPTOR.message_types_by_name['DartConfig'] = _DARTCONFIG
 
 Config = _reflection.GeneratedProtocolMessageType('Config', (_message.Message,), dict(
   DESCRIPTOR = _CONFIG,
@@ -646,13 +585,6 @@ VMConfig = _reflection.GeneratedProtocolMessageType('VMConfig', (_message.Messag
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.VMConfig)
   ))
 _sym_db.RegisterMessage(VMConfig)
-
-DartConfig = _reflection.GeneratedProtocolMessageType('DartConfig', (_message.Message,), dict(
-  DESCRIPTOR = _DARTCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
-  # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.DartConfig)
-  ))
-_sym_db.RegisterMessage(DartConfig)
 
 
 DESCRIPTOR.has_options = True

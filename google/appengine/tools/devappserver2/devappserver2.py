@@ -72,6 +72,9 @@ _LOG_LEVEL_TO_PYTHON_CONSTANT = {
 # The default encoding used by the production interpreter.
 _PROD_DEFAULT_ENCODING = 'ascii'
 
+# The environment variable exposed in the devshell.
+_DEVSHELL_ENV = 'DEVSHELL_CLIENT_PORT'
+
 
 def _generate_storage_paths(app_id):
   """Yield an infinite sequence of possible storage paths."""
@@ -297,23 +300,34 @@ def create_command_line_parser():
   parser.add_argument(
       'config_paths', metavar=arg_name, nargs='+', help=arg_help)
 
+  if _DEVSHELL_ENV in os.environ:
+    default_server_host = '0.0.0.0'
+  else:
+    default_server_host = 'localhost'
+
   common_group = parser.add_argument_group('Common')
   common_group.add_argument(
       '-A', '--application', action='store', dest='app_id',
       help='Set the application, overriding the application value from the '
       'app.yaml file.')
   common_group.add_argument(
-      '--host', default='localhost',
+      '--host', default=default_server_host,
       help='host name to which application modules should bind')
   common_group.add_argument(
       '--port', type=PortParser(), default=8080,
       help='lowest port to which application modules should bind')
   common_group.add_argument(
-      '--admin_host', default='localhost',
+      '--admin_host', default=default_server_host,
       help='host name to which the admin server should bind')
   common_group.add_argument(
       '--admin_port', type=PortParser(), default=8000,
       help='port to which the admin server should bind')
+  # TODO: Change this. Eventually we want a way to associate ports
+  # with external modules, with default values. For now we allow only one
+  # external module, with a port number that must be passed in here.
+  common_group.add_argument(
+      '--external_port', type=PortParser(), default=None,
+      help=argparse.SUPPRESS)
   common_group.add_argument(
       '--auth_domain', default='gmail.com',
       help='name of the authorization domain to use')
@@ -371,16 +385,6 @@ def create_command_line_parser():
                          type=parse_path,
                          help='path to the xdebug extension')
 
-  # Dart
-  dart_group = parser.add_argument_group('Dart')
-  dart_group.add_argument('--dart_sdk', help=argparse.SUPPRESS)
-  dart_group.add_argument('--dart_dev_mode',
-                          choices=['dev', 'deploy'],
-                          help=argparse.SUPPRESS)
-  dart_group.add_argument('--dart_pub_serve_host', help=argparse.SUPPRESS)
-  dart_group.add_argument('--dart_pub_serve_port',
-                          type=PortParser(), help=argparse.SUPPRESS)
-
   # App Identity
   appidentity_group = parser.add_argument_group('Application Identity')
   appidentity_group.add_argument(
@@ -391,6 +395,14 @@ def create_command_line_parser():
       '--appidentity_private_key_path',
       help='path to private key file associated with service account '
       '(.pem format). Must be set if appidentity_email_address is set.')
+  # Supressing the help text, as it is unlikely any typical user outside
+  # of Google has an appropriately set up test oauth server that devappserver2
+  # could talk to.
+  # URL to the oauth server that devappserver2 should  use to authenticate the
+  # appidentity private key (defaults to the standard Google production server.
+  appidentity_group.add_argument(
+      '--appidentity_oauth_url',
+      help=argparse.SUPPRESS)
 
   # Python
   python_group = parser.add_argument_group('Python')
@@ -419,6 +431,13 @@ def create_command_line_parser():
       help='path to directory used to store blob contents '
       '(defaults to a subdirectory of --storage_path if not set)',
       default=None)
+  # TODO: Remove after the Files API is really gone.
+  blobstore_group.add_argument(
+      '--blobstore_warn_on_files_api_use',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=True,
+      help=argparse.SUPPRESS)
 
   # Cloud SQL
   cloud_sql_group = parser.add_argument_group('Cloud SQL')
@@ -589,7 +608,7 @@ def create_command_line_parser():
   # No help to avoid lengthening help message for rarely used feature:
   # host name to which the server for API calls should bind.
   misc_group.add_argument(
-      '--api_host', default='localhost',
+      '--api_host', default=default_server_host,
       help=argparse.SUPPRESS)
   misc_group.add_argument(
       '--api_port', type=PortParser(), default=0,
@@ -761,10 +780,15 @@ class DevelopmentServer(object):
         options.automatic_restart,
         options.allow_skipped_files,
         self._create_module_to_setting(options.threadsafe_override,
-                                       configuration, '--threadsafe_override'))
+                                       configuration, '--threadsafe_override'),
+        options.external_port)
 
     request_data = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
     storage_path = _get_storage_path(options.storage_path, configuration.app_id)
+
+    # TODO: Remove after the Files API is really gone.
+    if options.blobstore_warn_on_files_api_use:
+      api_server.enable_filesapi_tracking(request_data)
 
     apis = self._create_api_server(
         request_data, storage_path, options, configuration)
@@ -866,7 +890,8 @@ class DevelopmentServer(object):
         taskqueue_default_http_server=application_address,
         user_login_url=user_login_url,
         user_logout_url=user_logout_url,
-        default_gcs_bucket_name=options.default_gcs_bucket_name)
+        default_gcs_bucket_name=options.default_gcs_bucket_name,
+        appidentity_oauth_url=options.appidentity_oauth_url)
 
     return api_server.APIServer(options.api_host, options.api_port,
                                 configuration.app_id)
@@ -918,14 +943,6 @@ class DevelopmentServer(object):
   @staticmethod
   def _create_vm_config(options):
     vm_config = runtime_config_pb2.VMConfig()
-    if options.dart_sdk:
-      vm_config.dart_config.dart_sdk = os.path.abspath(options.dart_sdk)
-    if options.dart_dev_mode:
-      vm_config.dart_config.dart_dev_mode = options.dart_dev_mode
-    if options.dart_pub_serve_host:
-      vm_config.dart_config.dart_pub_serve_host = options.dart_pub_serve_host
-    if options.dart_pub_serve_port:
-      vm_config.dart_config.dart_pub_serve_port = options.dart_pub_serve_port
     vm_config.enable_logs = options.enable_mvm_logs
     return vm_config
 

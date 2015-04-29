@@ -290,6 +290,8 @@ def _DefaultValueConstructorForField(field):
     def MakeSubMessageDefault(message):
       result = message_type._concrete_class()
       result._SetListener(message._listener_for_children)
+      if field.containing_oneof:
+        message._UpdateOneofState(field)
       return result
     return MakeSubMessageDefault
 
@@ -886,6 +888,7 @@ def _AddMergeFromStringMethod(message_descriptor, cls):
   local_ReadTag = decoder.ReadTag
   local_SkipField = decoder.SkipField
   decoders_by_tag = cls._decoders_by_tag
+  is_proto3 = message_descriptor.syntax == "proto3"
 
   def InternalParse(self, buffer, pos, end):
     self._Modified()
@@ -899,9 +902,11 @@ def _AddMergeFromStringMethod(message_descriptor, cls):
         new_pos = local_SkipField(buffer, new_pos, end, tag_bytes)
         if new_pos == -1:
           return pos
-        if not unknown_field_list:
-          unknown_field_list = self._unknown_fields = []
-        unknown_field_list.append((tag_bytes, buffer[value_start_pos:new_pos]))
+        if not is_proto3:
+          if not unknown_field_list:
+            unknown_field_list = self._unknown_fields = []
+          unknown_field_list.append(
+              (tag_bytes, buffer[value_start_pos:new_pos]))
         pos = new_pos
       else:
         pos = field_decoder(buffer, new_pos, end, self, field_dict)

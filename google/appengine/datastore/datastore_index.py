@@ -78,14 +78,6 @@ from google.appengine.datastore import datastore_pb
 
 
 
-
-
-
-
-
-
-
-
 class Property(validation.Validated):
   """Representation for an individual property of an index.
 

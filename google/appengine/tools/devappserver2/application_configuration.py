@@ -144,6 +144,13 @@ class ModuleConfiguration(object):
 
     self._forwarded_ports = {}
     if self.runtime == 'vm':
+      # Java uses an api_version of 1.0 where everyone else uses just 1.
+      # That doesn't matter much elsewhere, but it does pain us with VMs
+      # because they recognize api_version 1 not 1.0.
+      # TODO: sort out this situation better, probably by changing
+      # Java to use 1 like everyone else.
+      if self._api_version == '1.0':
+        self._api_version = '1'
       vm_settings = self._app_info_external.vm_settings
       ports = None
       if vm_settings:
@@ -159,7 +166,7 @@ class ModuleConfiguration(object):
         logging.debug('setting forwarded ports %s', ports)
         pm = port_manager.PortManager()
         pm.Add(ports, 'forwarded')
-        self._forwarded_ports = pm.GetAllMappedPorts()
+        self._forwarded_ports = pm.GetAllMappedPorts()['tcp']
 
     self._translate_configuration_files()
 
@@ -759,6 +766,8 @@ class ApplicationConfiguration(object):
           or to directories containing them.
       app_id: A string that is the application id, or None if the application id
           from the yaml or xml file should be used.
+    Raises:
+      InvalidAppConfigError: On invalid configuration.
     """
     self.modules = []
     self.dispatch = None
@@ -847,6 +856,9 @@ class ApplicationConfiguration(object):
 
     Args:
       dir_path: a string that is the path to a directory.
+
+    Raises:
+      AppConfigNotFoundError: If the application configuration is not found.
 
     Returns:
       A list of strings that are file paths.

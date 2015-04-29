@@ -60,25 +60,6 @@ b = Foo.Singleton()
 c = Foo.Singleton()
 assert a == b
 assert b == c
-
-
-Note that class decorator syntax was added after python2.4. If your code
-is python2.4 compliant, use an idiom like:
-
-from google.pyglib import singleton
-
-
-class Foo(object):
-  "Foo class"
-
-Bar = singleton.Singleton(Foo)
-
-
-a = Bar()
-b = Bar.Singleton()
-c = Bar.Singleton()
-assert a == b
-assert b == c
 """
 
 
