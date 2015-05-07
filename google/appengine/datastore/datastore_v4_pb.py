@@ -7363,7 +7363,7 @@ class DatastoreV4Service(_server_stub_base_class):
     """Creates a new DatastoreV4Service Stubby client stub.
 
     Args:
-      rpc_stub_parameters: an RPC_StubParameter instance.
+      rpc_stub_parameters: an RPC_StubParameters instance.
       service_name: the service name used by the Stubby server.
     """
 

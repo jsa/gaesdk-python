@@ -320,10 +320,19 @@ class HttpRpcServerOAuth2(HttpRpcServerHttpLib2):
       self.token_uri = token_uri
       self.credentials = credentials
 
+  class FlowFlags(object):
+
+    def __init__(self, options):
+      self.logging_level = logging.getLevelName(logging.getLogger().level)
+      self.noauth_local_webserver = (not options.auth_local_webserver
+                                     if options else True)
+      self.auth_host_port = [8080, 8090]
+      self.auth_host_name = 'localhost'
+
   def __init__(self, host, oauth2_parameters, user_agent, source,
                host_override=None, extra_headers=None, save_cookies=False,
                auth_tries=None, account_type=None, debug_data=True, secure=True,
-               ignore_certs=False, rpc_tries=3):
+               ignore_certs=False, rpc_tries=3, options=None):
     """Creates a new HttpRpcServerOAuth2.
 
     Args:
@@ -345,6 +354,7 @@ class HttpRpcServerOAuth2(HttpRpcServerHttpLib2):
       ignore_certs: If the certificate mismatches should be ignored.
       rpc_tries: The number of rpc retries upon http server error (i.e.
         Response code >= 500 and < 600) before failing.
+      options: the command line options.
     """
     super(HttpRpcServerOAuth2, self).__init__(
         host, None, user_agent, source, host_override=host_override,
@@ -381,6 +391,8 @@ class HttpRpcServerOAuth2(HttpRpcServerHttpLib2):
           self.user_agent)
     else:
       self.credentials = self.storage.get()
+
+    self.flags = self.FlowFlags(options)
 
   def _Authenticate(self, http, needs_auth):
     """Pre or Re-auth stuff...
@@ -424,7 +436,7 @@ class HttpRpcServerOAuth2(HttpRpcServerHttpLib2):
           client_secret=self.oauth2_parameters.client_secret,
           scope=_ScopesToString(self.oauth2_parameters.scope),
           user_agent=self.user_agent)
-      self.credentials = tools.run(flow, self.storage)
+      self.credentials = tools.run_flow(flow, self.storage, self.flags)
     if self.credentials and not self.credentials.invalid:
 
 

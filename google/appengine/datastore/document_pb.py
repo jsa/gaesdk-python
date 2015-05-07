@@ -670,6 +670,8 @@ class FieldTypes(ProtocolBuffer.ProtocolMessage):
 class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
   has_num_shards_ = 0
   num_shards_ = 1
+  has_local_replica_ = 0
+  local_replica_ = ""
 
   def __init__(self, contents=None):
     self.prev_num_shards_ = []
@@ -719,12 +721,26 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
   def clear_prev_num_shards_search_false(self):
     self.prev_num_shards_search_false_ = []
 
+  def local_replica(self): return self.local_replica_
+
+  def set_local_replica(self, x):
+    self.has_local_replica_ = 1
+    self.local_replica_ = x
+
+  def clear_local_replica(self):
+    if self.has_local_replica_:
+      self.has_local_replica_ = 0
+      self.local_replica_ = ""
+
+  def has_local_replica(self): return self.has_local_replica_
+
 
   def MergeFrom(self, x):
     assert x is not self
     for i in xrange(x.prev_num_shards_size()): self.add_prev_num_shards(x.prev_num_shards(i))
     if (x.has_num_shards()): self.set_num_shards(x.num_shards())
     for i in xrange(x.prev_num_shards_search_false_size()): self.add_prev_num_shards_search_false(x.prev_num_shards_search_false(i))
+    if (x.has_local_replica()): self.set_local_replica(x.local_replica())
 
   def Equals(self, x):
     if x is self: return 1
@@ -736,6 +752,8 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     if len(self.prev_num_shards_search_false_) != len(x.prev_num_shards_search_false_): return 0
     for e1, e2 in zip(self.prev_num_shards_search_false_, x.prev_num_shards_search_false_):
       if e1 != e2: return 0
+    if self.has_local_replica_ != x.has_local_replica_: return 0
+    if self.has_local_replica_ and self.local_replica_ != x.local_replica_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -753,6 +771,7 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     n += self.lengthVarInt64(self.num_shards_)
     n += 1 * len(self.prev_num_shards_search_false_)
     for i in xrange(len(self.prev_num_shards_search_false_)): n += self.lengthVarInt64(self.prev_num_shards_search_false_[i])
+    if (self.has_local_replica_): n += 1 + self.lengthString(len(self.local_replica_))
     return n + 1
 
   def ByteSizePartial(self):
@@ -764,12 +783,14 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
       n += self.lengthVarInt64(self.num_shards_)
     n += 1 * len(self.prev_num_shards_search_false_)
     for i in xrange(len(self.prev_num_shards_search_false_)): n += self.lengthVarInt64(self.prev_num_shards_search_false_[i])
+    if (self.has_local_replica_): n += 1 + self.lengthString(len(self.local_replica_))
     return n
 
   def Clear(self):
     self.clear_prev_num_shards()
     self.clear_num_shards()
     self.clear_prev_num_shards_search_false()
+    self.clear_local_replica()
 
   def OutputUnchecked(self, out):
     for i in xrange(len(self.prev_num_shards_)):
@@ -780,6 +801,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.prev_num_shards_search_false_)):
       out.putVarInt32(24)
       out.putVarInt32(self.prev_num_shards_search_false_[i])
+    if (self.has_local_replica_):
+      out.putVarInt32(34)
+      out.putPrefixedString(self.local_replica_)
 
   def OutputPartial(self, out):
     for i in xrange(len(self.prev_num_shards_)):
@@ -791,6 +815,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
     for i in xrange(len(self.prev_num_shards_search_false_)):
       out.putVarInt32(24)
       out.putVarInt32(self.prev_num_shards_search_false_[i])
+    if (self.has_local_replica_):
+      out.putVarInt32(34)
+      out.putPrefixedString(self.local_replica_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -803,6 +830,9 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
         continue
       if tt == 24:
         self.add_prev_num_shards_search_false(d.getVarInt32())
+        continue
+      if tt == 34:
+        self.set_local_replica(d.getPrefixedString())
         continue
 
 
@@ -825,6 +855,7 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
       if printElemNumber: elm="(%d)" % cnt
       res+=prefix+("prev_num_shards_search_false%s: %s\n" % (elm, self.DebugFormatInt32(e)))
       cnt+=1
+    if self.has_local_replica_: res+=prefix+("local_replica: %s\n" % self.DebugFormatString(self.local_replica_))
     return res
 
 
@@ -834,20 +865,23 @@ class IndexShardSettings(ProtocolBuffer.ProtocolMessage):
   kprev_num_shards = 1
   knum_shards = 2
   kprev_num_shards_search_false = 3
+  klocal_replica = 4
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
     1: "prev_num_shards",
     2: "num_shards",
     3: "prev_num_shards_search_false",
-  }, 3)
+    4: "local_replica",
+  }, 4)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.NUMERIC,
     2: ProtocolBuffer.Encoder.NUMERIC,
     3: ProtocolBuffer.Encoder.NUMERIC,
-  }, 3, ProtocolBuffer.Encoder.MAX_TYPE)
+    4: ProtocolBuffer.Encoder.STRING,
+  }, 4, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

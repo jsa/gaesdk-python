@@ -164,8 +164,8 @@ APP_YAML_FILENAME = 'app.yaml'
 
 _OAUTH2_WARNING = (
     '####################################################\n'
-    'OAuth2 is now the recommended authentication method.\n'
-    'Use the --oauth2 flag to enable.\n'
+    'OAuth2 is now the default authentication method.\n'
+    'The --no_auth2 flag will stop working in release 1.9.21.\n'
     '####################################################')
 
 
@@ -2916,6 +2916,10 @@ class AppCfgApp(object):
         appinfo.AppInfoExternal.ATTRIBUTES[appinfo.RUNTIME] = (
             '|'.join(appinfo.GetAllRuntimes()))
 
+    if self.options.redundant_oauth2:
+      print >>sys.stderr, (
+          '\nNote: the --oauth2 flag is now the default and can be omitted.\n')
+
     action = self.args.pop(0)
 
     def RaiseParseError(actionname, action):
@@ -3153,9 +3157,12 @@ class AppCfgApp(object):
     parser.add_option('-R', '--allow_any_runtime', action='store_true',
                       dest='allow_any_runtime', default=False,
                       help='Do not validate the runtime in app.yaml')
-    parser.add_option('--oauth2', action='store_true', dest='oauth2',
-                      default=False,
-                      help='Use OAuth2 instead of password auth.')
+    parser.add_option('--oauth2', action='store_true',
+                      dest='redundant_oauth2', default=False,
+                      help='Ignored (OAuth2 is the default).')
+    parser.add_option('--no_oauth2', action='store_false',
+                      dest='oauth2', default=True,
+                      help='Use password auth instead of OAuth2.')
     parser.add_option('--oauth2_refresh_token', action='store',
                       dest='oauth2_refresh_token', default=None,
                       help='An existing OAuth2 refresh token to use. Will '
@@ -3275,10 +3282,6 @@ class AppCfgApp(object):
               refresh_token=self.options.oauth2_refresh_token,
               credential_file=self.options.oauth2_credential_file,
               token_uri=self._GetTokenUri()))
-
-      if hasattr(appengine_rpc_httplib2.tools, 'FLAGS'):
-        appengine_rpc_httplib2.tools.FLAGS.auth_local_webserver = (
-            self.options.auth_local_webserver)
     else:
       if not self.rpc_server_class:
         if not dev_appserver and not self.options.oauth2:
@@ -3322,7 +3325,8 @@ class AppCfgApp(object):
                                  auth_tries=auth_tries,
                                  account_type='HOSTED_OR_GOOGLE',
                                  secure=self.options.secure,
-                                 ignore_certs=self.options.ignore_certs)
+                                 ignore_certs=self.options.ignore_certs,
+                                 options=self.options)
 
   def _GetTokenUri(self):
     """Returns the OAuth2 token_uri, or None to use the default URI.
@@ -3714,7 +3718,10 @@ class AppCfgApp(object):
     paths = self.file_iterator(basepath, appyaml.skip_files, appyaml.runtime)
     openfunc = lambda path: self.opener(os.path.join(basepath, path), 'rb')
 
-    if appyaml.GetEffectiveRuntime() == 'go':
+
+    if (appyaml.GetEffectiveRuntime() == 'go' and
+        not (appyaml.runtime == 'vm' and
+             'GAE_LOCAL_VM_RUNTIME' in os.environ)):
 
       sdk_base = os.path.normpath(os.path.join(
           google.appengine.__file__, '..', '..', '..'))

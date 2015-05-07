@@ -88,6 +88,7 @@ class PHPRuntime(object):
         'REMOTE_API_HOST': str(config.api_host),
         'REMOTE_API_PORT': str(config.api_port),
         'SERVER_SOFTWARE': http_runtime_constants.SERVER_SOFTWARE,
+        'STDERR_LOG_LEVEL': str(config.stderr_log_level),
         'TZ': 'UTC',
         }
     self.environ_template.update((env.key, env.value) for env in config.environ)
@@ -207,13 +208,14 @@ class PHPRuntime(object):
       user_environ[http_runtime_constants.REQUEST_TYPE_HEADER] = request_type
 
     try:
+      # stderr is not captured here so that it propagates to the parent process
+      # and gets printed out to consle.
       p = safe_subprocess.start_process(args,
                                         input_string=content,
                                         env=user_environ,
                                         cwd=self.config.application_root,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-      stdout, stderr = p.communicate()
+                                        stdout=subprocess.PIPE)
+      stdout, _ = p.communicate()
     except Exception as e:
       logging.exception('Failure to start PHP with: %s', args)
       start_response('500 Internal Server Error',
@@ -226,8 +228,8 @@ class PHPRuntime(object):
         message = httplib.HTTPMessage(cStringIO.StringIO(stdout))
         return [message.fp.read()]
       else:
-        logging.error('php failure (%r) with:\nstdout:\n%sstderr:\n%s',
-                      p.returncode, stdout, stderr)
+        logging.error('php failure (%r) with:\nstdout:\n%s',
+                      p.returncode, stdout)
         start_response('500 Internal Server Error',
                        [(http_runtime_constants.ERROR_CODE_HEADER, '1')])
         message = httplib.HTTPMessage(cStringIO.StringIO(stdout))

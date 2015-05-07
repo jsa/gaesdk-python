@@ -131,7 +131,7 @@ class AbstractRpcServer(object):
   def __init__(self, host, auth_function, user_agent, source,
                host_override=None, extra_headers=None, save_cookies=False,
                auth_tries=3, account_type=None, debug_data=True, secure=True,
-               ignore_certs=False, rpc_tries=3):
+               ignore_certs=False, rpc_tries=3, options=None):
     """Creates a new HttpRpcServer.
 
     Args:
@@ -155,6 +155,7 @@ class AbstractRpcServer(object):
       ignore_certs: If the certificate mismatches should be ignored.
       rpc_tries: The number of rpc retries upon http server error (i.e.
         Response code >= 500 and < 600) before failing.
+      options: the command line options (ignored in this implementation).
     """
     if secure:
       self.scheme = "https"

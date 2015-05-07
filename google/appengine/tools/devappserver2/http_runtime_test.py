@@ -30,8 +30,8 @@ import unittest
 import google
 
 import mox
+import portpicker
 
-from google.net.util.python import portpicker
 from google.appengine.api import appinfo
 from google.appengine.tools.devappserver2 import http_proxy
 from google.appengine.tools.devappserver2 import http_runtime

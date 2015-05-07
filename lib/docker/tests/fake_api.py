@@ -12,7 +12,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-CURRENT_VERSION = 'v1.12'
+import fake_stat
+
+CURRENT_VERSION = 'v1.18'
 
 FAKE_CONTAINER_ID = '3cc2351ab11b'
 FAKE_IMAGE_ID = 'e9aa60c60128'
@@ -26,6 +28,17 @@ FAKE_PATH = '/path'
 
 # Each method is prefixed with HTTP method (get, post...)
 # for clarity and readability
+
+
+def get_fake_raw_version():
+    status_code = 200
+    response = {
+        "ApiVersion": "1.18",
+        "GitCommit": "fake-commit",
+        "GoVersion": "go1.3.3",
+        "Version": "1.5.0"
+    }
+    return status_code, response
 
 
 def get_fake_version():
@@ -129,6 +142,7 @@ def get_fake_inspect_container():
             "StartedAt": "2013-09-25T14:01:18.869545111+02:00",
             "Ghost": False
         },
+        "MacAddress": "02:42:ac:11:00:0a"
     }
     return status_code, response
 
@@ -188,7 +202,8 @@ def get_fake_port():
             'Ports': {
                 '1111': None,
                 '1111/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4567'}],
-                '2222': None}
+                '2222': None},
+            'MacAddress': '02:42:ac:11:00:0a'
         }
     }
     return status_code, response
@@ -219,9 +234,30 @@ def get_fake_diff():
     return status_code, response
 
 
+def get_fake_events():
+    status_code = 200
+    response = [{'status': 'stop', 'id': FAKE_CONTAINER_ID,
+                 'from': FAKE_IMAGE_ID, 'time': 1423247867}]
+    return status_code, response
+
+
 def get_fake_export():
     status_code = 200
     response = 'Byte Stream....'
+    return status_code, response
+
+
+def post_fake_execute():
+    status_code = 200
+    response = {'Id': FAKE_CONTAINER_ID}
+    return status_code, response
+
+
+def post_fake_execute_start():
+    status_code = 200
+    response = (b'\x01\x00\x00\x00\x00\x00\x00\x11bin\nboot\ndev\netc\n'
+                b'\x01\x00\x00\x00\x00\x00\x00\x12lib\nmnt\nproc\nroot\n'
+                b'\x01\x00\x00\x00\x00\x00\x00\x0csbin\nusr\nvar\n')
     return status_code, response
 
 
@@ -237,10 +273,27 @@ def post_fake_kill_container():
     return status_code, response
 
 
+def post_fake_pause_container():
+    status_code = 200
+    response = {'Id': FAKE_CONTAINER_ID}
+    return status_code, response
+
+
+def post_fake_unpause_container():
+    status_code = 200
+    response = {'Id': FAKE_CONTAINER_ID}
+    return status_code, response
+
+
 def post_fake_restart_container():
     status_code = 200
     response = {'Id': FAKE_CONTAINER_ID}
     return status_code, response
+
+
+def post_fake_rename_container():
+    status_code = 204
+    return status_code, None
 
 
 def delete_fake_remove_container():
@@ -297,9 +350,16 @@ def post_fake_tag_image():
     return status_code, response
 
 
+def get_fake_stats():
+    status_code = 200
+    response = fake_stat.OBJ
+    return status_code, response
+
 # Maps real api url to fake response callback
 prefix = 'http+unix://var/run/docker.sock'
 fake_responses = {
+    '{0}/version'.format(prefix):
+    get_fake_raw_version,
     '{1}/{0}/version'.format(CURRENT_VERSION, prefix):
     get_fake_version,
     '{1}/{0}/info'.format(CURRENT_VERSION, prefix):
@@ -320,6 +380,8 @@ fake_responses = {
     post_fake_resize_container,
     '{1}/{0}/containers/3cc2351ab11b/json'.format(CURRENT_VERSION, prefix):
     get_fake_inspect_container,
+    '{1}/{0}/containers/3cc2351ab11b/rename'.format(CURRENT_VERSION, prefix):
+    post_fake_rename_container,
     '{1}/{0}/images/e9aa60c60128/tag'.format(CURRENT_VERSION, prefix):
     post_fake_tag_image,
     '{1}/{0}/containers/3cc2351ab11b/wait'.format(CURRENT_VERSION, prefix):
@@ -330,10 +392,20 @@ fake_responses = {
     get_fake_diff,
     '{1}/{0}/containers/3cc2351ab11b/export'.format(CURRENT_VERSION, prefix):
     get_fake_export,
+    '{1}/{0}/containers/3cc2351ab11b/exec'.format(CURRENT_VERSION, prefix):
+    post_fake_execute,
+    '{1}/{0}/exec/3cc2351ab11b/start'.format(CURRENT_VERSION, prefix):
+    post_fake_execute_start,
+    '{1}/{0}/containers/3cc2351ab11b/stats'.format(CURRENT_VERSION, prefix):
+    get_fake_stats,
     '{1}/{0}/containers/3cc2351ab11b/stop'.format(CURRENT_VERSION, prefix):
     post_fake_stop_container,
     '{1}/{0}/containers/3cc2351ab11b/kill'.format(CURRENT_VERSION, prefix):
     post_fake_kill_container,
+    '{1}/{0}/containers/3cc2351ab11b/pause'.format(CURRENT_VERSION, prefix):
+    post_fake_pause_container,
+    '{1}/{0}/containers/3cc2351ab11b/unpause'.format(CURRENT_VERSION, prefix):
+    post_fake_unpause_container,
     '{1}/{0}/containers/3cc2351ab11b/json'.format(CURRENT_VERSION, prefix):
     get_fake_port,
     '{1}/{0}/containers/3cc2351ab11b/restart'.format(CURRENT_VERSION, prefix):
@@ -359,5 +431,7 @@ fake_responses = {
     '{1}/{0}/containers/create'.format(CURRENT_VERSION, prefix):
     post_fake_create_container,
     '{1}/{0}/build'.format(CURRENT_VERSION, prefix):
-    post_fake_build_container
+    post_fake_build_container,
+    '{1}/{0}/events'.format(CURRENT_VERSION, prefix):
+    get_fake_events
 }

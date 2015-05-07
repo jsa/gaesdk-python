@@ -64,6 +64,9 @@ from google.appengine.datastore import datastore_pbs
 from google.appengine.datastore import entity_v4_pb
 from google.appengine.datastore import sortable_pb_encoder
 
+if datastore_pbs._CLOUD_DATASTORE_ENABLED:
+  from google.appengine.datastore.datastore_pbs import googledatastore
+
 
 
 
@@ -2074,18 +2077,25 @@ def PropertyValueFromString(type_,
   return type_(value_string)
 
 
-def ReferenceToKeyValue(key):
+def ReferenceToKeyValue(key, id_resolver=None):
   """Converts a key into a comparable hashable "key" value.
 
   Args:
-    key: The entity_pb.Reference or entity_v4_pb.Key from which to construct
+    key: The entity_pb.Reference or googledatastore.Key from which to construct
         the key value.
-
+    id_resolver: An optional datastore_pbs.IdResolver. Only necessary for
+        googledatastore.Key values.
   Returns:
     A comparable and hashable representation of the given key that is
     compatible with one derived from a key property value.
   """
-  if isinstance(key, entity_v4_pb.Key):
+  if (datastore_pbs._CLOUD_DATASTORE_ENABLED
+      and isinstance(key, googledatastore.Key)):
+    v1_key = key
+    key = entity_pb.Reference()
+    datastore_pbs.get_entity_converter(id_resolver).v1_to_v3_reference(v1_key,
+                                                                       key)
+  elif isinstance(key, entity_v4_pb.Key):
     v4_key = key
     key = entity_pb.Reference()
     datastore_pbs.get_entity_converter().v4_to_v3_reference(v4_key, key)
@@ -2096,7 +2106,7 @@ def ReferenceToKeyValue(key):
     element_list = key.pathelement_list()
   else:
     raise datastore_errors.BadArgumentError(
-        "key arg expected to be entity_pb.Reference or entity_v4.Key (%r)"
+        "key arg expected to be entity_pb.Reference or googledatastore.Key (%r)"
         % (key,))
 
   result = [entity_pb.PropertyValue.kReferenceValueGroup,

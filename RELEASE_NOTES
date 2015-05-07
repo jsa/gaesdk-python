@@ -3,6 +3,24 @@ All rights reserved.
 
 App Engine SDK - Release Notes
 
+Version 1.9.20
+
+All
+===============================
+- OAuth2 is now the default authentication method is appcfg. It is still
+  possible to use password-based authentication by specifying --no_oauth2 but
+  this option will be removed in the next release.
+
+PHP
+===============================
+- User can now use the "#default#" keyword to represent the app's default
+  bucket when specifying a GCS path, e.g. gs://#default#/folder/test.txt.
+- Enabled the php://output stream.
+- Disabled uploading of PHP 5.4 applications. Applications are now expected to
+  be using the PHP 5.5 runtime. Billed applications can apply for whitelisting
+  at http://goo.gl/qjKEuk
+
+
 Version 1.9.19
 
 All

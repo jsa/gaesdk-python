@@ -99,9 +99,6 @@ goog.require = function() {
 goog.basePath = "";
 goog.nullFunction = function() {
 };
-goog.identityFunction = function(opt_returnValue) {
-  return opt_returnValue;
-};
 goog.abstractMethod = function() {
   throw Error("unimplemented abstract method");
 };
@@ -2249,7 +2246,7 @@ goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse = function(
     }
   }
   var content = opt_content;
-  goog.isDef(content) ? goog.isArray(content) || (content = [content]) : content = [];
+  goog.isDefAndNotNull(content) ? goog.isArray(content) || (content = [content]) : content = [];
   if (goog.dom.tags.isVoidTag(tagName.toLowerCase())) {
     goog.asserts.assert(!content.length, "Void tag <" + tagName + "> does not allow content."), result += ">";
   } else {
@@ -2277,6 +2274,7 @@ goog.html.SafeHtml.combineAttributes = function(fixedAttributes, defaultAttribut
   }
   return combinedAttributes;
 };
+goog.html.SafeHtml.DOCTYPE_HTML = goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("<!DOCTYPE html>", goog.i18n.bidi.Dir.NEUTRAL);
 goog.html.SafeHtml.EMPTY = goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("", goog.i18n.bidi.Dir.NEUTRAL);
 goog.math = {};
 goog.math.randomInt = function(a) {
@@ -2837,10 +2835,35 @@ goog.dom.safe.setAnchorHref = function(anchor, url) {
   safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitize(url);
   anchor.href = goog.html.SafeUrl.unwrap(safeUrl);
 };
+goog.dom.safe.setEmbedSrc = function(embed, url) {
+  embed.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setFrameSrc = function(frame, url) {
+  frame.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setIframeSrc = function(iframe, url) {
+  iframe.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setLinkHrefAndRel = function(link, url, rel) {
+  link.rel = rel;
+  goog.string.caseInsensitiveContains(rel, "stylesheet") ? (goog.asserts.assert(url instanceof goog.html.TrustedResourceUrl, 'URL must be TrustedResourceUrl because "rel" contains "stylesheet"'), link.href = goog.html.TrustedResourceUrl.unwrap(url)) : link.href = url instanceof goog.html.TrustedResourceUrl ? goog.html.TrustedResourceUrl.unwrap(url) : url instanceof goog.html.SafeUrl ? goog.html.SafeUrl.unwrap(url) : goog.html.SafeUrl.sanitize(url).getTypedStringValue();
+};
+goog.dom.safe.setObjectData = function(object, url) {
+  object.data = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setScriptSrc = function(script, url) {
+  script.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
 goog.dom.safe.setLocationHref = function(loc, url) {
   var safeUrl;
   safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitize(url);
   loc.href = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.openInWindow = function(url, opt_openerWin, opt_name, opt_specs, opt_replace) {
+  var safeUrl;
+  safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitize(url);
+  var win = opt_openerWin || window;
+  return win.open(goog.html.SafeUrl.unwrap(safeUrl), opt_name ? goog.string.Const.unwrap(opt_name) : "", opt_specs, opt_replace);
 };
 goog.dom.ASSUME_QUIRKS_MODE = !1;
 goog.dom.ASSUME_STANDARDS_MODE = !1;
@@ -3755,8 +3778,8 @@ goog.events.getVendorPrefixedName_ = function(eventName) {
   return goog.userAgent.WEBKIT ? "webkit" + eventName : goog.userAgent.OPERA ? "o" + eventName.toLowerCase() : eventName.toLowerCase();
 };
 goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:goog.userAgent.IE ? "focusin" : "DOMFocusIn", FOCUSOUT:goog.userAgent.IE ? "focusout" : "DOMFocusOut", 
-CHANGE:"change", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", 
-ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), 
+CHANGE:"change", RESET:"reset", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", 
+LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), 
 ANIMATIONITERATION:goog.events.getVendorPrefixedName_("AnimationIteration"), TRANSITIONEND:goog.events.getVendorPrefixedName_("TransitionEnd"), POINTERDOWN:"pointerdown", POINTERUP:"pointerup", POINTERCANCEL:"pointercancel", POINTERMOVE:"pointermove", POINTEROVER:"pointerover", POINTEROUT:"pointerout", POINTERENTER:"pointerenter", POINTERLEAVE:"pointerleave", GOTPOINTERCAPTURE:"gotpointercapture", LOSTPOINTERCAPTURE:"lostpointercapture", MSGESTURECHANGE:"MSGestureChange", MSGESTUREEND:"MSGestureEnd", 
 MSGESTUREHOLD:"MSGestureHold", MSGESTURESTART:"MSGestureStart", MSGESTURETAP:"MSGestureTap", MSGOTPOINTERCAPTURE:"MSGotPointerCapture", MSINERTIASTART:"MSInertiaStart", MSLOSTPOINTERCAPTURE:"MSLostPointerCapture", MSPOINTERCANCEL:"MSPointerCancel", MSPOINTERDOWN:"MSPointerDown", MSPOINTERENTER:"MSPointerEnter", MSPOINTERHOVER:"MSPointerHover", MSPOINTERLEAVE:"MSPointerLeave", MSPOINTERMOVE:"MSPointerMove", MSPOINTEROUT:"MSPointerOut", MSPOINTEROVER:"MSPointerOver", MSPOINTERUP:"MSPointerUp", TEXT:"text", 
 TEXTINPUT:"textInput", COMPOSITIONSTART:"compositionstart", COMPOSITIONUPDATE:"compositionupdate", COMPOSITIONEND:"compositionend", EXIT:"exit", LOADABORT:"loadabort", LOADCOMMIT:"loadcommit", LOADREDIRECT:"loadredirect", LOADSTART:"loadstart", LOADSTOP:"loadstop", RESPONSIVE:"responsive", SIZECHANGED:"sizechanged", UNRESPONSIVE:"unresponsive", VISIBILITYCHANGE:"visibilitychange", STORAGE:"storage", DOMSUBTREEMODIFIED:"DOMSubtreeModified", DOMNODEINSERTED:"DOMNodeInserted", DOMNODEREMOVED:"DOMNodeRemoved", 
@@ -4378,12 +4401,9 @@ goog.json.Serializer.charToJsonCharCache_ = {'"':'\\"', "\\":"\\\\", "/":"\\/", 
 goog.json.Serializer.charsToReplace_ = /\uffff/.test("\uffff") ? /[\\\"\x00-\x1f\x7f-\uffff]/g : /[\\\"\x00-\x1f\x7f-\xff]/g;
 goog.json.Serializer.prototype.serializeString_ = function(s, sb) {
   sb.push('"', s.replace(goog.json.Serializer.charsToReplace_, function(c) {
-    if (c in goog.json.Serializer.charToJsonCharCache_) {
-      return goog.json.Serializer.charToJsonCharCache_[c];
-    }
-    var cc = c.charCodeAt(0), rv = "\\u";
-    16 > cc ? rv += "000" : 256 > cc ? rv += "00" : 4096 > cc && (rv += "0");
-    return goog.json.Serializer.charToJsonCharCache_[c] = rv + cc.toString(16);
+    var rv = goog.json.Serializer.charToJsonCharCache_[c];
+    rv || (rv = "\\u" + (c.charCodeAt(0) | 65536).toString(16).substr(1), goog.json.Serializer.charToJsonCharCache_[c] = rv);
+    return rv;
   }), '"');
 };
 goog.json.Serializer.prototype.serializeNumber_ = function(n, sb) {
@@ -5154,18 +5174,16 @@ goog.structs.Map.prototype.toObject = function() {
 };
 goog.structs.Map.prototype.__iterator__ = function(opt_keys) {
   this.cleanupKeysArray_();
-  var i = 0, keys = this.keys_, map = this.map_, version = this.version_, selfObj = this, newIter = new goog.iter.Iterator;
+  var i = 0, version = this.version_, selfObj = this, newIter = new goog.iter.Iterator;
   newIter.next = function() {
-    for (;;) {
-      if (version != selfObj.version_) {
-        throw Error("The map has changed since the iterator was created");
-      }
-      if (i >= keys.length) {
-        throw goog.iter.StopIteration;
-      }
-      var key = keys[i++];
-      return opt_keys ? key : map[key];
+    if (version != selfObj.version_) {
+      throw Error("The map has changed since the iterator was created");
     }
+    if (i >= selfObj.keys_.length) {
+      throw goog.iter.StopIteration;
+    }
+    var key = selfObj.keys_[i++];
+    return opt_keys ? key : selfObj.map_[key];
   };
   return newIter;
 };
@@ -5608,6 +5626,9 @@ goog.debug.getFunctionName = function(fn) {
 };
 goog.debug.makeWhitespaceVisible = function(string) {
   return string.replace(/ /g, "[_]").replace(/\f/g, "[f]").replace(/\n/g, "[n]\n").replace(/\r/g, "[r]").replace(/\t/g, "[t]");
+};
+goog.debug.runtimeType = function(value) {
+  return value instanceof Function ? value.displayName || value.name || "unknown type name" : value instanceof Object ? value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value) : null === value ? "null" : typeof value;
 };
 goog.debug.fnNameCache_ = {};
 goog.debug.LogRecord = function(level, msg, loggerName, opt_time, opt_sequenceNumber) {
@@ -6155,6 +6176,22 @@ goog.Promise.all = function(promises) {
       }
     } else {
       resolve(values);
+    }
+  });
+};
+goog.Promise.allSettled = function(promises) {
+  return new goog.Promise(function(resolve) {
+    var toSettle = promises.length, results = [];
+    if (toSettle) {
+      for (var onSettled = function(index, fulfilled, result) {
+        toSettle--;
+        results[index] = fulfilled ? {fulfilled:!0, value:result} : {fulfilled:!1, reason:result};
+        0 == toSettle && resolve(results);
+      }, i = 0, promise;promise = promises[i];i++) {
+        goog.Promise.maybeThenVoid_(promise, goog.partial(onSettled, i, !0), goog.partial(onSettled, i, !1));
+      }
+    } else {
+      resolve(results);
     }
   });
 };
@@ -7030,6 +7067,10 @@ goog.debug.entryPointRegistry.register(function(transformer) {
   goog.net.XhrIo.prototype.onReadyStateChangeEntryPoint_ = transformer(goog.net.XhrIo.prototype.onReadyStateChangeEntryPoint_);
 });
 goog.Uri = function(opt_uri, opt_ignoreCase) {
+  this.domain_ = this.userInfo_ = this.scheme_ = "";
+  this.port_ = null;
+  this.fragment_ = this.path_ = "";
+  this.ignoreCase_ = this.isReadOnly_ = !1;
   var m;
   opt_uri instanceof goog.Uri ? (this.ignoreCase_ = goog.isDef(opt_ignoreCase) ? opt_ignoreCase : opt_uri.getIgnoreCase(), this.setScheme(opt_uri.getScheme()), this.setUserInfo(opt_uri.getUserInfo()), this.setDomain(opt_uri.getDomain()), this.setPort(opt_uri.getPort()), this.setPath(opt_uri.getPath()), this.setQueryData(opt_uri.getQueryData().clone()), this.setFragment(opt_uri.getFragment())) : opt_uri && (m = goog.uri.utils.split(String(opt_uri))) ? (this.ignoreCase_ = !!opt_ignoreCase, this.setScheme(m[goog.uri.utils.ComponentIndex.SCHEME] || 
   "", !0), this.setUserInfo(m[goog.uri.utils.ComponentIndex.USER_INFO] || "", !0), this.setDomain(m[goog.uri.utils.ComponentIndex.DOMAIN] || "", !0), this.setPort(m[goog.uri.utils.ComponentIndex.PORT]), this.setPath(m[goog.uri.utils.ComponentIndex.PATH] || "", !0), this.setQueryData(m[goog.uri.utils.ComponentIndex.QUERY_DATA] || "", !0), this.setFragment(m[goog.uri.utils.ComponentIndex.FRAGMENT] || "", !0)) : (this.ignoreCase_ = !!opt_ignoreCase, this.queryData_ = new goog.Uri.QueryData(null, null, 
@@ -7037,14 +7078,6 @@ goog.Uri = function(opt_uri, opt_ignoreCase) {
 };
 goog.Uri.preserveParameterTypesCompatibilityFlag = !1;
 goog.Uri.RANDOM_PARAM = goog.uri.utils.StandardQueryParam.RANDOM;
-goog.Uri.prototype.scheme_ = "";
-goog.Uri.prototype.userInfo_ = "";
-goog.Uri.prototype.domain_ = "";
-goog.Uri.prototype.port_ = null;
-goog.Uri.prototype.path_ = "";
-goog.Uri.prototype.fragment_ = "";
-goog.Uri.prototype.isReadOnly_ = !1;
-goog.Uri.prototype.ignoreCase_ = !1;
 goog.Uri.prototype.toString = function() {
   var out = [], scheme = this.getScheme();
   scheme && out.push(goog.Uri.encodeSpecialChars_(scheme, goog.Uri.reDisallowedInSchemeOrUserInfo_, !0), ":");
@@ -7270,6 +7303,7 @@ goog.Uri.haveSameDomain = function(uri1String, uri2String) {
   return pieces1[goog.uri.utils.ComponentIndex.DOMAIN] == pieces2[goog.uri.utils.ComponentIndex.DOMAIN] && pieces1[goog.uri.utils.ComponentIndex.PORT] == pieces2[goog.uri.utils.ComponentIndex.PORT];
 };
 goog.Uri.QueryData = function(opt_query, opt_uri, opt_ignoreCase) {
+  this.count_ = this.keyMap_ = null;
   this.encodedQuery_ = opt_query || null;
   this.ignoreCase_ = !!opt_ignoreCase;
 };
@@ -7301,8 +7335,6 @@ goog.Uri.QueryData.createFromKeysValues = function(keys, values, opt_uri, opt_ig
   }
   return queryData;
 };
-goog.Uri.QueryData.prototype.keyMap_ = null;
-goog.Uri.QueryData.prototype.count_ = null;
 goog.Uri.QueryData.prototype.getCount = function() {
   this.ensureKeyMapInitialized_();
   return this.count_;

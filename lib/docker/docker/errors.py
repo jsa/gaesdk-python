@@ -30,15 +30,15 @@ class APIError(requests.exceptions.HTTPError):
         message = super(APIError, self).__str__()
 
         if self.is_client_error():
-            message = '%s Client Error: %s' % (
+            message = '{0} Client Error: {1}'.format(
                 self.response.status_code, self.response.reason)
 
         elif self.is_server_error():
-            message = '%s Server Error: %s' % (
+            message = '{0} Server Error: {1}'.format(
                 self.response.status_code, self.response.reason)
 
         if self.explanation:
-            message = '%s ("%s")' % (message, self.explanation)
+            message = '{0} ("{1}")'.format(message, self.explanation)
 
         return message
 
@@ -50,6 +50,10 @@ class APIError(requests.exceptions.HTTPError):
 
 
 class DockerException(Exception):
+    pass
+
+
+class InvalidVersion(DockerException):
     pass
 
 

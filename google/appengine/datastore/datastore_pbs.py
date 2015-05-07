@@ -18,7 +18,7 @@
 
 
 
-"""Utilities for converting between v3 and v4 datastore protocol buffers.
+"""Utilities for converting between v3 and v1 datastore protocol buffers.
 
 This module is internal and should not be used by client applications.
 """
@@ -43,6 +43,18 @@ from google.appengine.datastore import entity_pb
 from google.appengine.datastore import datastore_v4_pb
 from google.appengine.datastore import entity_v4_pb
 
+_CLOUD_DATASTORE_ENABLED = False
+try:
+  
+  
+  import googledatastore
+  _CLOUD_DATASTORE_ENABLED = True
+except ImportError:
+  pass
+
+MISSING_CLOUD_DATASTORE_MESSAGE = ('Could not import googledatastore. This '
+                                   'library must be installed to use the '
+                                   'Cloud Datastore API.')
 
 
 MEANING_ATOM_CATEGORY = 1
@@ -59,10 +71,12 @@ MEANING_GD_POSTALADDRESS = 12
 MEANING_PERCENT = 13
 MEANING_TEXT = 15
 MEANING_BYTESTRING = 16
+MEANING_BLOBKEY = 17
 MEANING_INDEX_ONLY = 18
 MEANING_PREDEFINED_ENTITY_USER = 20
 MEANING_PREDEFINED_ENTITY_POINT = 21
 MEANING_ZLIB = 22
+MEANING_POINT_WITHOUT_V3_MEANING = 23;
 
 
 URI_MEANING_ZLIB = 'ZLIB'
@@ -138,7 +152,65 @@ def is_complete_v4_key(v4_key):
   return last_element.has_id() or last_element.has_name()
 
 
+def v1_key_to_string(v1_key):
+  """Generates a string representing a key's path.
+
+  The output makes no effort to qualify special characters in strings.
+
+  The key need not be valid, but if any of the key path elements have
+  both a name and an ID the name is ignored.
+
+  Args:
+    v1_key: an googledatastore.Key
+
+  Returns:
+    a string representing the key's path
+  """
+  path_element_strings = []
+  for path_element in v1_key.path:
+    field = path_element.WhichOneof('id_type')
+    if field == 'id':
+      id_or_name = str(path_element.id)
+    elif field == 'name':
+      id_or_name = path_element.name
+    else:
+      id_or_name = ''
+    path_element_strings.append('%s: %s' % (path_element.kind, id_or_name))
+  return '[%s]' % ', '.join(path_element_strings)
+
+
+def is_complete_v1_key(v1_key):
+  """Returns True if a key specifies an ID or name, False otherwise.
+
+  Args:
+    v1_key: an googledatastore.Key
+
+  Returns:
+    True if the key specifies an ID or name, False otherwise.
+  """
+  assert len(v1_key.path) >= 1
+  last_element = v1_key.path[len(v1_key.path) - 1]
+  return last_element.WhichOneof('id_type') is not None
+
+
+def is_complete_v3_key(v3_key):
+  """Returns True if a key specifies an ID or name, False otherwise.
+
+  Args:
+    v3_key: a datastore_pb.Reference
+
+  Returns:
+    True if the key specifies an ID or name, False otherwise.
+  """
+  assert v3_key.path().element_size() >= 1
+  last_element = v3_key.path().element_list()[-1]
+  return ((last_element.has_id() and last_element.id() != 0) or
+          (last_element.has_name() and last_element.name() != ''))
+
+
 def is_valid_utf8(s):
+  if isinstance(s, unicode):
+    return True
   try:
     s.decode('utf-8')
     return True
@@ -166,8 +238,71 @@ class InvalidConversionError(Exception):
   pass
 
 
+class IdResolver(object):
+  """A class that can handle project id <--> application id transformations."""
+
+  def __init__(self, app_ids=None):
+    """Create a new IdResolver.
+
+    Args:
+     app_ids: A list of application ids with application id shard set. i.e.
+         s~my_app or e~my_app.
+    """
+    if app_ids is None:
+      app_ids = []
+    resolver_map = {}
+    for app_id in app_ids:
+      resolver_map[self.resolve_project_id(app_id)] = app_id
+    self._resolver_map = resolver_map
+
+  def resolve_project_id(self, app_id):
+    """Converts an application id to a project id.
+
+    Args:
+      app_id: The application id.
+    Returns:
+      The project id.
+    """
+    return app_id.rsplit('~')[-1]
+
+  def resolve_app_id(self, project_id):
+    """Converts a project id to an application id.
+
+    Args:
+      project_id: The project id.
+    Returns:
+      The application id.
+    Raises:
+      InvalidConversionError: if the application is unknown for the project id.
+    """
+    check_conversion(project_id in self._resolver_map,
+                     'Cannot determine application id for provided project id: '
+                     '"%s".'
+                     % project_id)
+    return self._resolver_map[project_id]
+
+
+class _IdentityIdResolver(IdResolver):
+  """An IdResolver that resolve app_id == project_id."""
+
+  def resolve_project_id(self, app_id):
+    return app_id
+
+  def resolve_app_id(self, project_id):
+    return project_id
+
+
 class _EntityConverter(object):
   """Converter for entities and keys."""
+
+  def __init__(self, id_resolver):
+    """Creates a new EntityConverter.
+
+    Args:
+      id_resolver: an IdResolver object for converting
+      project_id <--> application_id
+    """
+    self._id_resolver = id_resolver
 
   def v4_to_v3_reference(self, v4_key, v3_ref):
     """Converts a v4 Key to a v3 Reference.
@@ -257,10 +392,10 @@ class _EntityConverter(object):
       v4_value = v4_property.value()
       if v4_value.list_value_list():
         for v4_sub_value in v4_value.list_value_list():
-          self.__add_v3_property(
+          self.__add_v3_property_from_v4(
               property_name, True, is_projection, v4_sub_value, v3_entity)
       else:
-        self.__add_v3_property(
+        self.__add_v3_property_from_v4(
             property_name, False, is_projection, v4_value, v3_entity)
     if v4_entity.has_key():
       v4_key = v4_entity.key()
@@ -518,7 +653,7 @@ class _EntityConverter(object):
       v3_property.set_meaning(entity_pb.Property.INDEX_VALUE)
 
 
-  def __add_v3_property(self, property_name, is_multi, is_projection,
+  def __add_v3_property_from_v4(self, property_name, is_multi, is_projection,
                         v4_value, v3_entity):
     """Adds a v3 Property to an Entity based on information from a v4 Property.
 
@@ -767,6 +902,586 @@ class _EntityConverter(object):
           v3_user_value.federated_provider(),
           False))
 
+  def v1_to_v3_reference(self, v1_key, v3_ref):
+    """Converts a v1 Key to a v3 Reference.
+
+    Args:
+      v1_key: an googledatastore.Key
+      v3_ref: an entity_pb.Reference to populate
+    """
+    v3_ref.Clear()
+    if v1_key.HasField('partition_id'):
+      project_id = v1_key.partition_id.project_id
+      if project_id:
+        app_id = self._id_resolver.resolve_app_id(project_id)
+        v3_ref.set_app(app_id)
+      if v1_key.partition_id.namespace_id:
+        v3_ref.set_name_space(v1_key.partition_id.namespace_id)
+    for v1_element in v1_key.path:
+      v3_element = v3_ref.mutable_path().add_element()
+      v3_element.set_type(v1_element.kind.encode('utf-8'))
+      id_type = v1_element.WhichOneof('id_type')
+      if id_type == 'id':
+        v3_element.set_id(v1_element.id)
+      elif id_type == 'name':
+        v3_element.set_name(v1_element.name.encode('utf-8'))
+
+  def v1_to_v3_references(self, v1_keys):
+    """Converts a list of v1 Keys to a list of v3 References.
+
+    Args:
+      v1_keys: a list of googledatastore.Key objects
+
+    Returns:
+      a list of entity_pb.Reference objects
+    """
+    v3_refs = []
+    for v1_key in v1_keys:
+      v3_ref = entity_pb.Reference()
+      self.v1_to_v3_reference(v1_key, v3_ref)
+      v3_refs.append(v3_ref)
+    return v3_refs
+
+  def v3_to_v1_key(self, v3_ref, v1_key):
+    """Converts a v3 Reference to a v1 Key.
+
+    Args:
+      v3_ref: an entity_pb.Reference
+      v1_key: an googledatastore.Key to populate
+    """
+    v1_key.Clear()
+    if not v3_ref.app():
+      return
+    project_id = self._id_resolver.resolve_project_id(v3_ref.app())
+    v1_key.partition_id.project_id = project_id
+    if v3_ref.name_space():
+      v1_key.partition_id.namespace_id = v3_ref.name_space()
+    for v3_element in v3_ref.path().element_list():
+      v1_element = v1_key.path.add()
+      v1_element.kind = v3_element.type()
+      if v3_element.has_id():
+        v1_element.id = v3_element.id()
+      if v3_element.has_name():
+        v1_element.name = v3_element.name()
+
+  def v3_to_v1_keys(self, v3_refs):
+    """Converts a list of v3 References to a list of v1 Keys.
+
+    Args:
+      v3_refs: a list of entity_pb.Reference objects
+
+    Returns:
+      a list of googledatastore.Key objects
+    """
+    v1_keys = []
+    for v3_ref in v3_refs:
+      v1_key = googledatastore.Key()
+      self.v3_to_v1_key(v3_ref, v1_key)
+      v1_keys.append(v1_key)
+    return v1_keys
+
+  def project_to_app_id(self, project_id):
+    """Converts a string project id to a string app id."""
+    return self._id_resolver.resolve_app_id(project_id)
+
+  def app_to_project_id(self, app_id):
+    """Converts a string app id to a string project id."""
+    return self._id_resolver.resolve_project_id(app_id)
+
+  def v1_to_v3_entity(self, v1_entity, v3_entity, is_projection=False):
+    """Converts a v1 Entity to a v3 EntityProto.
+
+    Args:
+      v1_entity: an googledatastore.Entity
+      v3_entity: an entity_pb.EntityProto to populate
+      is_projection: True if the v1_entity is from a projection query.
+    """
+    v3_entity.Clear()
+    for v1_property in iter(v1_entity.properties):
+      property_name = v1_property.key
+      v1_value = v1_property.value
+      v1_value_type = v1_value.WhichOneof('value_type')
+      if v1_value_type == 'array_value':
+        for v1_sub_value in v1_value.array_value.values:
+          self.__add_v3_property_from_v1(
+              property_name, True, is_projection, v1_sub_value, v3_entity)
+      else:
+        self.__add_v3_property_from_v1(
+            property_name, False, is_projection, v1_value, v3_entity)
+    if v1_entity.HasField('key'):
+      v1_key = v1_entity.key
+      self.v1_to_v3_reference(v1_key, v3_entity.mutable_key())
+      v3_ref = v3_entity.key()
+      self.v3_reference_to_group(v3_ref, v3_entity.mutable_entity_group())
+    else:
+
+
+      pass
+
+  def v3_to_v1_entity(self, v3_entity, v1_entity):
+    """Converts a v3 EntityProto to a v1 Entity.
+
+    Args:
+      v3_entity: an entity_pb.EntityProto
+      v1_entity: an googledatastore.Proto to populate
+    """
+    v1_entity.Clear()
+    self.v3_to_v1_key(v3_entity.key(), v1_entity.key)
+    if not v3_entity.key().has_app():
+
+      v1_entity.ClearField('key')
+
+
+
+
+    v1_properties = {}
+    for v3_property in v3_entity.property_list():
+      self.__add_v1_property_to_entity(v1_entity, v1_properties, v3_property,
+                                       True)
+    for v3_property in v3_entity.raw_property_list():
+      self.__add_v1_property_to_entity(v1_entity, v1_properties, v3_property,
+                                       False)
+
+  def v1_value_to_v3_property_value(self, v1_value, v3_value):
+    """Converts a v1 Value to a v3 PropertyValue.
+
+    Args:
+      v1_value: an googledatastore.Value
+      v3_value: an entity_pb.PropertyValue to populate
+    """
+    v3_value.Clear()
+    field = v1_value.WhichOneof('value_type')
+    if field == 'boolean_value':
+      v3_value.set_booleanvalue(v1_value.boolean_value)
+    elif field == 'integer_value':
+      v3_value.set_int64value(v1_value.integer_value)
+    elif field == 'double_value':
+      v3_value.set_doublevalue(v1_value.double_value)
+    elif field == 'timestamp_value':
+      v3_value.set_int64value(
+          googledatastore.helper.micros_from_timestamp(
+              v1_value.timestamp_value))
+    elif field == 'key_value':
+      v3_ref = entity_pb.Reference()
+      self.v1_to_v3_reference(v1_value.key_value, v3_ref)
+      self.v3_reference_to_v3_property_value(v3_ref, v3_value)
+    elif field == 'string_value':
+      v3_value.set_stringvalue(v1_value.string_value.encode('utf-8'))
+    elif field == 'blob_value':
+      v3_value.set_stringvalue(v1_value.blob_value)
+    elif field == 'entity_value':
+      v1_entity_value = v1_value.entity_value
+      v1_meaning = v1_value.meaning
+      if v1_meaning == MEANING_PREDEFINED_ENTITY_USER:
+        self.v1_entity_to_v3_user_value(v1_entity_value,
+                                        v3_value.mutable_uservalue())
+      else:
+        v3_entity_value = entity_pb.EntityProto()
+        self.v1_to_v3_entity(v1_entity_value, v3_entity_value)
+        v3_value.set_stringvalue(v3_entity_value.SerializePartialToString())
+    elif field == 'geo_point_value':
+      point_value = v3_value.mutable_pointvalue()
+      point_value.set_x(v1_value.geo_point_value.latitude)
+      point_value.set_y(v1_value.geo_point_value.longitude)
+    elif field == 'null_value':
+      pass
+    else:
+
+      pass
+
+  def v3_property_to_v1_value(self, v3_property, indexed, v1_value):
+    """Converts a v3 Property to a v1 Value.
+
+    Args:
+      v3_property: an entity_pb.Property
+      indexed: whether the v3 property is indexed
+      v1_value: an googledatastore.Value to populate
+    """
+    v1_value.Clear()
+    v3_property_value = v3_property.value()
+    v3_meaning = v3_property.meaning()
+    v3_uri_meaning = None
+    if v3_property.meaning_uri():
+      v3_uri_meaning = v3_property.meaning_uri()
+
+    if not self.__is_v3_property_value_union_valid(v3_property_value):
+
+
+      v3_meaning = None
+      v3_uri_meaning = None
+    elif v3_meaning == entity_pb.Property.NO_MEANING:
+      v3_meaning = None
+    elif not self.__is_v3_property_value_meaning_valid(v3_property_value,
+                                                       v3_meaning):
+
+      v3_meaning = None
+
+    is_zlib_value = False
+    if v3_uri_meaning:
+      if v3_uri_meaning == URI_MEANING_ZLIB:
+        if v3_property_value.has_stringvalue():
+          is_zlib_value = True
+          if v3_meaning != entity_pb.Property.BLOB:
+
+            v3_meaning = entity_pb.Property.BLOB
+        else:
+          pass
+      else:
+        pass
+
+
+    if v3_property_value.has_booleanvalue():
+      v1_value.boolean_value = v3_property_value.booleanvalue()
+    elif v3_property_value.has_int64value():
+      if v3_meaning == entity_pb.Property.GD_WHEN:
+        googledatastore.helper.micros_to_timestamp(
+            v3_property_value.int64value(), v1_value.timestamp_value)
+        v3_meaning = None
+      else:
+        v1_value.integer_value = v3_property_value.int64value()
+    elif v3_property_value.has_doublevalue():
+      v1_value.double_value = v3_property_value.doublevalue()
+    elif v3_property_value.has_referencevalue():
+      v3_ref = entity_pb.Reference()
+      self.__v3_reference_value_to_v3_reference(
+          v3_property_value.referencevalue(), v3_ref)
+      self.v3_to_v1_key(v3_ref, v1_value.key_value)
+    elif v3_property_value.has_stringvalue():
+      if v3_meaning == entity_pb.Property.ENTITY_PROTO:
+        serialized_entity_v3 = v3_property_value.stringvalue()
+        v3_entity = entity_pb.EntityProto()
+
+
+        v3_entity.ParsePartialFromString(serialized_entity_v3)
+        self.v3_to_v1_entity(v3_entity, v1_value.entity_value)
+        v3_meaning = None
+      elif (v3_meaning == entity_pb.Property.BLOB
+            or v3_meaning == entity_pb.Property.BYTESTRING):
+        v1_value.blob_value = v3_property_value.stringvalue()
+
+        if indexed or v3_meaning == entity_pb.Property.BLOB:
+          v3_meaning = None
+      else:
+        string_value = v3_property_value.stringvalue()
+        if is_valid_utf8(string_value):
+          v1_value.string_value = string_value
+        else:
+
+          v1_value.blob_value = string_value
+
+          if v3_meaning != entity_pb.Property.INDEX_VALUE:
+            v3_meaning = None
+
+
+    elif v3_property_value.has_pointvalue():
+      if v3_meaning != MEANING_GEORSS_POINT:
+        v1_value.meaning = MEANING_POINT_WITHOUT_V3_MEANING
+
+      point_value = v3_property_value.pointvalue()
+      v1_value.geo_point_value.latitude = point_value.x()
+      v1_value.geo_point_value.longitude = point_value.y()
+      v3_meaning = None
+    elif v3_property_value.has_uservalue():
+      self.v3_user_value_to_v1_entity(v3_property_value.uservalue(),
+                                      v1_value.entity_value)
+      v1_value.meaning = MEANING_PREDEFINED_ENTITY_USER
+      v3_meaning = None
+    else:
+
+      v1_value.null_value = googledatastore.Value.NULL_VALUE
+
+    if is_zlib_value:
+      v1_value.meaning = MEANING_ZLIB
+    elif v3_meaning:
+      v1_value.meaning = v3_meaning
+
+
+    if indexed == v1_value.exclude_from_indexes:
+      v1_value.exclude_from_indexes = not indexed
+
+  def v1_to_v3_property(self, property_name, is_multi, is_projection,
+                        v1_value, v3_property):
+    """Converts info from a v1 Property to a v3 Property.
+
+    v1_value must not have an array_value.
+
+    Args:
+      property_name: the name of the property, unicode
+      is_multi: whether the property contains multiple values
+      is_projection: whether the property is projected
+      v1_value: an googledatastore.Value
+      v3_property: an entity_pb.Property to populate
+    """
+    v1_value_type = v1_value.WhichOneof('value_type')
+    if v1_value_type == 'array_value':
+      assert False, 'v1 array_value not convertable to v3'
+    v3_property.Clear()
+    v3_property.set_name(property_name.encode('utf-8'))
+    v3_property.set_multiple(is_multi)
+    self.v1_value_to_v3_property_value(v1_value, v3_property.mutable_value())
+
+    v1_meaning = None
+    if v1_value.meaning:
+      v1_meaning = v1_value.meaning
+    if v1_value_type == 'timestamp_value':
+      v3_property.set_meaning(entity_pb.Property.GD_WHEN)
+    elif v1_value_type == 'blob_value':
+      if v1_meaning == MEANING_ZLIB:
+        v3_property.set_meaning_uri(URI_MEANING_ZLIB)
+      if v1_meaning == entity_pb.Property.BYTESTRING:
+        if not v1_value.exclude_from_indexes:
+          pass
+
+
+      else:
+        if not v1_value.exclude_from_indexes:
+          v3_property.set_meaning(entity_pb.Property.BYTESTRING)
+        else:
+          v3_property.set_meaning(entity_pb.Property.BLOB)
+        v1_meaning = None
+    elif v1_value_type == 'entity_value':
+      if v1_meaning != MEANING_PREDEFINED_ENTITY_USER:
+        v3_property.set_meaning(entity_pb.Property.ENTITY_PROTO)
+      v1_meaning = None
+    elif v1_value_type == 'geo_point_value':
+      if v1_meaning != MEANING_POINT_WITHOUT_V3_MEANING:
+        v3_property.set_meaning(MEANING_GEORSS_POINT)
+      v1_meaning = None
+    else:
+
+      pass
+    if v1_meaning is not None:
+      v3_property.set_meaning(v1_meaning)
+
+    if is_projection:
+      v3_property.set_meaning(entity_pb.Property.INDEX_VALUE)
+
+
+  def __add_v3_property_from_v1(self, property_name, is_multi, is_projection,
+                        v1_value, v3_entity):
+    """Adds a v3 Property to an Entity based on information from a v1 Property.
+
+    Args:
+      property_name: the name of the property
+      is_multi: whether the property contains multiple values
+      is_projection: whether the property is a projection
+      v1_value: an googledatastore.Value
+      v3_entity: an entity_pb.EntityProto
+    """
+    if not v1_value.exclude_from_indexes:
+      self.v1_to_v3_property(property_name, is_multi, is_projection,
+                             v1_value, v3_entity.add_property())
+    else:
+      self.v1_to_v3_property(property_name, is_multi, is_projection,
+                             v1_value, v3_entity.add_raw_property())
+
+  def __build_name_to_v1_property_map(self, v1_entity):
+    property_map = {}
+    for prop in v1_entity.properties:
+      property_map[prop.key] = prop
+    return property_map
+
+  def __add_v1_property_to_entity(self, v1_entity, property_map, v3_property,
+                                  indexed):
+    """Adds a v1 Property to an entity or modifies an existing one.
+
+    property_map is used to track of properties that have already been add.
+    The same dict should be used for all of an entity's properties.
+
+    Args:
+      v1_entity: an googledatastore.Entity
+      property_map: a dict of name -> v1_property
+      v3_property: an entity_pb.Property to convert to v1 and add to the dict
+      indexed: whether the property is indexed
+    """
+    property_name = v3_property.name()
+    if property_name in property_map:
+      v1_property = property_map[property_name]
+    else:
+      v1_property = v1_entity.properties.add()
+      v1_property.key = property_name
+      property_map[property_name] = v1_property
+    if v3_property.multiple():
+      self.v3_property_to_v1_value(v3_property, indexed,
+                                   v1_property.value.array_value.values.add())
+    else:
+      self.v3_property_to_v1_value(v3_property, indexed,
+                                   v1_property.value)
+
+  def __get_v1_integer_value(self, v1_property):
+    """Returns an integer value from a v1 Property.
+
+    Args:
+      v1_property: an googledatastore.Property
+
+    Returns:
+      an integer
+
+    Raises:
+      InvalidConversionError: if the property doesn't contain an integer value
+    """
+    value_type = v1_property.value.WhichOneof('value_type')
+    check_conversion(value_type == 'integer_value',
+                     'Property does not contain an integer value.')
+    return v1_property.value.integer_value
+
+  def __get_v1_double_value(self, v1_property):
+    """Returns a double value from a v1 Property.
+
+    Args:
+      v1_property: an googledatastore.Property
+
+    Returns:
+      a double
+
+    Raises:
+      InvalidConversionError: if the property doesn't contain a double value
+    """
+    value_type = v1_property.value.WhichOneof('value_type')
+    check_conversion(value_type == 'double_value',
+                     'Property does not contain a double value.')
+    return v1_property.value.double_value
+
+  def __get_v1_string_value(self, v1_property):
+    """Returns an string value from a v1 Property.
+
+    Args:
+      v1_property: an googledatastore.Property
+
+    Returns:
+      a string
+
+    Throws:
+      InvalidConversionError: if the property doesn't contain a string value
+    """
+    value_type = v1_property.value.WhichOneof('value_type')
+    check_conversion(value_type == 'string_value',
+                     'Property does not contain a string value.')
+    return v1_property.value.string_value
+
+  def __v1_integer_property(self, name, value, indexed):
+    """Creates a single-integer-valued v1 Property.
+
+    Args:
+      name: the property name
+      value: the integer value of the property
+      indexed: whether the value should be indexed
+
+    Returns:
+      an googledatastore.Property
+    """
+    v1_property = googledatastore.Entity.PropertiesEntry()
+    v1_property.key = name
+    v1_value = v1_property.value
+    v1_value.exclude_from_indexes = not indexed
+    v1_value.integer_value = value
+    return v1_property
+
+  def __v1_double_property(self, name, value, indexed):
+    """Creates a single-double-valued v1 Property.
+
+    Args:
+      name: the property name
+      value: the double value of the property
+      indexed: whether the value should be indexed
+
+    Returns:
+      an googledatastore.Property
+    """
+    v1_property = googledatastore.Entity.PropertiesEntry()
+    v1_property.key = name
+    v1_value = v1_property.value
+    v1_value.exclude_from_indexes = not indexed
+    v1_value.double_value = value
+    return v1_property
+
+  def __v1_string_property(self, name, value, indexed):
+    """Creates a single-string-valued v1 Property.
+
+    Args:
+      name: the property name
+      value: the string value of the property
+      indexed: whether the value should be indexed
+
+    Returns:
+      an googledatastore.Property
+    """
+    v1_property = googledatastore.Entity.PropertiesEntry()
+    v1_property.key = name
+    v1_value = v1_property.value
+    v1_value.exclude_from_indexes = not indexed
+    v1_value.string_value = value
+    return v1_property
+
+  def v1_entity_to_v3_user_value(self, v1_user_entity, v3_user_value):
+    """Converts a v1 user Entity to a v3 UserValue.
+
+    Args:
+      v1_user_entity: an googledatastore.Entity representing a user
+      v3_user_value: an entity_pb.Property_UserValue to populate
+    """
+    v3_user_value.Clear()
+    name_to_v1_property = self.__build_name_to_v1_property_map(v1_user_entity)
+
+    v3_user_value.set_email(self.__get_v1_string_value(
+        name_to_v1_property[PROPERTY_NAME_EMAIL]))
+    v3_user_value.set_auth_domain(self.__get_v1_string_value(
+        name_to_v1_property[PROPERTY_NAME_AUTH_DOMAIN]))
+    if PROPERTY_NAME_USER_ID in name_to_v1_property:
+      v3_user_value.set_obfuscated_gaiaid(
+          self.__get_v1_string_value(
+              name_to_v1_property[PROPERTY_NAME_USER_ID]))
+    if PROPERTY_NAME_INTERNAL_ID in name_to_v1_property:
+      v3_user_value.set_gaiaid(self.__get_v1_integer_value(
+          name_to_v1_property[PROPERTY_NAME_INTERNAL_ID]))
+    else:
+
+      v3_user_value.set_gaiaid(0)
+    if PROPERTY_NAME_FEDERATED_IDENTITY in name_to_v1_property:
+      v3_user_value.set_federated_identity(
+          self.__get_v1_string_value(name_to_v1_property[
+              PROPERTY_NAME_FEDERATED_IDENTITY]))
+    if PROPERTY_NAME_FEDERATED_PROVIDER in name_to_v1_property:
+      v3_user_value.set_federated_provider(
+          self.__get_v1_string_value(name_to_v1_property[
+              PROPERTY_NAME_FEDERATED_PROVIDER]))
+
+  def v3_user_value_to_v1_entity(self, v3_user_value, v1_entity):
+    """Converts a v3 UserValue to a v1 user Entity.
+
+    Args:
+      v3_user_value: an entity_pb.Property_UserValue
+      v1_entity: an googledatastore.Entity to populate
+    """
+    v1_entity.Clear()
+    v1_entity.properties.add().CopyFrom(
+        self.__v1_string_property(PROPERTY_NAME_EMAIL,
+                                  v3_user_value.email(), False))
+    v1_entity.properties.add().CopyFrom(self.__v1_string_property(
+        PROPERTY_NAME_AUTH_DOMAIN,
+        v3_user_value.auth_domain(), False))
+
+    if v3_user_value.gaiaid() != 0:
+      v1_entity.properties.add().CopyFrom(self.__v1_integer_property(
+          PROPERTY_NAME_INTERNAL_ID,
+          v3_user_value.gaiaid(),
+          False))
+    if v3_user_value.has_obfuscated_gaiaid():
+      v1_entity.properties.add().CopyFrom(self.__v1_string_property(
+          PROPERTY_NAME_USER_ID,
+          v3_user_value.obfuscated_gaiaid(),
+          False))
+    if v3_user_value.has_federated_identity():
+      v1_entity.properties.add().CopyFrom(self.__v1_string_property(
+          PROPERTY_NAME_FEDERATED_IDENTITY,
+          v3_user_value.federated_identity(),
+          False))
+    if v3_user_value.has_federated_provider():
+      v1_entity.properties.add().CopyFrom(self.__v1_string_property(
+          PROPERTY_NAME_FEDERATED_PROVIDER,
+          v3_user_value.federated_provider(),
+          False))
+
   def __is_v3_property_value_union_valid(self, v3_property_value):
     """Returns True if the v3 PropertyValue's union is valid."""
     num_sub_values = (v3_property_value.has_booleanvalue()
@@ -889,10 +1604,60 @@ class _EntityConverter(object):
 
 
 class _QueryConverter(object):
-  """Base converter for v3 and v4 queries."""
+  """Base converter for v3 and v1 queries."""
 
   def __init__(self, entity_converter):
     self._entity_converter = entity_converter
+
+  def get_entity_converter(self):
+    return self._entity_converter
+
+  def _v3_filter_to_v1_property_filter(self, v3_filter, v1_property_filter):
+    """Converts a v3 Filter to a v1 PropertyFilter.
+
+    Args:
+      v3_filter: a datastore_pb.Filter
+      v1_property_filter: a googledatastore.PropertyFilter to populate
+
+    Raises:
+      InvalidConversionError if the filter cannot be converted
+    """
+    check_conversion(v3_filter.property_size() == 1,
+                     'invalid filter')
+    check_conversion(v3_filter.op() <= 5,
+                     'unsupported filter op: %d' % v3_filter.op())
+    v1_property_filter.Clear()
+    v1_property_filter.op = v3_filter.op()
+    v1_property_filter.property.name = v3_filter.property(0).name()
+    self._entity_converter.v3_property_to_v1_value(
+        v3_filter.property(0), True, v1_property_filter.value)
+
+  def _v3_query_to_v1_ancestor_filter(self, v3_query, v1_property_filter):
+    """Converts a v3 Query to a v1 ancestor PropertyFilter.
+
+    Args:
+      v3_query: a datastore_pb.Query
+      v1_property_filter: a googledatastore.PropertyFilter to populate
+    """
+    v1_property_filter.Clear()
+    v1_property_filter.set_operator(
+        googledatastore.PropertyFilter.HAS_ANCESTOR)
+    prop = v1_property_filter.property
+    prop.set_name(PROPERTY_NAME_KEY)
+    self._entity_converter.v3_to_v1_key(
+        v3_query.ancestor(),
+        v1_property_filter.value.mutable_key_value)
+
+  def v3_order_to_v1_order(self, v3_order, v1_order):
+    """Converts a v3 Query order to a v1 PropertyOrder.
+
+    Args:
+      v3_order: a datastore_pb.Query.Order
+      v1_order: a googledatastore.PropertyOrder to populate
+    """
+    v1_order.property.name = v3_order.property()
+    if v3_order.has_direction():
+      v1_order.direction = v3_order.direction()
 
   def _v3_filter_to_v4_property_filter(self, v3_filter, v4_property_filter):
     """Converts a v3 Filter to a v4 PropertyFilter.
@@ -942,9 +1707,11 @@ class _QueryConverter(object):
       v4_order.set_direction(v3_order.direction())
 
 
-__entity_converter = _EntityConverter()
+def get_entity_converter(id_resolver=None):
+  """Returns a converter for v3 and v1 entities and keys.
 
-
-def get_entity_converter():
-  """Returns a converter for v3 and v4 entities and keys."""
-  return __entity_converter
+  Args:
+    id_resolver: An IdResolver for project id resolution.
+  """
+  id_resolver = id_resolver or _IdentityIdResolver()
+  return _EntityConverter(id_resolver)

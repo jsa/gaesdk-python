@@ -457,6 +457,14 @@ _SUPPORTED_LIBRARIES = [
         default_version='1.0',
         ),
     _VersionedLibrary(
+        'crcmod',
+        'http://crcmod.sourceforge.net/',
+        'A library for generating Cyclic Redundancy Checks (CRC).',
+        ['1.7'],
+        latest_version='1.7',
+        ),
+
+    _VersionedLibrary(
         'PyAMF',
         'http://www.pyamf.org/',
         'A library that provides (AMF) Action Message Format functionality.',

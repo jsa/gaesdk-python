@@ -14,16 +14,22 @@
 
 import base64
 import datetime
+import gzip
 import io
 import json
 import os
+import re
 import shutil
 import signal
+import socket
 import sys
 import tarfile
 import tempfile
+import threading
+import time
 import unittest
-import gzip
+import warnings
+import random
 
 import docker
 import requests
@@ -31,11 +37,14 @@ import six
 
 import fake_api
 
-
 try:
     from unittest import mock
 except ImportError:
     import mock
+
+
+warnings.simplefilter('error')
+create_host_config = docker.utils.create_host_config
 
 
 def response(status_code=200, content='', headers=None, reason=None, elapsed=0,
@@ -99,6 +108,31 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         # Force-clear authconfig to avoid tampering with the tests
         self.client._cfg = {'Configs': {}}
 
+    def tearDown(self):
+        self.client.close()
+
+    def base_create_payload(self, img='busybox', cmd=None):
+        if not cmd:
+            cmd = ['true']
+        return {"Tty": False, "Image": img, "Cmd": cmd,
+                "AttachStdin": False, "Memory": 0,
+                "AttachStderr": True, "AttachStdout": True,
+                "StdinOnce": False,
+                "OpenStdin": False, "NetworkDisabled": False,
+                "MemorySwap": 0
+                }
+
+    def test_ctor(self):
+        try:
+            docker.Client(version=1.12)
+        except Exception as e:
+            self.assertTrue(isinstance(e, docker.errors.DockerException))
+            if not six.PY3:
+                self.assertEqual(
+                    str(e),
+                    'Version parameter must be a string or None. Found float'
+                )
+
     #########################
     #   INFORMATION TESTS   #
     #########################
@@ -112,6 +146,20 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             url_prefix + 'version',
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
         )
+
+    def test_retrieve_server_version(self):
+        client = docker.Client(version="auto")
+        self.assertTrue(isinstance(client._version, six.string_types))
+        self.assertFalse(client._version == "auto")
+        client.close()
+
+    def test_auto_retrieve_server_version(self):
+        try:
+            version = self.client._retrieve_server_version()
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        else:
+            self.assertTrue(isinstance(version, six.string_types))
 
     def test_info(self):
         try:
@@ -142,6 +190,57 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             self.fail('Viz output should not be supported!')
         except Exception:
             pass
+
+    def test_events(self):
+        try:
+            self.client.events()
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'events',
+            params={'since': None, 'until': None, 'filters': None},
+            stream=True
+        )
+
+    def test_events_with_since_until(self):
+        ts = 1356048000
+        now = datetime.datetime.fromtimestamp(ts)
+        since = now - datetime.timedelta(seconds=10)
+        until = now + datetime.timedelta(seconds=10)
+        try:
+            self.client.events(since=since, until=until)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'events',
+            params={
+                'since': ts - 10,
+                'until': ts + 10,
+                'filters': None
+            },
+            stream=True
+        )
+
+    def test_events_with_filters(self):
+        filters = {'event': ['die', 'stop'],
+                   'container': fake_api.FAKE_CONTAINER_ID}
+        try:
+            self.client.events(filters=filters)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        expected_filters = docker.utils.convert_filters(filters)
+        fake_request.assert_called_with(
+            url_prefix + 'events',
+            params={
+                'since': None,
+                'until': None,
+                'filters': expected_filters
+            },
+            stream=True
+        )
 
     ###################
     #  LISTING TESTS  #
@@ -178,6 +277,19 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         fake_request.assert_called_with(
             url_prefix + 'images/json',
             params={'filter': None, 'only_ids': 1, 'all': 0},
+            timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_images_filters(self):
+        try:
+            self.client.images(filters={'dangling': True})
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'images/json',
+            params={'filter': None, 'only_ids': 0, 'all': 0,
+                    'filters': '{"dangling": ["true"]}'},
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
@@ -345,6 +457,30 @@ class DockerClientTest(Cleanup, unittest.TestCase):
                              "StdinOnce": false,
                              "NetworkDisabled": false,
                              "CpuShares": 5,
+                             "MemorySwap": 0}'''))
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+
+    def test_create_container_with_cpuset(self):
+        try:
+            self.client.create_container('busybox', 'ls',
+                                         cpuset='0,1')
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0],
+                         url_prefix + 'containers/create')
+        self.assertEqual(json.loads(args[1]['data']),
+                         json.loads('''
+                            {"Tty": false, "Image": "busybox",
+                             "Cmd": ["ls"], "AttachStdin": false,
+                             "Memory": 0,
+                             "AttachStderr": true,
+                             "AttachStdout": true, "OpenStdin": false,
+                             "StdinOnce": false,
+                             "NetworkDisabled": false,
+                             "Cpuset": "0,1",
                              "MemorySwap": 0}'''))
         self.assertEqual(args[1]['headers'],
                          {'Content-Type': 'application/json'})
@@ -519,14 +655,288 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             args[0][0],
             url_prefix + 'containers/3cc2351ab11b/start'
         )
+        self.assertEqual(json.loads(args[1]['data']), {})
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False}
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
+        self.assertEqual(
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_lxc_conf(self):
+        try:
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    lxc_conf={'lxc.conf.k': 'lxc.conf.value'}
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        args = fake_request.call_args
+        self.assertEqual(
+            args[0][0],
+            url_prefix + 'containers/create'
+        )
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['LxcConf'] = [
+            {"Value": "lxc.conf.value", "Key": "lxc.conf.k"}
+        ]
+
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
         self.assertEqual(
             args[1]['headers'],
             {'Content-Type': 'application/json'}
         )
+        self.assertEqual(
+            args[1]['timeout'],
+            docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_lxc_conf_compat(self):
+        try:
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    lxc_conf=[{'Key': 'lxc.conf.k', 'Value': 'lxc.conf.value'}]
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['LxcConf'] = [
+            {"Value": "lxc.conf.value", "Key": "lxc.conf.k"}
+        ]
+        self.assertEqual(
+            json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+        self.assertEqual(
+            args[1]['timeout'],
+            docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_binds_ro(self):
+        try:
+            mount_dest = '/mnt'
+            mount_origin = '/tmp'
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    binds={mount_origin: {
+                        "bind": mount_dest,
+                        "ro": True
+                    }}
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix +
+                         'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Binds'] = ["/tmp:/mnt:ro"]
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+        self.assertEqual(
+            args[1]['timeout'],
+            docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_binds_rw(self):
+        try:
+            mount_dest = '/mnt'
+            mount_origin = '/tmp'
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    binds={mount_origin: {
+                        "bind": mount_dest,
+                        "ro": False
+                    }}
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix +
+                         'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Binds'] = ["/tmp:/mnt:rw"]
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+        self.assertEqual(
+            args[1]['timeout'],
+            docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_port_binds(self):
+        self.maxDiff = None
+        try:
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    port_bindings={
+                        1111: None,
+                        2222: 2222,
+                        '3333/udp': (3333,),
+                        4444: ('127.0.0.1',),
+                        5555: ('127.0.0.1', 5555),
+                        6666: [('127.0.0.1',), ('192.168.0.1',)]
+                    }
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        data = json.loads(args[1]['data'])
+        port_bindings = data['HostConfig']['PortBindings']
+        self.assertTrue('1111/tcp' in port_bindings)
+        self.assertTrue('2222/tcp' in port_bindings)
+        self.assertTrue('3333/udp' in port_bindings)
+        self.assertTrue('4444/tcp' in port_bindings)
+        self.assertTrue('5555/tcp' in port_bindings)
+        self.assertTrue('6666/tcp' in port_bindings)
+        self.assertEqual(
+            [{"HostPort": "", "HostIp": ""}],
+            port_bindings['1111/tcp']
+        )
+        self.assertEqual(
+            [{"HostPort": "2222", "HostIp": ""}],
+            port_bindings['2222/tcp']
+        )
+        self.assertEqual(
+            [{"HostPort": "3333", "HostIp": ""}],
+            port_bindings['3333/udp']
+        )
+        self.assertEqual(
+            [{"HostPort": "", "HostIp": "127.0.0.1"}],
+            port_bindings['4444/tcp']
+        )
+        self.assertEqual(
+            [{"HostPort": "5555", "HostIp": "127.0.0.1"}],
+            port_bindings['5555/tcp']
+        )
+        self.assertEqual(len(port_bindings['6666/tcp']), 2)
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+        self.assertEqual(
+            args[1]['timeout'],
+            docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_mac_address(self):
+        try:
+            mac_address_expected = "02:42:ac:11:00:0a"
+            container = self.client.create_container(
+                'busybox', ['sleep', '60'], mac_address=mac_address_expected)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        res = self.client.inspect_container(container['Id'])
+        self.assertEqual(mac_address_expected,
+                         res['NetworkSettings']['MacAddress'])
+
+    def test_create_container_with_links(self):
+        try:
+            link_path = 'path'
+            alias = 'alias'
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    links={link_path: alias}
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(
+            args[0][0], url_prefix + 'containers/create'
+        )
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Links'] = ['path:alias']
+
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
+        )
+
+    def test_create_container_with_multiple_links(self):
+        try:
+            link_path = 'path'
+            alias = 'alias'
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    links={
+                        link_path + '1': alias + '1',
+                        link_path + '2': alias + '2'
+                    }
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Links'] = [
+            'path1:alias1', 'path2:alias2'
+        ]
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
+        )
+
+    def test_create_container_with_links_as_list_of_tuples(self):
+        try:
+            link_path = 'path'
+            alias = 'alias'
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    links=[(link_path, alias)]
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Links'] = ['path:alias']
+
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
+        )
+
+    def test_create_container_privileged(self):
+        try:
+            self.client.create_container(
+                'busybox', 'true',
+                host_config=create_host_config(privileged=True)
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Privileged'] = True
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
         self.assertEqual(
             args[1]['timeout'],
             docker.client.DEFAULT_TIMEOUT_SECONDS
@@ -547,8 +957,7 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         )
         self.assertEqual(
             json.loads(args[1]['data']),
-            {"LxcConf": [{"Value": "lxc.conf.value", "Key": "lxc.conf.k"}],
-             "PublishAllPorts": False, "Privileged": False}
+            {"LxcConf": [{"Value": "lxc.conf.value", "Key": "lxc.conf.k"}]}
         )
         self.assertEqual(
             args[1]['headers'],
@@ -573,11 +982,7 @@ class DockerClientTest(Cleanup, unittest.TestCase):
                          'containers/3cc2351ab11b/start')
         self.assertEqual(
             json.loads(args[1]['data']),
-            {
-                "LxcConf": [{"Key": "lxc.conf.k", "Value": "lxc.conf.value"}],
-                "PublishAllPorts": False,
-                "Privileged": False,
-            }
+            {"LxcConf": [{"Key": "lxc.conf.k", "Value": "lxc.conf.value"}]}
         )
         self.assertEqual(args[1]['headers'],
                          {'Content-Type': 'application/json'})
@@ -601,10 +1006,9 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         args = fake_request.call_args
         self.assertEqual(args[0][0], url_prefix +
                          'containers/3cc2351ab11b/start')
-        self.assertEqual(json.loads(args[1]['data']),
-                         {"Binds": ["/tmp:/mnt:ro"],
-                          "PublishAllPorts": False,
-                          "Privileged": False})
+        self.assertEqual(
+            json.loads(args[1]['data']), {"Binds": ["/tmp:/mnt:ro"]}
+        )
         self.assertEqual(args[1]['headers'],
                          {'Content-Type': 'application/json'})
         self.assertEqual(
@@ -624,10 +1028,9 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         args = fake_request.call_args
         self.assertEqual(args[0][0], url_prefix +
                          'containers/3cc2351ab11b/start')
-        self.assertEqual(json.loads(args[1]['data']),
-                         {"Binds": ["/tmp:/mnt:rw"],
-                          "PublishAllPorts": False,
-                          "Privileged": False})
+        self.assertEqual(
+            json.loads(args[1]['data']), {"Binds": ["/tmp:/mnt:rw"]}
+        )
         self.assertEqual(args[1]['headers'],
                          {'Content-Type': 'application/json'})
         self.assertEqual(
@@ -653,7 +1056,6 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         self.assertEqual(args[0][0], url_prefix +
                          'containers/3cc2351ab11b/start')
         data = json.loads(args[1]['data'])
-        self.assertEqual(data['PublishAllPorts'], False)
         self.assertTrue('1111/tcp' in data['PortBindings'])
         self.assertTrue('2222/tcp' in data['PortBindings'])
         self.assertTrue('3333/udp' in data['PortBindings'])
@@ -704,9 +1106,7 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             url_prefix + 'containers/3cc2351ab11b/start'
         )
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False,
-             "Links": ["path:alias"]}
+            json.loads(args[1]['data']), {"Links": ["path:alias"]}
         )
         self.assertEqual(
             args[1]['headers'],
@@ -734,11 +1134,7 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         )
         self.assertEqual(
             json.loads(args[1]['data']),
-            {
-                "PublishAllPorts": False,
-                "Privileged": False,
-                "Links": ["path1:alias1", "path2:alias2"]
-            }
+            {"Links": ["path1:alias1", "path2:alias2"]}
         )
         self.assertEqual(
             args[1]['headers'],
@@ -761,13 +1157,10 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             url_prefix + 'containers/3cc2351ab11b/start'
         )
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False,
-             "Links": ["path:alias"]}
+            json.loads(args[1]['data']), {"Links": ["path:alias"]}
         )
         self.assertEqual(
-            args[1]['headers'],
-            {'Content-Type': 'application/json'}
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
 
     def test_start_container_privileged(self):
@@ -781,8 +1174,7 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             args[0][0],
             url_prefix + 'containers/3cc2351ab11b/start'
         )
-        self.assertEqual(json.loads(args[1]['data']),
-                         {"PublishAllPorts": False, "Privileged": True})
+        self.assertEqual(json.loads(args[1]['data']), {"Privileged": True})
         self.assertEqual(args[1]['headers'],
                          {'Content-Type': 'application/json'})
         self.assertEqual(
@@ -800,95 +1192,165 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             args[0][0],
             url_prefix + 'containers/3cc2351ab11b/start'
         )
+        self.assertEqual(json.loads(args[1]['data']), {})
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False}
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            args[1]['headers'],
-            {'Content-Type': 'application/json'}
-        )
-        self.assertEqual(
-            args[1]['timeout'],
-            docker.client.DEFAULT_TIMEOUT_SECONDS
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
-    def test_start_container_with_restart_policy(self):
+    def test_create_container_with_restart_policy(self):
         try:
-            self.client.start(fake_api.FAKE_CONTAINER_ID,
-                              restart_policy={
-                                  "Name": "always",
-                                  "MaximumRetryCount": 0
-                              })
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    restart_policy={
+                        "Name": "always",
+                        "MaximumRetryCount": 0
+                    }
+                )
+            )
         except Exception as e:
             self.fail('Command should not raise exception: {0}'.format(e))
         args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['RestartPolicy'] = {
+            "MaximumRetryCount": 0, "Name": "always"
+        }
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+
         self.assertEqual(
-            args[0][0],
-            url_prefix + 'containers/3cc2351ab11b/start'
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False,
-             "RestartPolicy": {"MaximumRetryCount": 0, "Name": "always"}}
-        )
-        self.assertEqual(
-            args[1]['headers'],
-            {'Content-Type': 'application/json'}
-        )
-        self.assertEqual(
-            args[1]['timeout'],
-            docker.client.DEFAULT_TIMEOUT_SECONDS
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
-    def test_start_container_with_added_capabilities(self):
+    def test_create_container_with_added_capabilities(self):
         try:
-            self.client.start(fake_api.FAKE_CONTAINER_ID,
-                              cap_add=['MKNOD'])
+            self.client.create_container(
+                'busybox', 'true',
+                host_config=create_host_config(cap_add=['MKNOD'])
+            )
         except Exception as e:
             self.fail('Command should not raise exception: {0}'.format(e))
         args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['CapAdd'] = ['MKNOD']
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
         self.assertEqual(
-            args[0][0],
-            url_prefix + 'containers/3cc2351ab11b/start'
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False,
-             "CapAdd": ["MKNOD"]}
-        )
-        self.assertEqual(
-            args[1]['headers'],
-            {'Content-Type': 'application/json'}
-        )
-        self.assertEqual(
-            args[1]['timeout'],
-            docker.client.DEFAULT_TIMEOUT_SECONDS
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
-    def test_start_container_with_dropped_capabilities(self):
+    def test_create_container_with_dropped_capabilities(self):
         try:
-            self.client.start(fake_api.FAKE_CONTAINER_ID,
-                              cap_drop=['MKNOD'])
+            self.client.create_container(
+                'busybox', 'true',
+                host_config=create_host_config(cap_drop=['MKNOD'])
+            )
         except Exception as e:
             self.fail('Command should not raise exception: {0}'.format(e))
         args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['CapDrop'] = ['MKNOD']
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
         self.assertEqual(
-            args[0][0],
-            url_prefix + 'containers/3cc2351ab11b/start'
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            json.loads(args[1]['data']),
-            {"PublishAllPorts": False, "Privileged": False,
-             "CapDrop": ["MKNOD"]}
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_devices(self):
+        try:
+            self.client.create_container(
+                'busybox', 'true', host_config=create_host_config(
+                    devices=['/dev/sda:/dev/xvda:rwm',
+                             '/dev/sdb:/dev/xvdb',
+                             '/dev/sdc']
+                )
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        expected_payload = self.base_create_payload()
+        expected_payload['HostConfig'] = create_host_config()
+        expected_payload['HostConfig']['Devices'] = [
+            {'CgroupPermissions': 'rwm',
+             'PathInContainer': '/dev/xvda',
+             'PathOnHost': '/dev/sda'},
+            {'CgroupPermissions': 'rwm',
+             'PathInContainer': '/dev/xvdb',
+             'PathOnHost': '/dev/sdb'},
+            {'CgroupPermissions': 'rwm',
+             'PathInContainer': '/dev/sdc',
+             'PathOnHost': '/dev/sdc'}
+        ]
+        self.assertEqual(json.loads(args[1]['data']), expected_payload)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            args[1]['headers'],
-            {'Content-Type': 'application/json'}
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_labels_dict(self):
+        labels_dict = {
+            six.text_type('foo'): six.text_type('1'),
+            six.text_type('bar'): six.text_type('2'),
+        }
+        try:
+            self.client.create_container(
+                'busybox', 'true',
+                labels=labels_dict,
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        self.assertEqual(json.loads(args[1]['data'])['Labels'], labels_dict)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
         )
         self.assertEqual(
-            args[1]['timeout'],
-            docker.client.DEFAULT_TIMEOUT_SECONDS
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_create_container_with_labels_list(self):
+        labels_list = [
+            six.text_type('foo'),
+            six.text_type('bar'),
+        ]
+        labels_dict = {
+            six.text_type('foo'): six.text_type(),
+            six.text_type('bar'): six.text_type(),
+        }
+        try:
+            self.client.create_container(
+                'busybox', 'true',
+                labels=labels_list,
+            )
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        args = fake_request.call_args
+        self.assertEqual(args[0][0], url_prefix + 'containers/create')
+        self.assertEqual(json.loads(args[1]['data'])['Labels'], labels_dict)
+        self.assertEqual(
+            args[1]['headers'], {'Content-Type': 'application/json'}
+        )
+        self.assertEqual(
+            args[1]['timeout'], docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
     def test_resize_container(self):
@@ -904,6 +1366,21 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         fake_request.assert_called_with(
             url_prefix + 'containers/3cc2351ab11b/resize',
             params={'h': 15, 'w': 120},
+            timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_rename_container(self):
+        try:
+            self.client.rename(
+                {'Id': fake_api.FAKE_CONTAINER_ID},
+                name='foobar'
+            )
+        except Exception as e:
+            self.fail('Command shold not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'containers/3cc2351ab11b/rename',
+            params={'name': 'foobar'},
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
         )
 
@@ -963,7 +1440,8 @@ class DockerClientTest(Cleanup, unittest.TestCase):
 
         fake_request.assert_called_with(
             url_prefix + 'containers/3cc2351ab11b/logs',
-            params={'timestamps': 0, 'follow': 0, 'stderr': 1, 'stdout': 1},
+            params={'timestamps': 0, 'follow': 0, 'stderr': 1, 'stdout': 1,
+                    'tail': 'all'},
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS,
             stream=False
         )
@@ -981,7 +1459,8 @@ class DockerClientTest(Cleanup, unittest.TestCase):
 
         fake_request.assert_called_with(
             url_prefix + 'containers/3cc2351ab11b/logs',
-            params={'timestamps': 0, 'follow': 0, 'stderr': 1, 'stdout': 1},
+            params={'timestamps': 0, 'follow': 0, 'stderr': 1, 'stdout': 1,
+                    'tail': 'all'},
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS,
             stream=False
         )
@@ -999,9 +1478,24 @@ class DockerClientTest(Cleanup, unittest.TestCase):
 
         fake_request.assert_called_with(
             url_prefix + 'containers/3cc2351ab11b/logs',
-            params={'timestamps': 0, 'follow': 1, 'stderr': 1, 'stdout': 1},
+            params={'timestamps': 0, 'follow': 1, 'stderr': 1, 'stdout': 1,
+                    'tail': 'all'},
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS,
             stream=True
+        )
+
+    def test_log_tail(self):
+        try:
+            self.client.logs(fake_api.FAKE_CONTAINER_ID, stream=False, tail=10)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'containers/3cc2351ab11b/logs',
+            params={'timestamps': 0, 'follow': 0, 'stderr': 1, 'stdout': 1,
+                    'tail': 10},
+            timeout=docker.client.DEFAULT_TIMEOUT_SECONDS,
+            stream=False
         )
 
     def test_diff(self):
@@ -1062,6 +1556,51 @@ class DockerClientTest(Cleanup, unittest.TestCase):
             url_prefix + 'containers/3cc2351ab11b/stop',
             params={'t': timeout},
             timeout=(docker.client.DEFAULT_TIMEOUT_SECONDS + timeout)
+        )
+
+    def test_execute_command(self):
+        try:
+            self.client.execute(fake_api.FAKE_CONTAINER_ID, ['ls', '-1'])
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        args = fake_request.call_args
+        self.assertEqual(args[0][0],
+                         url_prefix + 'exec/3cc2351ab11b/start')
+
+        self.assertEqual(json.loads(args[1]['data']),
+                         json.loads('''{
+                            "Tty": false,
+                            "AttachStderr": true,
+                            "Container": "3cc2351ab11b",
+                            "Cmd": ["ls", "-1"],
+                            "AttachStdin": false,
+                            "User": "",
+                            "Detach": false,
+                            "Privileged": false,
+                            "AttachStdout": true}'''))
+
+        self.assertEqual(args[1]['headers'],
+                         {'Content-Type': 'application/json'})
+
+    def test_pause_container(self):
+        try:
+            self.client.pause(fake_api.FAKE_CONTAINER_ID)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        fake_request.assert_called_with(
+            url_prefix + 'containers/3cc2351ab11b/pause',
+            timeout=(docker.client.DEFAULT_TIMEOUT_SECONDS)
+        )
+
+    def test_unpause_container(self):
+        try:
+            self.client.unpause(fake_api.FAKE_CONTAINER_ID)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+        fake_request.assert_called_with(
+            url_prefix + 'containers/3cc2351ab11b/unpause',
+            timeout=(docker.client.DEFAULT_TIMEOUT_SECONDS)
         )
 
     def test_kill_container(self):
@@ -1193,6 +1732,18 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         fake_request.assert_called_with(
             url_prefix + 'containers/3cc2351ab11b/json',
             timeout=docker.client.DEFAULT_TIMEOUT_SECONDS
+        )
+
+    def test_container_stats(self):
+        try:
+            self.client.stats(fake_api.FAKE_CONTAINER_ID)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+        fake_request.assert_called_with(
+            url_prefix + 'containers/3cc2351ab11b/stats',
+            timeout=60,
+            stream=True
         )
 
     ##################
@@ -1529,6 +2080,20 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         except Exception as e:
             self.fail('Command should not raise exception: {0}'.format(e))
 
+    def test_build_container_pull(self):
+        script = io.BytesIO('\n'.join([
+            'FROM busybox',
+            'MAINTAINER docker-py',
+            'RUN mkdir -p /tmp/test',
+            'EXPOSE 8080',
+            'ADD https://dl.dropboxusercontent.com/u/20637798/silence.tar.gz'
+            ' /tmp/silence.tar.gz'
+        ]).encode('ascii'))
+        try:
+            self.client.build(fileobj=script, pull=True)
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
     def test_build_container_stream(self):
         script = io.BytesIO('\n'.join([
             'FROM busybox',
@@ -1578,6 +2143,26 @@ class DockerClientTest(Cleanup, unittest.TestCase):
         except Exception as e:
             self.fail('Command should not raise exception: {0}'.format(e))
 
+    def test_build_remote_with_registry_auth(self):
+        try:
+            self.client._auth_configs = {
+                'https://example.com': {
+                    'user': 'example',
+                    'password': 'example',
+                    'email': 'example@example.com'
+                }
+            }
+
+            self.client.build(path='https://github.com/docker-library/mongo')
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
+    def test_build_container_with_named_dockerfile(self):
+        try:
+            self.client.build('.', dockerfile='nameddockerfile')
+        except Exception as e:
+            self.fail('Command should not raise exception: {0}'.format(e))
+
     #######################
     #  PY SPECIFIC TESTS  #
     #######################
@@ -1591,15 +2176,43 @@ class DockerClientTest(Cleanup, unittest.TestCase):
     def test_load_config(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder)
-        f = open(os.path.join(folder, '.dockercfg'), 'w')
-        auth_ = base64.b64encode(b'sakuya:izayoi').decode('ascii')
-        f.write('auth = {0}\n'.format(auth_))
-        f.write('email = sakuya@scarlet.net')
-        f.close()
-        cfg = docker.auth.load_config(folder)
+        dockercfg_path = os.path.join(folder, '.dockercfg')
+        with open(dockercfg_path, 'w') as f:
+            auth_ = base64.b64encode(b'sakuya:izayoi').decode('ascii')
+            f.write('auth = {0}\n'.format(auth_))
+            f.write('email = sakuya@scarlet.net')
+        cfg = docker.auth.load_config(dockercfg_path)
         self.assertTrue(docker.auth.INDEX_URL in cfg)
         self.assertNotEqual(cfg[docker.auth.INDEX_URL], None)
         cfg = cfg[docker.auth.INDEX_URL]
+        self.assertEqual(cfg['username'], 'sakuya')
+        self.assertEqual(cfg['password'], 'izayoi')
+        self.assertEqual(cfg['email'], 'sakuya@scarlet.net')
+        self.assertEqual(cfg.get('auth'), None)
+
+    def test_load_config_with_random_name(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+
+        dockercfg_path = os.path.join(folder,
+                                      '.{0}.dockercfg'.format(
+                                          random.randrange(100000)))
+        registry = 'https://your.private.registry.io'
+        auth_ = base64.b64encode(b'sakuya:izayoi').decode('ascii')
+        config = {
+            registry: {
+                'auth': '{0}'.format(auth_),
+                'email': 'sakuya@scarlet.net'
+            }
+        }
+
+        with open(dockercfg_path, 'w') as f:
+            f.write(json.dumps(config))
+
+        cfg = docker.auth.load_config(dockercfg_path)
+        self.assertTrue(registry in cfg)
+        self.assertNotEqual(cfg[registry], None)
+        cfg = cfg[registry]
         self.assertEqual(cfg['username'], 'sakuya')
         self.assertEqual(cfg['password'], 'izayoi')
         self.assertEqual(cfg['email'], 'sakuya@scarlet.net')
@@ -1615,16 +2228,147 @@ class DockerClientTest(Cleanup, unittest.TestCase):
                     f.write("content")
 
         for exclude, names in (
-                (['*.py'], ['bar/a.txt', 'bar/other.png',
-                            'test/foo/a.txt', 'test/foo/other.png']),
-                (['*.png', 'bar'], ['test/foo/a.txt', 'test/foo/b.py']),
-                (['test/foo', 'a.txt'], ['bar/a.txt', 'bar/b.py',
-                                         'bar/other.png']),
+                (['*.py'], ['bar', 'bar/a.txt', 'bar/other.png',
+                            'test', 'test/foo', 'test/foo/a.txt',
+                            'test/foo/other.png']),
+                (['*.png', 'bar'], ['test', 'test/foo', 'test/foo/a.txt',
+                                    'test/foo/b.py']),
+                (['test/foo', 'a.txt'], ['bar', 'bar/a.txt', 'bar/b.py',
+                                         'bar/other.png', 'test']),
         ):
-            archive = docker.utils.tar(base, exclude=exclude)
-            tar = tarfile.open(fileobj=archive)
-            self.assertEqual(sorted(tar.getnames()), names)
+            with docker.utils.tar(base, exclude=exclude) as archive:
+                tar = tarfile.open(fileobj=archive)
+                self.assertEqual(sorted(tar.getnames()), names)
 
+    def test_tar_with_empty_directory(self):
+        base = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, base)
+        for d in ['foo', 'bar']:
+            os.makedirs(os.path.join(base, d))
+        with docker.utils.tar(base) as archive:
+            tar = tarfile.open(fileobj=archive)
+            self.assertEqual(sorted(tar.getnames()), ['bar', 'foo'])
+
+    def test_tar_with_file_symlinks(self):
+        base = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, base)
+        with open(os.path.join(base, 'foo'), 'w') as f:
+            f.write("content")
+        os.makedirs(os.path.join(base, 'bar'))
+        os.symlink('../foo', os.path.join(base, 'bar/foo'))
+        with docker.utils.tar(base) as archive:
+            tar = tarfile.open(fileobj=archive)
+            self.assertEqual(sorted(tar.getnames()), ['bar', 'bar/foo', 'foo'])
+
+    def test_tar_with_directory_symlinks(self):
+        base = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, base)
+        for d in ['foo', 'bar']:
+            os.makedirs(os.path.join(base, d))
+        os.symlink('../foo', os.path.join(base, 'bar/foo'))
+        with docker.utils.tar(base) as archive:
+            tar = tarfile.open(fileobj=archive)
+            self.assertEqual(sorted(tar.getnames()), ['bar', 'bar/foo', 'foo'])
+
+
+class StreamTest(Cleanup, unittest.TestCase):
+
+    def setUp(self):
+        socket_dir = tempfile.mkdtemp()
+        self.build_context = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, socket_dir)
+        self.addCleanup(shutil.rmtree, self.build_context)
+        self.socket_file = os.path.join(socket_dir, 'test_sock.sock')
+        self.server_socket = self._setup_socket()
+        self.stop_server = False
+        server_thread = threading.Thread(target=self.run_server)
+        server_thread.setDaemon(True)
+        server_thread.start()
+        self.response = None
+        self.request_handler = None
+        self.addCleanup(server_thread.join)
+        self.addCleanup(self.stop)
+
+    def stop(self):
+        self.stop_server = True
+
+    def _setup_socket(self):
+        server_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server_sock.bind(self.socket_file)
+        # Non-blocking mode so that we can shut the test down easily
+        server_sock.setblocking(0)
+        server_sock.listen(5)
+        return server_sock
+
+    def run_server(self):
+        try:
+            while not self.stop_server:
+                try:
+                    connection, client_address = self.server_socket.accept()
+                except socket.error:
+                    # Probably no connection to accept yet
+                    time.sleep(0.01)
+                    continue
+
+                connection.setblocking(1)
+                try:
+                    self.request_handler(connection)
+                finally:
+                    connection.close()
+        finally:
+            self.server_socket.close()
+
+    def early_response_sending_handler(self, connection):
+        data = b''
+        headers = None
+
+        connection.sendall(self.response)
+        while not headers:
+            data += connection.recv(2048)
+            parts = data.split(b'\r\n\r\n', 1)
+            if len(parts) == 2:
+                headers, data = parts
+
+        mo = re.search(r'Content-Length: ([0-9]+)', headers.decode())
+        assert mo
+        content_length = int(mo.group(1))
+
+        while True:
+            if len(data) >= content_length:
+                break
+
+            data += connection.recv(2048)
+
+    def test_early_stream_response(self):
+        self.request_handler = self.early_response_sending_handler
+        lines = []
+        for i in range(0, 50):
+            line = str(i).encode()
+            lines += [('%x' % len(line)).encode(), line]
+        lines.append(b'0')
+        lines.append(b'')
+
+        self.response = (
+            b'HTTP/1.1 200 OK\r\n'
+            b'Transfer-Encoding: chunked\r\n'
+            b'\r\n'
+        ) + b'\r\n'.join(lines)
+
+        with docker.Client(base_url="http+unix://" + self.socket_file) \
+                as client:
+            for i in range(5):
+                try:
+                    stream = client.build(
+                        path=self.build_context,
+                        stream=True
+                    )
+                    break
+                except requests.ConnectionError as e:
+                    if i == 4:
+                        raise e
+
+            self.assertEqual(list(stream), [
+                str(i).encode() for i in range(50)])
 
 if __name__ == '__main__':
     unittest.main()

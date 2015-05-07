@@ -29,7 +29,7 @@ import sys
 import tempfile
 
 import google
-from google.appengine.tools.devappserver2 import errors
+from google.appengine.tools.devappserver2 import go_errors
 from google.appengine.tools.devappserver2 import safe_subprocess
 
 
@@ -111,9 +111,9 @@ def _run_gab(application_root, nobuild_files, arch, gab_extra_args, env):
                                               env=env)
   gab_stdout, gab_stderr = gab_process.communicate()
   if gab_process.returncode:
-    raise BuildError(
-        '(Executed command: %s)\n\n%s' % (' '.join(gab_args),
-                                          gab_stderr))
+    raise go_errors.BuildError(
+        '(Executed command: %s)\n%s\n%s' % (' '.join(gab_args),
+                                            gab_stdout, gab_stderr))
   return gab_stdout, gab_stderr
 
 
@@ -174,10 +174,6 @@ def get_app_extras_for_vm(application_root, nobuild_files, skip_files):
   return [l.split('|') for l in gab_stdout.split('\n') if l]
 
 
-class BuildError(errors.Error):
-  """Building the GoApplication failed."""
-
-
 class GoApplication(object):
   """An abstraction around the source and executable for a Go application."""
 
@@ -233,7 +229,8 @@ class GoApplication(object):
       architecture = platform.split('_', 1)[1]
       if architecture in architecture_map:
         return architecture_map[architecture]
-    raise BuildError('No known compiler found in goroot (%s)' % GOROOT)
+    raise go_errors.BuildError(
+        'No known compiler found in goroot (%s)' % GOROOT)
 
   @staticmethod
   def _get_pkg_path():
@@ -241,7 +238,7 @@ class GoApplication(object):
       # Look for 'linux_amd64_appengine', 'windows_386_appengine', etc.
       if n.endswith('_appengine'):
         return os.path.join(GOROOT, 'pkg', n)
-    raise BuildError('No package path found in goroot (%s)' % GOROOT)
+    raise go_errors.BuildError('No package path found in goroot (%s)' % GOROOT)
 
   def _get_go_files_to_mtime(self):
     """Returns a dict mapping all Go files to their mtimes.
@@ -319,7 +316,8 @@ class GoApplication(object):
     if not os.path.exists(_GAB_PATH):
       # TODO: This message should be more useful i.e. point the
       # user to an SDK that does have the right components.
-      raise BuildError('Required Go components are missing from the SDK.')
+      raise go_errors.BuildError(
+          'Required Go components are missing from the SDK.')
 
     if self._go_executable and not maybe_modified_since_last_build:
       return False
@@ -329,8 +327,8 @@ class GoApplication(object):
                               self._go_file_to_mtime)
 
     if not self._go_file_to_mtime:
-      raise BuildError('no .go files found in %s' %
-                       self._module_configuration.application_root)
+      raise go_errors.BuildError('no .go files found in %s' %
+                                 self._module_configuration.application_root)
 
     self._extras_hash, old_extras_hash = (self._get_extras_hash(),
                                           self._extras_hash)

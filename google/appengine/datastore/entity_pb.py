@@ -1165,8 +1165,10 @@ class Property(ProtocolBuffer.ProtocolMessage):
   has_value_ = 0
   has_multiple_ = 0
   multiple_ = 0
-  has_embedded_ = 0
-  embedded_ = 0
+  has_stashed_ = 0
+  stashed_ = -1
+  has_computed_ = 0
+  computed_ = 0
 
   def __init__(self, contents=None):
     self.value_ = PropertyValue()
@@ -1232,18 +1234,31 @@ class Property(ProtocolBuffer.ProtocolMessage):
 
   def has_multiple(self): return self.has_multiple_
 
-  def embedded(self): return self.embedded_
+  def stashed(self): return self.stashed_
 
-  def set_embedded(self, x):
-    self.has_embedded_ = 1
-    self.embedded_ = x
+  def set_stashed(self, x):
+    self.has_stashed_ = 1
+    self.stashed_ = x
 
-  def clear_embedded(self):
-    if self.has_embedded_:
-      self.has_embedded_ = 0
-      self.embedded_ = 0
+  def clear_stashed(self):
+    if self.has_stashed_:
+      self.has_stashed_ = 0
+      self.stashed_ = -1
 
-  def has_embedded(self): return self.has_embedded_
+  def has_stashed(self): return self.has_stashed_
+
+  def computed(self): return self.computed_
+
+  def set_computed(self, x):
+    self.has_computed_ = 1
+    self.computed_ = x
+
+  def clear_computed(self):
+    if self.has_computed_:
+      self.has_computed_ = 0
+      self.computed_ = 0
+
+  def has_computed(self): return self.has_computed_
 
 
   def MergeFrom(self, x):
@@ -1253,7 +1268,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
     if (x.has_name()): self.set_name(x.name())
     if (x.has_value()): self.mutable_value().MergeFrom(x.value())
     if (x.has_multiple()): self.set_multiple(x.multiple())
-    if (x.has_embedded()): self.set_embedded(x.embedded())
+    if (x.has_stashed()): self.set_stashed(x.stashed())
+    if (x.has_computed()): self.set_computed(x.computed())
 
   def Equals(self, x):
     if x is self: return 1
@@ -1267,8 +1283,10 @@ class Property(ProtocolBuffer.ProtocolMessage):
     if self.has_value_ and self.value_ != x.value_: return 0
     if self.has_multiple_ != x.has_multiple_: return 0
     if self.has_multiple_ and self.multiple_ != x.multiple_: return 0
-    if self.has_embedded_ != x.has_embedded_: return 0
-    if self.has_embedded_ and self.embedded_ != x.embedded_: return 0
+    if self.has_stashed_ != x.has_stashed_: return 0
+    if self.has_stashed_ and self.stashed_ != x.stashed_: return 0
+    if self.has_computed_ != x.has_computed_: return 0
+    if self.has_computed_ and self.computed_ != x.computed_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -1294,7 +1312,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
     if (self.has_meaning_uri_): n += 1 + self.lengthString(len(self.meaning_uri_))
     n += self.lengthString(len(self.name_))
     n += self.lengthString(self.value_.ByteSize())
-    if (self.has_embedded_): n += 2
+    if (self.has_stashed_): n += 1 + self.lengthVarInt64(self.stashed_)
+    if (self.has_computed_): n += 2
     return n + 4
 
   def ByteSizePartial(self):
@@ -1309,7 +1328,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
       n += self.lengthString(self.value_.ByteSizePartial())
     if (self.has_multiple_):
       n += 2
-    if (self.has_embedded_): n += 2
+    if (self.has_stashed_): n += 1 + self.lengthVarInt64(self.stashed_)
+    if (self.has_computed_): n += 2
     return n
 
   def Clear(self):
@@ -1318,7 +1338,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
     self.clear_name()
     self.clear_value()
     self.clear_multiple()
-    self.clear_embedded()
+    self.clear_stashed()
+    self.clear_computed()
 
   def OutputUnchecked(self, out):
     if (self.has_meaning_):
@@ -1334,9 +1355,12 @@ class Property(ProtocolBuffer.ProtocolMessage):
     out.putVarInt32(42)
     out.putVarInt32(self.value_.ByteSize())
     self.value_.OutputUnchecked(out)
-    if (self.has_embedded_):
+    if (self.has_stashed_):
       out.putVarInt32(48)
-      out.putBoolean(self.embedded_)
+      out.putVarInt32(self.stashed_)
+    if (self.has_computed_):
+      out.putVarInt32(56)
+      out.putBoolean(self.computed_)
 
   def OutputPartial(self, out):
     if (self.has_meaning_):
@@ -1355,9 +1379,12 @@ class Property(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(42)
       out.putVarInt32(self.value_.ByteSizePartial())
       self.value_.OutputPartial(out)
-    if (self.has_embedded_):
+    if (self.has_stashed_):
       out.putVarInt32(48)
-      out.putBoolean(self.embedded_)
+      out.putVarInt32(self.stashed_)
+    if (self.has_computed_):
+      out.putVarInt32(56)
+      out.putBoolean(self.computed_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -1381,7 +1408,10 @@ class Property(ProtocolBuffer.ProtocolMessage):
         self.mutable_value().TryMerge(tmp)
         continue
       if tt == 48:
-        self.set_embedded(d.getBoolean())
+        self.set_stashed(d.getVarInt32())
+        continue
+      if tt == 56:
+        self.set_computed(d.getBoolean())
         continue
 
 
@@ -1399,7 +1429,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
       res+=self.value_.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
     if self.has_multiple_: res+=prefix+("multiple: %s\n" % self.DebugFormatBool(self.multiple_))
-    if self.has_embedded_: res+=prefix+("embedded: %s\n" % self.DebugFormatBool(self.embedded_))
+    if self.has_stashed_: res+=prefix+("stashed: %s\n" % self.DebugFormatInt32(self.stashed_))
+    if self.has_computed_: res+=prefix+("computed: %s\n" % self.DebugFormatBool(self.computed_))
     return res
 
 
@@ -1411,7 +1442,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
   kname = 3
   kvalue = 5
   kmultiple = 4
-  kembedded = 6
+  kstashed = 6
+  kcomputed = 7
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
@@ -1420,8 +1452,9 @@ class Property(ProtocolBuffer.ProtocolMessage):
     3: "name",
     4: "multiple",
     5: "value",
-    6: "embedded",
-  }, 6)
+    6: "stashed",
+    7: "computed",
+  }, 7)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -1431,7 +1464,8 @@ class Property(ProtocolBuffer.ProtocolMessage):
     4: ProtocolBuffer.Encoder.NUMERIC,
     5: ProtocolBuffer.Encoder.STRING,
     6: ProtocolBuffer.Encoder.NUMERIC,
-  }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
+    7: ProtocolBuffer.Encoder.NUMERIC,
+  }, 7, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

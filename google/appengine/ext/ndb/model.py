@@ -626,14 +626,23 @@ class ModelAdapter(datastore_rpc.AbstractAdapter):
   See the base class docstring for more info about the signatures.
   """
 
-  def __init__(self, default_model=None):
+  def __init__(self, default_model=None, id_resolver=None):
     """Constructor.
 
     Args:
       default_model: If an implementation for the kind cannot be found, use
         this model class.  If none is specified, an exception will be thrown
         (default).
+      id_resolver: A datastore_pbs.IdResolver that can resolve
+        application ids. This is only necessary when running on the Cloud
+        Datastore v1 API.
     """
+    # TODO(pcostello): Remove this once AbstractAdapter's constructor makes
+    # it into production.
+    try:
+      super(ModelAdapter, self).__init__(id_resolver)
+    except:
+      pass
     self.default_model = default_model
     self.want_pbs = 0
 
@@ -685,13 +694,14 @@ class ModelAdapter(datastore_rpc.AbstractAdapter):
 
 
 def make_connection(config=None, default_model=None,
-                    _api_version=datastore_rpc._DATASTORE_V3):
+                    _api_version=datastore_rpc._DATASTORE_V3,
+                    _id_resolver=None):
   """Create a new Connection object with the right adapter.
 
   Optionally you can pass in a datastore_rpc.Configuration object.
   """
   return datastore_rpc.Connection(
-      adapter=ModelAdapter(default_model),
+      adapter=ModelAdapter(default_model, id_resolver=_id_resolver),
       config=config,
       _api_version=_api_version)
 
@@ -2353,7 +2363,12 @@ class StructuredProperty(_StructuredGetForDictMixin):
         raise RuntimeError('Cannot deserialize StructuredProperty %s; value '
                            'retrieved not a %s instance %r' %
                            (self._name, cls.__name__, subentity))
-      prop = subentity._get_property_for(p, depth=depth)
+      # _GenericProperty tries to keep compressed values as unindexed, but
+      # won't override a set argument. We need to force it at this level.
+      # TODO(pcostello): Remove this hack by passing indexed to _deserialize.
+      # This cannot happen until we version the API.
+      indexed = p.meaning_uri() != _MEANING_URI_COMPRESSED
+      prop = subentity._get_property_for(p, depth=depth, indexed=indexed)
       if prop is None:
         # Special case: kill subentity after all.
         self._store_value(entity, None)

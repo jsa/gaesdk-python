@@ -3,8 +3,22 @@
 // Ensure that the class autoloader is the first include.
 require_once 'google/appengine/runtime/autoloader.php';
 
-function _gae_syslog($priority, $format_string, $message) {
-  // TODO(bquinlan): Use the logs service to persist this message.
+use google\appengine\api\log\LogService;
+
+function _gae_stderr_log($log_level, $message) {
+  static $level_label_map = [
+      LogService::LEVEL_CRITICAL => 'CRITICAL',
+      LogService::LEVEL_ERROR => 'ERROR',
+      LogService::LEVEL_WARNING => 'WARNING',
+      LogService::LEVEL_INFO => 'INFO',
+      LogService::LEVEL_DEBUG => 'DEBUG'];
+  $min_log_level = getenv('STDERR_LOG_LEVEL');
+  if ($min_log_level !== false) {
+    if ($log_level >= $min_log_level) {
+      $message = $level_label_map[$log_level] . ': ' . $message;
+      error_log($message, 4);
+    }
+  }
 }
 
 $unsetEnv = function($var_name) {
@@ -98,12 +112,14 @@ $setup = function() {
      * functions are avaialble.
      */
     if (!function_exists('apc_fetch')) {
-      function apc_fetch($key, &$success) {
-        $success = false;
+      function apc_fetch($key, &$success = null) {
+        if ($success !== null) {
+          $success = false;
+        }
         return false;
       }
 
-      function apc_store($name, $value, $ttl) {
+      function apc_store($name, $value, $ttl = null) {
         return false;
       }
     }

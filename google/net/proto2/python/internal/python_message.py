@@ -47,9 +47,11 @@ if sys.version_info[0] < 3:
   except ImportError:
     from StringIO import StringIO as BytesIO
   import copy_reg as copyreg
+  _basestring = basestring
 else:
   from io import BytesIO
   import copyreg
+  _basestring = str
 import struct
 import weakref
 
@@ -315,7 +317,22 @@ def _ReraiseTypeErrorWithFieldName(message_name, field_name):
 
 def _AddInitMethod(message_descriptor, cls):
   """Adds an __init__ method to cls."""
-  fields = message_descriptor.fields
+
+  def _GetIntegerEnumValue(enum_type, value):
+    """Convert a string or integer enum value to an integer.
+
+    If the value is a string, it is converted to the enum value in
+    enum_type with the same name.  If the value is not a string, it's
+    returned as-is.  (No conversion or bounds-checking is done.)
+    """
+    if isinstance(value, _basestring):
+      try:
+        return enum_type.values_by_name[value].number
+      except KeyError:
+        raise ValueError('Enum type %s: unknown label "%s"' % (
+            enum_type.full_name, value))
+    return value
+
   def init(self, **kwargs):
     self._cached_byte_size = 0
     self._cached_byte_size_dirty = len(kwargs) > 0
@@ -339,18 +356,29 @@ def _AddInitMethod(message_descriptor, cls):
         copy = field._default_constructor(self)
         if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
           for val in field_value:
-            copy.add().MergeFrom(val)
+            if isinstance(val, dict):
+              copy.add(**val)
+            else:
+              copy.add().MergeFrom(val)
         else:
+          if field.cpp_type == _FieldDescriptor.CPPTYPE_ENUM:
+            field_value = [_GetIntegerEnumValue(field.enum_type, val)
+                           for val in field_value]
           copy.extend(field_value)
         self._fields[field] = copy
       elif field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
         copy = field._default_constructor(self)
+        new_val = field_value
+        if isinstance(field_value, dict):
+          new_val = field.message_type._concrete_class(**field_value)
         try:
-          copy.MergeFrom(field_value)
+          copy.MergeFrom(new_val)
         except TypeError:
           _ReraiseTypeErrorWithFieldName(message_descriptor.name, field_name)
         self._fields[field] = copy
       else:
+        if field.cpp_type == _FieldDescriptor.CPPTYPE_ENUM:
+          field_value = _GetIntegerEnumValue(field.enum_type, field_value)
         try:
           setattr(self, field_name, field_value)
         except TypeError:

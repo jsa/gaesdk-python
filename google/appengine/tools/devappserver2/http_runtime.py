@@ -42,7 +42,8 @@ import subprocess
 import sys
 import time
 import threading
-from google.net.util.python import portpicker
+
+import portpicker
 
 from google.appengine.tools.devappserver2 import application_configuration
 from google.appengine.tools.devappserver2 import http_proxy

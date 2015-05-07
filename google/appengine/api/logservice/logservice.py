@@ -241,10 +241,7 @@ class _LogsDequeBuffer(object):
 
   @staticmethod
   def _clean(message):
-    message = message.replace('\0', '\n')
-    if message and message[-1] == '\n':
-      message = message[:-1]
-    return message
+    return logsutil.Stripnl(message.replace('\0', '\n'))
 
   def parse_logs(self):
     """Return the logs as an array of tuples.
@@ -255,12 +252,14 @@ class _LogsDequeBuffer(object):
 
     Returns:
       An array of tuples (time created in milliseconds, the level as an
-      integer, the message proper).
+      integer, the source location tuple (file, line, name), the message
+      proper).
     """
-    return [(record.created, record.level, self._clean(record.message))
+    return [(record.created, record.level, self._clean(record.message),
+             record.source_location)
             for record in self._buffer if not record.IsBlank()]
 
-  def write_record(self, level, created, message):
+  def write_record(self, level, created, message, source_location=None):
 
 
 
@@ -269,14 +268,13 @@ class _LogsDequeBuffer(object):
 
 
     message = cleanup_message(message)
-
     with self._lock:
       if self._request != logsutil.RequestID():
 
 
         self._reset()
       record = logsutil.LoggingRecord(
-          level, long(created * 1000 * 1000), message)
+          level, long(created * 1000 * 1000), message, source_location)
       self._buffer.append(record)
       self._bytes += len(record)
       self._autoflush()
@@ -374,6 +372,11 @@ class _LogsDequeBuffer(object):
           line = group.add_log_line()
           line.set_timestamp_usec(record.created)
           line.set_level(record.level)
+          if record.source_location is not None:
+            line.mutable_source_location().set_file(record.source_location[0])
+            line.mutable_source_location().set_line(record.source_location[1])
+            line.mutable_source_location().set_function_name(
+                record.source_location[2])
           line.set_message(message)
 
           bytes_left -= 1 + group.lengthString(line.ByteSize())
@@ -442,15 +445,16 @@ def write(message):
   logs_buffer().write(message)
 
 
-def write_record(level, created, message):
+def write_record(level, created, message, source_location=None):
   """Add a 'record' to the logs buffer, and checks for autoflush.
 
-  Arguments:
+  Args:
     level: the logging level of the record. From 0 to 4 inclusive.
     created: the time in seconds the record was created.
     message: the formatted message.
+    source_location: the source location.
   """
-  logs_buffer().write_record(level, created, message)
+  logs_buffer().write_record(level, created, message, source_location)
 
 
 def clear():
@@ -515,6 +519,8 @@ class _LogQueryResult(object):
 
     Args:
       request: A LogReadRequest object that will be used for Read calls.
+      timeout: Maximum number of seconds to wait for results before raising
+        a TimeoutError.
     """
     self._request = request
     self._logs = []
@@ -863,7 +869,9 @@ class RequestLog(object):
     """
     if not self.__lines and self.__pb.line_size():
       self.__lines = [AppLog(time=line.time() / 1e6, level=line.level(),
-                             message=line.log_message())
+                             message=line.log_message(),
+                             source_location=
+                             source_location_to_tuple(line.source_location()))
                       for line in self.__pb.line_list()]
     return self.__lines
 
@@ -880,23 +888,34 @@ class RequestLog(object):
     return None
 
 
+def source_location_to_tuple(locpb):
+  """Converts a SourceLocation proto into a tuple of primitive types."""
+  if locpb is None:
+    return None
+  if not locpb.file() and not locpb.line() and not locpb.function_name():
+    return None
+  return locpb.file(), locpb.line(), locpb.function_name()
+
+
 class AppLog(object):
   """Application log line emitted while processing a request."""
 
 
 
-  def __init__(self, time=None, level=None, message=None):
+  def __init__(self, time=None, level=None, message=None, source_location=None):
     self._time = time
     self._level = level
+    self._source_location = source_location
     self._message = message
 
   def __eq__(self, other):
     return (self.time == other.time and self.level and other.level and
-            self.message == other.message)
+            self.message == other.message and
+            self.source_location == other.source_location)
 
   def __repr__(self):
-    return ('AppLog(time=%f, level=%d, message=\'%s\')' %
-            (self.time, self.level, self.message))
+    return ('AppLog(time=%f, level=%d, message=\'%s\', source_location=%s)' %
+            (self.time, self.level, self.message, self.source_location))
 
   @property
   def time(self):
@@ -912,6 +931,11 @@ class AppLog(object):
   def message(self):
     """Application-provided log message, as a string."""
     return self._message
+
+  @property
+  def source_location(self):
+    """Source source_location of the log statement, or None if not supported."""
+    return self._source_location
 
 
 
@@ -973,6 +997,7 @@ def fetch(start_time=None,
       minimum_log_level.  version_ids is ignored.  IDs that do not correspond to
       a request log will be ignored.  Logs will be returned in the order
       requested.
+    **kwargs: See _FETCH_KWARGS for possible values.
 
   Returns:
     An iterable object containing the logs that the user has queried for.
@@ -1225,7 +1250,7 @@ class _LogsStreamBuffer(object):
     """Parse the contents of the buffer and return an array of log lines."""
     return logsutil.ParseLogs(self.contents())
 
-  def write_record(self, level, created, message):
+  def write_record(self, level, created, message, unused_source_location=None):
 
 
     message = cleanup_message(message)
@@ -1289,7 +1314,7 @@ class _LogsStreamBuffer(object):
       group = log_service_pb.UserAppLogGroup()
       byte_size = 0
       n = 0
-      for timestamp_usec, level, message in logs:
+      for timestamp_usec, level, message, unused_source_location in logs:
 
 
         message = self._truncate(message, self._MAX_LINE_SIZE)
