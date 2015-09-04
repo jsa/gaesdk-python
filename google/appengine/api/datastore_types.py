@@ -793,6 +793,10 @@ class _OverflowDateTime(long):
   """
   pass
 
+def _EmptyList(val):
+  if val is not None:
+    raise datastore_errors.BadValueError('value should be None.')
+  return []
 
 def _When(val):
   """Coverts a GD_WHEN value to the appropriate type."""
@@ -1534,12 +1538,6 @@ def ValidateProperty(name, values, read_only=False):
     values = [values]
 
 
-  if not values:
-    raise datastore_errors.BadValueError(
-        'May not use the empty list as a property value; property %s is %s.' %
-        (name, repr(values)))
-
-
 
   try:
     for v in values:
@@ -1752,7 +1750,15 @@ def ToPropertyPb(name, values):
   encoded_name = name.encode('utf-8')
 
   values_type = type(values)
-  if values_type is list:
+  if values_type is list and len(values) == 0:
+
+    pb = entity_pb.Property()
+    pb.set_meaning(entity_pb.Property.EMPTY_LIST)
+    pb.set_name(encoded_name)
+    pb.set_multiple(False)
+    pb.mutable_value()
+    return pb
+  elif values_type is list:
     multiple = True
   else:
     multiple = False
@@ -1826,6 +1832,7 @@ _PROPERTY_CONVERSIONS = {
   entity_pb.Property.BYTESTRING:        ByteString,
   entity_pb.Property.TEXT:              Text,
   entity_pb.Property.BLOBKEY:           BlobKey,
+  entity_pb.Property.EMPTY_LIST:        _EmptyList,
 }
 
 

@@ -687,13 +687,16 @@ class _Tokenizer(object):
     String literals (whether bytes or text) can come in multiple adjacent
     tokens which are automatically concatenated, like in C or Python.  This
     method only consumes one token.
+
+    Raises:
+      ParseError: When the wrong format data is found.
     """
     text = self.token
     if len(text) < 1 or text[0] not in ('\'', '"'):
-      raise self._ParseError('Expected string but found: "%r"' % text)
+      raise self._ParseError('Expected string but found: %r' % (text,))
 
     if len(text) < 2 or text[-1] != text[0]:
-      raise self._ParseError('String missing ending quote.')
+      raise self._ParseError('String missing ending quote: %r' % (text,))
 
     try:
       result = text_encoding.CUnescape(text[1:-1])

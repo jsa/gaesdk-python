@@ -29,6 +29,7 @@ import tempfile
 import time
 
 from google.appengine.api import appinfo
+from google.appengine.api import request_info
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.tools import boolean_action
 from google.appengine.tools.devappserver2 import api_server
@@ -423,6 +424,17 @@ def create_command_line_parser():
       'an instance of the app. May be specified more than once. Example: '
       '--jvm_flag=-Xmx1024m --jvm_flag=-Xms256m')
 
+  # Custom
+  custom_group = parser.add_argument_group('Custom VM Runtime')
+  custom_group.add_argument(
+      '--custom_entrypoint',
+      help='specify an entrypoint for custom runtime modules. This is '
+      'required when such modules are present. Include "{port}" in the '
+      'string (without quotes) to pass the port number in as an argument. For '
+      'instance: --custom_entrypoint="gunicorn -b localhost:{port} '
+      'mymodule:application"',
+      default='')
+
   # Blobstore
   blobstore_group = parser.add_argument_group('Blobstore API')
   blobstore_group.add_argument(
@@ -437,6 +449,12 @@ def create_command_line_parser():
       action=boolean_action.BooleanAction,
       const=True,
       default=True,
+      help=argparse.SUPPRESS)
+  blobstore_group.add_argument(
+      '--blobstore_enable_files_api',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
       help=argparse.SUPPRESS)
 
   # Cloud SQL
@@ -772,6 +790,7 @@ class DevelopmentServer(object):
         self._create_php_config(options),
         self._create_python_config(options),
         self._create_java_config(options),
+        self._create_custom_config(options),
         self._create_cloud_sql_config(options),
         self._create_vm_config(options),
         self._create_module_to_setting(options.max_module_instances,
@@ -787,6 +806,7 @@ class DevelopmentServer(object):
     storage_path = _get_storage_path(options.storage_path, configuration.app_id)
 
     # TODO: Remove after the Files API is really gone.
+    api_server.set_filesapi_enabled(options.blobstore_enable_files_api)
     if options.blobstore_warn_on_files_api_use:
       api_server.enable_filesapi_tracking(request_data)
 
@@ -802,6 +822,11 @@ class DevelopmentServer(object):
                                      self._dispatcher, configuration, xsrf_path)
     admin.start()
     self._running_modules.append(admin)
+    try:
+      default = self._dispatcher.get_module_by_name('default')
+      apis.set_balanced_address(default.balanced_address)
+    except request_info.ModuleDoesNotExistError:
+      logging.warning('No default module found. Ignoring.')
 
   def stop(self):
     """Stops all running devappserver2 modules."""
@@ -928,6 +953,12 @@ class DevelopmentServer(object):
     if options.jvm_flag:
       java_config.jvm_args.extend(options.jvm_flag)
     return java_config
+
+  @staticmethod
+  def _create_custom_config(options):
+    custom_config = runtime_config_pb2.CustomConfig()
+    custom_config.custom_entrypoint = options.custom_entrypoint
+    return custom_config
 
   @staticmethod
   def _create_cloud_sql_config(options):

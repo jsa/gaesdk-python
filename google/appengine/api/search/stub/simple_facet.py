@@ -170,8 +170,8 @@ class SimpleFacet(object):
     """Convert a single _Facet to a SearchResponse.facet_result."""
 
 
-    if isinstance(facet.min, float):
-      facet.AddValue('[%s,%s)' % (facet.min, facet.max), facet.min_max_count,
+    if isinstance(facet.min, float) and isinstance(facet.max, float):
+      facet.AddValue('[%r,%r)' % (facet.min, facet.max), facet.min_max_count,
                      (facet.min, facet.max))
     facet_response.set_name(facet.name)
     for value in facet.GetTopValues(facet.value_limit):
@@ -181,15 +181,15 @@ class SimpleFacet(object):
 
       if value.refinement:
         if value.refinement[0] is not None:
-          resp_ref.mutable_range().set_start(str(value.refinement[0]))
+          resp_ref.mutable_range().set_start(repr(value.refinement[0]))
         if value.refinement[1] is not None:
-          resp_ref.mutable_range().set_end(str(value.refinement[1]))
+          resp_ref.mutable_range().set_end(repr(value.refinement[1]))
       else:
 
 
-        resp_ref.set_value(str(value.label))
+        resp_ref.set_value(value.label)
       resp_ref.set_name(facet.name)
-      resp_value.set_name(str(value.label))
+      resp_value.set_name(value.label)
       resp_value.set_count(value.count)
 
   def _GetFacetLabel(self, facet_range):
@@ -197,9 +197,9 @@ class SimpleFacet(object):
     if facet_range.has_name():
       return facet_range.name()
     else:
-      return '[%s,%s)' % (str(float(facet_range.start()))
+      return '[%s,%s)' % (repr(float(facet_range.start()))
                           if facet_range.has_start() else '-Infinity',
-                          str(float(facet_range.end()))
+                          repr(float(facet_range.end()))
                           if facet_range.has_end() else 'Infinity')
 
   def RefineResults(self, results):

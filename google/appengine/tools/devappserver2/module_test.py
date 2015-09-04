@@ -61,6 +61,7 @@ class ModuleConfigurationStub(object):
                automatic_scaling=appinfo.AutomaticScaling(),
                version='version',
                runtime='python27',
+               effective_runtime='',
                threadsafe=False,
                skip_files='',
                inbound_services=['warmup'],
@@ -80,6 +81,7 @@ class ModuleConfigurationStub(object):
     self.basic_scaling = basic_scaling
     self.major_version = version
     self.runtime = runtime
+    self.effective_runtime = effective_runtime
     self.threadsafe = threadsafe
     self.skip_files = skip_files
     self.inbound_services = inbound_services
@@ -118,6 +120,7 @@ class ModuleFacade(module.Module):
         php_config=None,
         python_config=None,
         java_config=None,
+        custom_config=None,
         cloud_sql_config=None,
         vm_config=vm_config,
         default_version_port=8080,
@@ -161,6 +164,7 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
         php_config=None,
         python_config=None,
         java_config=None,
+        custom_config=None,
         cloud_sql_config=None,
         vm_config=None,
         default_version_port=8080,
@@ -206,6 +210,7 @@ class ManualScalingModuleFacade(module.ManualScalingModule):
         php_config=None,
         python_config=None,
         java_config=None,
+        custom_config=None,
         cloud_sql_config=None,
         vm_config=vm_config,
         default_version_port=8080,
@@ -249,6 +254,51 @@ class BasicScalingModuleFacade(module.BasicScalingModule):
         php_config=None,
         python_config=None,
         java_config=None,
+        custom_config=None,
+        cloud_sql_config=None,
+        vm_config=None,
+        default_version_port=8080,
+        port_registry=dispatcher.PortRegistry(),
+        request_data=None,
+        dispatcher=None,
+        max_instances=None,
+        use_mtime_file_watcher=False,
+        automatic_restarts=True,
+        allow_skipped_files=False,
+        threadsafe_override=None)
+    if instance_factory is not None:
+      self._instance_factory = instance_factory
+    self._ready = ready
+
+  @property
+  def ready(self):
+    return self._ready
+
+  @property
+  def balanced_port(self):
+    return self._balanced_port
+
+
+class ExternalModuleFacade(module.ExternalModule):
+
+  def __init__(self,
+               host='fakehost',
+               module_configuration=ModuleConfigurationStub(),
+               balanced_port=0,
+               instance_factory=None,
+               ready=True):
+    super(ExternalModuleFacade, self).__init__(
+        module_configuration=module_configuration,
+        host=host,
+        balanced_port=balanced_port,
+        api_host='localhost',
+        api_port=8080,
+        auth_domain='gmail.com',
+        runtime_stderr_loglevel=1,
+        php_config=None,
+        python_config=None,
+        java_config=None,
+        custom_config=None,
         cloud_sql_config=None,
         vm_config=None,
         default_version_port=8080,
@@ -502,7 +552,6 @@ class TestModuleGetRuntimeConfig(parameterized.ParameterizedTestCase):
     self.assertTrue(config.threadsafe)
 
   @parameterized.Parameters(
-      ('php', 'php_config', runtime_config_pb2.PhpConfig),
       ('php55', 'php_config', runtime_config_pb2.PhpConfig),
       ('java', 'java_config', runtime_config_pb2.JavaConfig),
       ('java7', 'java_config', runtime_config_pb2.JavaConfig),
@@ -1499,6 +1548,8 @@ class TestManualScalingModuleAddInstance(googletest.TestCase):
     self.assertEqual((servr, inst), servr._port_registry.get(12345))
 
   def test_add_with_health_checks(self):
+    os.environ['GAE_LOCAL_VM_RUNTIME'] = '0'
+
     class MockFuture(object):
       """Mock Future object."""
 
@@ -2545,6 +2596,22 @@ class TestBasicScalingInstancePoolHandleChanges(googletest.TestCase):
     self.mox.VerifyAll()
 
 
+class TestExternalModuleGetInstancePort(googletest.TestCase):
+
+  def setUp(self):
+    self.mox = mox.Mox()
+
+  def tearDown(self):
+    self.mox.UnsetStubs()
+
+  def test_get_instance_port(self):
+    s = ExternalModuleFacade(balanced_port=8080)
+    s._wsgi_server = self.mox.CreateMock(wsgi_server.WsgiServer)
+    s._wsgi_server.port = 8080
+    instance_port = s.get_instance_port(0)
+    self.assertEqual(8080, instance_port)
+
+
 class TestInteractiveCommandModule(googletest.TestCase):
 
   def setUp(self):
@@ -2571,6 +2638,7 @@ class TestInteractiveCommandModule(googletest.TestCase):
         php_config=None,
         python_config=None,
         java_config=None,
+        custom_config=None,
         cloud_sql_config=None,
         vm_config=None,
         default_version_port=8080,
@@ -2807,30 +2875,21 @@ class InstanceFactoryTest(googletest.TestCase):
     self._run_test('java', False, java_runtime.JavaRuntimeInstanceFactory)
 
   def test_vm_python(self):
+    os.environ['GAE_LOCAL_VM_RUNTIME'] = '0'
     self.mox.StubOutWithMock(containers, 'NewDockerClient')
     containers.NewDockerClient(version=mox.IgnoreArg(), timeout=mox.IgnoreArg())
     self._run_test(
         'python27', True, vm_runtime_factory.VMRuntimeInstanceFactory)
 
   def test_vm_disabled(self):
-    os.environ['GAE_LOCAL_VM_RUNTIME'] = '1'
     self._run_test('python', True, python_runtime.PythonRuntimeInstanceFactory)
 
   def test_custom(self):
+    os.environ['GAE_LOCAL_VM_RUNTIME'] = '0'
     self.mox.StubOutWithMock(containers, 'NewDockerClient')
     containers.NewDockerClient(version=mox.IgnoreArg(), timeout=mox.IgnoreArg())
     self._run_test(
         'custom', True, vm_runtime_factory.VMRuntimeInstanceFactory)
-
-  def test_custom_vm_disabled(self):
-    os.environ['GAE_LOCAL_VM_RUNTIME'] = '1'
-    self.assertRaises(
-        RuntimeError,
-        self._run_test,
-        'custom',
-        True,
-        vm_runtime_factory.VMRuntimeInstanceFactory)
-
 
 if __name__ == '__main__':
   googletest.main()

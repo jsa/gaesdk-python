@@ -76,6 +76,7 @@ class Dispatcher(request_info.Dispatcher):
                php_config,
                python_config,
                java_config,
+               custom_config,
                cloud_sql_config,
                vm_config,
                module_to_max_instances,
@@ -104,6 +105,9 @@ class Dispatcher(request_info.Dispatcher):
           used.
       java_config: A runtime_config_pb2.JavaConfig instance containing Java
           runtime-specific configuration. If None then defaults are used.
+      custom_config: A runtime_config_pb2.CustomConfig instance. If None, or
+          'custom_entrypoint' is not set, then attempting to instantiate a
+          custom runtime module will result in an error.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -133,6 +137,7 @@ class Dispatcher(request_info.Dispatcher):
     self._php_config = php_config
     self._python_config = python_config
     self._java_config = java_config
+    self._custom_config = custom_config
     self._cloud_sql_config = cloud_sql_config
     self._vm_config = vm_config
     self._request_data = None
@@ -258,6 +263,7 @@ class Dispatcher(request_info.Dispatcher):
         runtime_stderr_loglevel=self._runtime_stderr_loglevel,
         php_config=self._php_config,
         python_config=self._python_config,
+        custom_config=self._custom_config,
         java_config=self._java_config,
         cloud_sql_config=self._cloud_sql_config,
         vm_config=self._vm_config,

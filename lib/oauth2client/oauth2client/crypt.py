@@ -16,9 +16,14 @@
 """Crypto-related routines for oauth2client."""
 
 import base64
+import imp
 import json
 import logging
+import os
+import sys
 import time
+
+import six
 
 
 CLOCK_SKEW_SECS = 300  # 5 minutes in seconds
@@ -33,8 +38,33 @@ class AppIdentityError(Exception):
   pass
 
 
+def _TryOpenSslImport():
+  """Import OpenSSL, avoiding the explicit import where possible.
+
+  Importing OpenSSL 0.14 can take up to 0.5s, which is a large price
+  to pay at module import time. However, it's also possible for
+  ``imp.find_module`` to fail to find the module, even when it's
+  installed. (This is the case in various exotic environments,
+  including some relevant for Google.) So we first try a fast-path,
+  and fall back to the slow import as needed.
+
+  Args:
+    None
+  Returns:
+    None
+  Raises:
+    ImportError if OpenSSL is unavailable.
+
+  """
+  try:
+    _ = imp.find_module('OpenSSL')
+    return
+  except ImportError:
+    import OpenSSL
+
+
 try:
-  from OpenSSL import crypto
+  _TryOpenSslImport()
 
   class OpenSSLVerifier(object):
     """Verifies the signature on a message."""
@@ -58,7 +88,10 @@ try:
         True if message was signed by the private key associated with the public
         key that this object was constructed with.
       """
+      from OpenSSL import crypto
       try:
+        if isinstance(message, six.text_type):
+          message = message.encode('utf-8')
         crypto.verify(self._pubkey, signature, message, 'sha256')
         return True
       except:
@@ -79,6 +112,7 @@ try:
       Raises:
         OpenSSL.crypto.Error if the key_pem can't be parsed.
       """
+      from OpenSSL import crypto
       if is_x509_cert:
         pubkey = crypto.load_certificate(crypto.FILETYPE_PEM, key_pem)
       else:
@@ -101,15 +135,18 @@ try:
       """Signs a message.
 
       Args:
-        message: string, Message to be signed.
+        message: bytes, Message to be signed.
 
       Returns:
         string, The signature of the message for the given key.
       """
+      from OpenSSL import crypto
+      if isinstance(message, six.text_type):
+        message = message.encode('utf-8')
       return crypto.sign(self._key, message, 'sha256')
 
     @staticmethod
-    def from_string(key, password='notasecret'):
+    def from_string(key, password=b'notasecret'):
       """Construct a Signer instance from a string.
 
       Args:
@@ -122,16 +159,40 @@ try:
       Raises:
         OpenSSL.crypto.Error if the key can't be parsed.
       """
+      from OpenSSL import crypto
       parsed_pem_key = _parse_pem_key(key)
       if parsed_pem_key:
         pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, parsed_pem_key)
       else:
-        pkey = crypto.load_pkcs12(key, password.encode('utf8')).get_privatekey()
+        if isinstance(password, six.text_type):
+          password = password.encode('utf-8')
+        pkey = crypto.load_pkcs12(key, password).get_privatekey()
       return OpenSSLSigner(pkey)
 
+
+  def pkcs12_key_as_pem(private_key_text, private_key_password):
+    """Convert the contents of a PKCS12 key to PEM using OpenSSL.
+
+    Args:
+      private_key_text: String. Private key.
+      private_key_password: String. Password for PKCS12.
+
+    Returns:
+      String. PEM contents of ``private_key_text``.
+    """
+    from OpenSSL import crypto
+    decoded_body = base64.b64decode(private_key_text)
+    if isinstance(private_key_password, six.string_types):
+      private_key_password = private_key_password.encode('ascii')
+
+    pkcs12 = crypto.load_pkcs12(decoded_body, private_key_password)
+    return crypto.dump_privatekey(crypto.FILETYPE_PEM,
+                                  pkcs12.get_privatekey())
 except ImportError:
   OpenSSLVerifier = None
   OpenSSLSigner = None
+  def pkcs12_key_as_pem(*args, **kwargs):
+    raise NotImplementedError('pkcs12_key_as_pem requires OpenSSL.')
 
 
 try:
@@ -182,8 +243,10 @@ try:
         Verifier instance.
       """
       if is_x509_cert:
-        pemLines = key_pem.replace(' ', '').split()
-        certDer = _urlsafe_b64decode(''.join(pemLines[1:-1]))
+        if isinstance(key_pem, six.text_type):
+          key_pem = key_pem.encode('ascii')
+        pemLines = key_pem.replace(b' ', b'').split()
+        certDer = _urlsafe_b64decode(b''.join(pemLines[1:-1]))
         certSeq = DerSequence()
         certSeq.decode(certDer)
         tbsSeq = DerSequence()
@@ -214,6 +277,8 @@ try:
       Returns:
         string, The signature of the message for the given key.
       """
+      if isinstance(message, six.text_type):
+        message = message.encode('utf-8')
       return PKCS1_v1_5.new(self._key).sign(SHA256.new(message))
 
     @staticmethod
@@ -269,19 +334,22 @@ def _parse_pem_key(raw_key_input):
   Returns:
     string, The actual key if the contents are from a PEM file, or else None.
   """
-  offset = raw_key_input.find('-----BEGIN ')
+  offset = raw_key_input.find(b'-----BEGIN ')
   if offset != -1:
     return raw_key_input[offset:]
 
 
 def _urlsafe_b64encode(raw_bytes):
-  return base64.urlsafe_b64encode(raw_bytes).rstrip('=')
+  if isinstance(raw_bytes, six.text_type):
+    raw_bytes = raw_bytes.encode('utf-8')
+  return base64.urlsafe_b64encode(raw_bytes).decode('ascii').rstrip('=')
 
 
 def _urlsafe_b64decode(b64string):
   # Guard against unicode strings, which base64 can't handle.
-  b64string = b64string.encode('ascii')
-  padded = b64string + '=' * (4 - len(b64string) % 4)
+  if isinstance(b64string, six.text_type):
+    b64string = b64string.encode('ascii')
+  padded = b64string + b'=' * (4 - len(b64string) % 4)
   return base64.urlsafe_b64decode(padded)
 
 
@@ -345,13 +413,13 @@ def verify_signed_jwt_with_certs(jwt, certs, audience):
   # Parse token.
   json_body = _urlsafe_b64decode(segments[1])
   try:
-    parsed = json.loads(json_body)
+    parsed = json.loads(json_body.decode('utf-8'))
   except:
     raise AppIdentityError('Can\'t parse token: %s' % json_body)
 
   # Check signature.
   verified = False
-  for _, pem in certs.items():
+  for pem in certs.values():
     verifier = Verifier.from_string(pem, True)
     if verifier.verify(signed, signature):
       verified = True
@@ -366,7 +434,7 @@ def verify_signed_jwt_with_certs(jwt, certs, audience):
   earliest = iat - CLOCK_SKEW_SECS
 
   # Check expiration timestamp.
-  now = long(time.time())
+  now = int(time.time())
   exp = parsed.get('exp')
   if exp is None:
     raise AppIdentityError('No exp field in token: %s' % json_body)

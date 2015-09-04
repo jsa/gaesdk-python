@@ -47,6 +47,7 @@ from google.appengine.tools.devappserver2 import blob_image
 from google.appengine.tools.devappserver2 import blob_upload
 from google.appengine.tools.devappserver2 import channel
 from google.appengine.tools.devappserver2 import constants
+from google.appengine.tools.devappserver2 import custom_runtime
 from google.appengine.tools.devappserver2 import endpoints
 from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import file_watcher
@@ -128,20 +129,17 @@ _QUIETER_RESOURCES = ('/_ah/health',)
 
 # TODO: Remove after the Files API is really gone.
 _FILESAPI_DEPRECATION_WARNING_PYTHON = (
-    'The Files API is deprecated and will soon be removed. Please use the'
-    ' Google Cloud Storage Client library instead. Migration documentation is'
-    ' available here: https://cloud.google.com/appengine/docs'
-    '/python/googlecloudstorageclient/migrate')
+    'The Files API is deprecated and will soon be removed. Further information'
+    ' is available here: https://cloud.google.com/appengine/docs/deprecations'
+    '/files_api')
 _FILESAPI_DEPRECATION_WARNING_JAVA = (
-    'The Google Cloud Storage Java API is deprecated and will soon be'
-    ' removed. Please use the Google Cloud Storage Client library instead.'
-    ' Migration documentation is available here: https://cloud.google.com'
-    '/appengine/docs/java/googlecloudstorageclient/migrate')
+    'The Files API is deprecated and will soon be removed. Further information'
+    ' is available here: https://cloud.google.com/appengine/docs/deprecations'
+    '/files_api')
 _FILESAPI_DEPRECATION_WARNING_GO = (
-    'The Files API is deprecated and will soon be removed. Please use the'
-    ' Google Cloud Storage Client library instead. Documentation is'
-    ' available here: https://cloud.google.com/appengine/docs'
-    '/go/googlecloudstorageclient')
+    'The Files API is deprecated and will soon be removed. Further information'
+    ' is available here: https://cloud.google.com/appengine/docs/deprecations'
+    '/files_api')
 
 
 def _static_files_regex_from_handlers(handlers):
@@ -195,10 +193,10 @@ class Module(object):
 
   _RUNTIME_INSTANCE_FACTORIES = {
       'go': go_runtime.GoRuntimeInstanceFactory,
-      'php': php_runtime.PHPRuntimeInstanceFactory,
       'php55': php_runtime.PHPRuntimeInstanceFactory,
       'python': python_runtime.PythonRuntimeInstanceFactory,
       'python27': python_runtime.PythonRuntimeInstanceFactory,
+      'custom': custom_runtime.CustomRuntimeInstanceFactory,
       # TODO: uncomment for GA.
       # 'vm': vm_runtime_factory.VMRuntimeInstanceFactory,
   }
@@ -237,7 +235,7 @@ class Module(object):
     """
     # TODO: Remove this when we have sandboxing disabled for all
     # runtimes.
-    if (os.environ.get('GAE_LOCAL_VM_RUNTIME') and
+    if (os.environ.get('GAE_LOCAL_VM_RUNTIME') != '0' and
         module_configuration.runtime == 'vm'):
       runtime = module_configuration.effective_runtime
     else:
@@ -269,9 +267,11 @@ class Module(object):
     handlers.append(wsgi_handler.WSGIHandler(login.application,
                                              url_pattern))
     url_pattern = '/%s' % blob_upload.UPLOAD_URL_PATH
-    # The blobstore upload handler forwards successful requests back to self
+    # The blobstore upload handler forwards successful requests to the
+    # dispatcher.
     handlers.append(
-        wsgi_handler.WSGIHandler(blob_upload.Application(self), url_pattern))
+        wsgi_handler.WSGIHandler(blob_upload.Application(self._dispatcher),
+                                 url_pattern))
 
     url_pattern = '/%s' % blob_image.BLOBIMAGE_URL_PATTERN
     handlers.append(
@@ -332,6 +332,10 @@ class Module(object):
       A runtime_config_pb2.Config instance representing the configuration to be
       passed to an instance. NOTE: This does *not* include the instance_id
       field, which must be populated elsewhere.
+
+    Raises:
+      ValueError: The runtime type is "custom" with vm: true and
+        --custom_entrypoint is not specified.
     """
     runtime_config = runtime_config_pb2.Config()
     runtime_config.app_id = self._module_configuration.application
@@ -376,6 +380,17 @@ class Module(object):
 
     if self._vm_config:
       runtime_config.vm_config.CopyFrom(self._vm_config)
+      # If the effective runtime is "custom" and --custom_entrypoint is not set,
+      # bail out early; otherwise, load custom into runtime_config.
+      # TODO: Remove the GAE_LOCAL_VM_RUNTIME check here once
+      # sandboxing is disabled.
+      if (self._module_configuration.effective_runtime == 'custom' and
+          os.environ.get('GAE_LOCAL_VM_RUNTIME') != '0'):
+        if not self._custom_config.custom_entrypoint:
+          raise ValueError('The --custom_entrypoint flag must be set for '
+                           'custom runtimes')
+        else:
+          runtime_config.custom_config.CopyFrom(self._custom_config)
 
     runtime_config.vm = self._module_configuration.runtime == 'vm'
 
@@ -444,6 +459,7 @@ class Module(object):
                php_config,
                python_config,
                java_config,
+               custom_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -476,6 +492,9 @@ class Module(object):
           Python runtime-specific configuration. If None then defaults are used.
       java_config: A runtime_config_pb2.JavaConfig instance containing
           Java runtime-specific configuration. If None then defaults are used.
+      custom_config: A runtime_config_pb2.CustomConfig instance. If None, or
+          'custom_entrypoint' is not set, then attempting to instantiate a
+          custom runtime module will result in an error.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -514,6 +533,7 @@ class Module(object):
     self._php_config = php_config
     self._python_config = python_config
     self._java_config = java_config
+    self._custom_config = custom_config
     self._cloud_sql_config = cloud_sql_config
     self._vm_config = vm_config
     self._request_data = request_data
@@ -1049,6 +1069,7 @@ class Module(object):
                                       self._php_config,
                                       self._python_config,
                                       self._java_config,
+                                      self._custom_config,
                                       self._cloud_sql_config,
                                       self._vm_config,
                                       self._default_version_port,
@@ -1712,7 +1733,7 @@ class ManualScalingModule(Module):
       health_check_config = self.module_configuration.health_check
       if (self.module_configuration.runtime == 'vm' and
           health_check_config.enable_health_check and
-          'GAE_LOCAL_VM_RUNTIME' not in os.environ):
+          os.environ.get('GAE_LOCAL_VM_RUNTIME') == '0'):
         # Health checks should only get added after the build is done and the
         # container starts.
         def _add_health_checks_callback(unused_future):
@@ -2028,7 +2049,7 @@ class ExternalModule(Module):
     """Returns the port of the HTTP server for an instance."""
     if instance_id != 0:
       raise request_info.InvalidInstanceIdError()
-    return self._wsgi_servr.port
+    return self._wsgi_server.port
 
   @property
   def instances(self):
@@ -2707,6 +2728,7 @@ class InteractiveCommandModule(Module):
                php_config,
                python_config,
                java_config,
+               custom_config,
                cloud_sql_config,
                vm_config,
                default_version_port,
@@ -2740,6 +2762,9 @@ class InteractiveCommandModule(Module):
           Python runtime-specific configuration. If None then defaults are used.
       java_config: A runtime_config_pb2.JavaConfig instance containing
           Java runtime-specific configuration. If None then defaults are used.
+      custom_config: A runtime_config_pb2.CustomConfig instance. If None, or
+          'custom_entrypoint' is not set, then attempting to instantiate a
+          custom runtime module will result in an error.
       cloud_sql_config: A runtime_config_pb2.CloudSQL instance containing the
           required configuration for local Google Cloud SQL development. If None
           then Cloud SQL will not be available.
@@ -2772,6 +2797,7 @@ class InteractiveCommandModule(Module):
         php_config,
         python_config,
         java_config,
+        custom_config,
         cloud_sql_config,
         vm_config,
         default_version_port,

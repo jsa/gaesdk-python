@@ -34,6 +34,15 @@ from google.appengine.api.search.stub import tokens
 
 MSEC_PER_DAY = 86400000
 
+
+INEQUALITY_COMPARISON_TYPES = [
+    QueryParser.GT,
+    QueryParser.GE,
+    QueryParser.LESSTHAN,
+    QueryParser.LE,
+    ]
+
+
 class ExpressionTreeException(Exception):
   """An error occurred while analyzing/translating the expression parse tree."""
 
@@ -57,8 +66,7 @@ class DistanceMatcher(object):
           'Operator %s not supported for distance matches on development server.'
           % str(op))
 
-  def _IsDistanceMatch(self, geopoint, op):
-    distance = geopoint - self._geopoint
+  def _IsDistanceMatch(self, distance, op):
     if op == QueryParser.GT or op == QueryParser.GE:
       return distance >= self._distance
     if op == QueryParser.LESSTHAN or op == QueryParser.LE:
@@ -69,16 +77,13 @@ class DistanceMatcher(object):
   def IsMatch(self, field_values, op):
     self._CheckOp(op)
 
+    if not field_values:
+      return False
 
 
-    for field_value in field_values:
-      geo_pb = field_value.geo()
-      geopoint = geo_util.LatLng(geo_pb.lat(), geo_pb.lng())
-      if self._IsDistanceMatch(geopoint, op):
-        return True
-
-
-    return False
+    return self._IsDistanceMatch(min([
+        geo_util.LatLng(field_value.geo().lat(), field_value.geo().lng())
+        - self._geopoint for field_value in field_values]), op)
 
 
 class DocumentMatcher(object):
@@ -223,17 +228,35 @@ class DocumentMatcher(object):
       return query_parser.GetQueryNodeText(field)
     return field
 
+  def _IsValidDateValue(self, value):
+    """Returns whether value is a valid date."""
+    try:
+
+
+
+
+      datetime.datetime.strptime(value, '%Y-%m-%d')
+    except ValueError:
+      return False
+    return True
+
+  def _IsValidNumericValue(self, value):
+    """Returns whether value is a valid number."""
+    try:
+      float(value)
+    except ValueError:
+      return False
+    return True
+
   def _CheckValidDateComparison(self, field_name, match):
     """Check if match is a valid date value."""
-    if match.getType() == QueryParser.VALUE:
-      try:
-        match_val = query_parser.GetPhraseQueryNodeText(match)
-
-
-
-
-        datetime.datetime.strptime(match_val, '%Y-%m-%d')
-      except ValueError:
+    if match.getType() == QueryParser.FUNCTION:
+      name, _ = match.children
+      raise ExpressionTreeException('Unable to compare "%s" with "%s()"' %
+                                    (field_name, name))
+    elif match.getType() == QueryParser.VALUE:
+      match_val = query_parser.GetPhraseQueryNodeText(match)
+      if not self._IsValidDateValue(match_val):
         raise ExpressionTreeException('Unable to compare "%s" with "%s"' %
                                       (field_name, match_val))
 
@@ -318,29 +341,6 @@ class DocumentMatcher(object):
         'Operator %s not supported for numerical fields on development server.'
         % match.getText())
 
-  def _CheckInvalidNumericComparison(self, match, document):
-    """Check if this is an invalid numeric comparison.
-
-    Valid numeric comparisons are "numeric_field OP numeric_constant" where OP
-    is one of [>, <, >=, <=, =, :].
-
-    Args:
-      match: The right hand side argument of the operator.
-      document: The document we are checking for a match.
-
-    Raises:
-      ExpressionTreeException: when right hand side of numeric comparison is not
-      a numeric constant.
-    """
-    match_text = query_parser.GetQueryNodeText(match)
-    match_fields = search_util.GetFieldInDocument(document, match_text,
-                                                  document_pb.FieldValue.NUMBER)
-
-
-    if match_fields:
-      raise ExpressionTreeException(
-          'Expected numeric constant, found \"' + match_text + '\"')
-
   def _MatchAnyField(self, field, match, operator, document):
     """Check if a field matches a query tree.
 
@@ -357,8 +357,6 @@ class DocumentMatcher(object):
     """
     fields = search_util.GetAllFieldInDocument(document,
                                                self._GetFieldName(field))
-    self._CheckInvalidNumericComparison(match, document)
-
     return any(self._MatchField(f, match, operator, document) for f in fields)
 
   def _MatchField(self, field, match, operator, document):
@@ -426,7 +424,12 @@ class DocumentMatcher(object):
       if isinstance(x, geo_util.LatLng) and isinstance(y, basestring):
         x, y = y, x
       if isinstance(x, basestring) and isinstance(y, geo_util.LatLng):
-        distance = float(query_parser.GetQueryNodeText(match))
+        match_val = query_parser.GetQueryNodeText(match)
+        try:
+          distance = float(match_val)
+        except ValueError:
+          raise ExpressionTreeException('Unable to compare "%s()" with "%s"' %
+                                        (name, match_val))
         matcher = DistanceMatcher(y, distance)
         return self._MatchGeoField(x, matcher, operator, document)
     return False
@@ -480,9 +483,10 @@ class DocumentMatcher(object):
     if node.getType() == QueryParser.NEGATION:
       return not self._CheckMatch(node.children[0], document)
 
+    if node.getType() == QueryParser.NE:
+      raise ExpressionTreeException('!= comparison operator is not available')
+
     if node.getType() in query_parser.COMPARISON_TYPES:
-      if node.getType() == QueryParser.NE:
-        raise ExpressionTreeException('!= comparison operator is not available')
       lhs, match = node.children
       if lhs.getType() == QueryParser.GLOBAL:
         return self._MatchGlobal(match, document)
@@ -492,12 +496,20 @@ class DocumentMatcher(object):
 
 
 
-      schema = self._inverted_index.GetSchema()
+
       field_name = self._GetFieldName(lhs)
-      if field_name in schema:
-        field_type_list = schema[field_name].type_list()
-        if all(f == document_pb.FieldValue.DATE for f in field_type_list):
+      if node.getType() in INEQUALITY_COMPARISON_TYPES:
+        try:
+          float(query_parser.GetQueryNodeText(match))
+        except ValueError:
           self._CheckValidDateComparison(field_name, match)
+      elif (self._IsValidDateValue(field_name) or
+            self._IsValidNumericValue(field_name)):
+
+
+
+
+        raise ExpressionTreeException('Invalid field name "%s"' % field_name)
       return self._MatchAnyField(lhs, match, node.getType(), document)
 
     return False

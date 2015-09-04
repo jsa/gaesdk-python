@@ -30,7 +30,14 @@ delete the file after reading it. The second file is written by the runtime
 instance with the port it is listening on (the line must be newline terminated);
 http_runtime is expected to delete the file after reading it.
 
-TODO: convert all runtimes to START_PROCESS_FILE.
+START_PROCESS_REVERSE Works by passing config in via a file and passes the HTTP
+port number created in http_runtime.py as an environment variable to the runtime
+process.
+
+START_PROCESS_REVERSE_NO_FILE equivalent to START_PROCESS, but passes the HTTP
+port number created in http_runtime.py as an environment variable to the runtime
+process.
+
 """
 
 
@@ -40,8 +47,8 @@ import logging
 import os
 import subprocess
 import sys
-import time
 import threading
+import time
 
 import portpicker
 
@@ -61,9 +68,13 @@ START_PROCESS = -1
 # Works by passing config in via a file and reading the port over a file.
 START_PROCESS_FILE = -2
 
-# Works by passing config in via a file and passes the port in via an
-# environment variable.
+# Works by passing config in via a file and passes the port via
+# a command line flag.
 START_PROCESS_REVERSE = -3
+
+# Works by passing config in via stdin and passes the port in via
+# an environment variable.
+START_PROCESS_REVERSE_NO_FILE = -4
 
 
 def _sleep_between_retries(attempt, max_attempts, sleep_base):
@@ -147,7 +158,8 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
   """Manages a runtime subprocess used to handle dynamic content."""
 
   _VALID_START_PROCESS_FLAVORS = [START_PROCESS, START_PROCESS_FILE,
-                                  START_PROCESS_REVERSE]
+                                  START_PROCESS_REVERSE,
+                                  START_PROCESS_REVERSE_NO_FILE]
 
   # TODO: Determine if we can always use SIGTERM.
   # Set this to True to quit with SIGTERM rather than SIGKILL
@@ -172,7 +184,8 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
     return previous_quit_with_sigterm
 
   def __init__(self, args, runtime_config_getter, module_configuration,
-               env=None, start_process_flavor=START_PROCESS):
+               env=None, start_process_flavor=START_PROCESS,
+               extra_args_getter=None):
     """Initializer for HttpRuntimeProxy.
 
     Args:
@@ -186,7 +199,11 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       env: A dict of environment variables to pass to the runtime subprocess.
       start_process_flavor: Which version of start process to start your
         runtime process. Supported flavors are START_PROCESS, START_PROCESS_FILE
-        and START_PROCESS_REVERSE
+        START_PROCESS_REVERSE and START_PROCESS_REVERSE_NO_FILE
+      extra_args_getter: A function that can be called with a port number picked
+          by this http_runtime,
+          and returns the extra command line parameter that refers to the port
+          number.
 
     Raises:
       ValueError: An unknown value for start_process_flavor was used.
@@ -196,6 +213,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
     self._process_lock = threading.Lock()  # Lock to guard self._process.
     self._stderr_tee = None
     self._runtime_config_getter = runtime_config_getter
+    self._extra_args_getter = extra_args_getter
     self._args = args
     self._module_configuration = module_configuration
     self._env = env
@@ -323,12 +341,31 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
         assert not self._process, 'start() can only be called once'
         port = portpicker.PickUnusedPort()
         self._env['PORT'] = str(port)
+
+        # If any of the strings in args contain {port}, replace that substring
+        # with the selected port. This allows a user-specified runtime to
+        # pass the port along to the subprocess as a command-line argument.
+        args = [arg.replace('{port}', str(port)) for arg in self._args]
+
         self._process = safe_subprocess.start_process_file(
-            args=self._args,
+            args=args,
             input_string=serialized_config,
             env=self._env,
             cwd=self._module_configuration.application_root,
             stderr=subprocess.PIPE)
+    elif self._start_process_flavor == START_PROCESS_REVERSE_NO_FILE:
+      serialized_config = runtime_config.SerializeToString()
+      with self._process_lock:
+        assert not self._process, 'start() can only be called once'
+        port = portpicker.PickUnusedPort()
+        self._args.append(self._extra_args_getter(port))
+        self._process = safe_subprocess.start_process(
+            self._args,
+            input_string=serialized_config,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=self._env,
+            cwd=self._module_configuration.application_root)
 
     # _stderr_tee may be pre-set by unit tests.
     if self._stderr_tee is None:

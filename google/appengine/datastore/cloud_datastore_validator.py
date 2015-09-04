@@ -541,13 +541,9 @@ class _EntityValidator(object):
     else:
       _assert_condition(constraint.absent_key_allowed,
                         'Entity is missing key.')
-    property_names = set()
-    for prop in iter(entity.properties):
-      name = prop.key
-      _assert_condition(name not in property_names,
-                        ('Entity has duplicate property name "%s".' % name))
-      property_names.add(name)
-      self.validate_property(constraint, prop)
+    for name, value in entity.properties.iteritems():
+      self.validate_property_name(constraint, name)
+      self.validate_value(constraint, value)
 
   def validate_property(self, constraint, prop):
     """Validates a property.
@@ -707,12 +703,11 @@ class _EntityValidator(object):
     _assert_condition(not entity.HasField('key'),
                       'The %s entity has a key.' % entity_name)
     property_map = {}
-    for prop in entity.properties:
-      property_name = prop.key
+    for property_name, value in entity.properties.iteritems():
       _assert_condition(property_name in allowed_property_map,
                         'The %s entity property "%s" is not allowed.'
                         % (entity_name, property_name))
-      value = prop.value
+      value = entity.properties[property_name]
       hasser = 'hasField(\'%s_value\')' % allowed_property_map[property_name]
       _assert_condition(
           value.HasField('%s_value' % allowed_property_map[property_name]),
@@ -1027,24 +1022,17 @@ class _ServiceValidator(object):
                                           req.keys)
 
   def __validate_mutation(self, mutation):
-    _assert_condition(mutation.op !=
-                      googledatastore.Mutation.OPERATION_UNSPECIFIED,
-                      'Unknown mutation operator.')
-    constraint = {
-        googledatastore.Mutation.INSERT : UPSERT,
-        googledatastore.Mutation.UPSERT : UPSERT,
-        googledatastore.Mutation.UPDATE : UPDATE,
-        googledatastore.Mutation.DELETE : DELETE
-    }[mutation.op]
+    if mutation.HasField('insert'):
 
-    if mutation.op == googledatastore.Mutation.DELETE:
-      _assert_condition(mutation.HasField('key'),
-                        'mutation.key must be set for %s.' % mutation.op)
-      self.__entity_validator.validate_key(constraint, mutation.key)
+      self.__entity_validator.validate_entity(UPSERT, mutation.insert)
+    elif mutation.HasField('update'):
+      self.__entity_validator.validate_entity(UPDATE, mutation.update)
+    elif mutation.HasField('upsert'):
+      self.__entity_validator.validate_entity(UPSERT, mutation.upsert)
+    elif mutation.HasField('delete'):
+      self.__entity_validator.validate_key(DELETE, mutation.delete)
     else:
-      _assert_condition(mutation.HasField('entity'),
-                        'mutation.entity must be set for %s' % mutation.op)
-      self.__entity_validator.validate_entity(constraint, mutation.entity)
+      _assert_condition(False, 'mutation lacks required op')
 
 
 

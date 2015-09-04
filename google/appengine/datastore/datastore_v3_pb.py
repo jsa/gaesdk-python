@@ -42,8 +42,8 @@ import google.appengine.datastore.snapshot_pb
 class InternalHeader(ProtocolBuffer.ProtocolMessage):
   has_requesting_app_id_ = 0
   requesting_app_id_ = ""
-  has_requesting_project_id_ = 0
-  requesting_project_id_ = ""
+  has_requesting_project_number_ = 0
+  requesting_project_number_ = ""
   has_requesting_version_id_ = 0
   requesting_version_id_ = ""
   has_api_settings_ = 0
@@ -65,18 +65,18 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
 
   def has_requesting_app_id(self): return self.has_requesting_app_id_
 
-  def requesting_project_id(self): return self.requesting_project_id_
+  def requesting_project_number(self): return self.requesting_project_number_
 
-  def set_requesting_project_id(self, x):
-    self.has_requesting_project_id_ = 1
-    self.requesting_project_id_ = x
+  def set_requesting_project_number(self, x):
+    self.has_requesting_project_number_ = 1
+    self.requesting_project_number_ = x
 
-  def clear_requesting_project_id(self):
-    if self.has_requesting_project_id_:
-      self.has_requesting_project_id_ = 0
-      self.requesting_project_id_ = ""
+  def clear_requesting_project_number(self):
+    if self.has_requesting_project_number_:
+      self.has_requesting_project_number_ = 0
+      self.requesting_project_number_ = ""
 
-  def has_requesting_project_id(self): return self.has_requesting_project_id_
+  def has_requesting_project_number(self): return self.has_requesting_project_number_
 
   def requesting_version_id(self): return self.requesting_version_id_
 
@@ -108,7 +108,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
   def MergeFrom(self, x):
     assert x is not self
     if (x.has_requesting_app_id()): self.set_requesting_app_id(x.requesting_app_id())
-    if (x.has_requesting_project_id()): self.set_requesting_project_id(x.requesting_project_id())
+    if (x.has_requesting_project_number()): self.set_requesting_project_number(x.requesting_project_number())
     if (x.has_requesting_version_id()): self.set_requesting_version_id(x.requesting_version_id())
     if (x.has_api_settings()): self.set_api_settings(x.api_settings())
 
@@ -116,8 +116,8 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
     if x is self: return 1
     if self.has_requesting_app_id_ != x.has_requesting_app_id_: return 0
     if self.has_requesting_app_id_ and self.requesting_app_id_ != x.requesting_app_id_: return 0
-    if self.has_requesting_project_id_ != x.has_requesting_project_id_: return 0
-    if self.has_requesting_project_id_ and self.requesting_project_id_ != x.requesting_project_id_: return 0
+    if self.has_requesting_project_number_ != x.has_requesting_project_number_: return 0
+    if self.has_requesting_project_number_ and self.requesting_project_number_ != x.requesting_project_number_: return 0
     if self.has_requesting_version_id_ != x.has_requesting_version_id_: return 0
     if self.has_requesting_version_id_ and self.requesting_version_id_ != x.requesting_version_id_: return 0
     if self.has_api_settings_ != x.has_api_settings_: return 0
@@ -131,7 +131,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
   def ByteSize(self):
     n = 0
     if (self.has_requesting_app_id_): n += 1 + self.lengthString(len(self.requesting_app_id_))
-    if (self.has_requesting_project_id_): n += 1 + self.lengthString(len(self.requesting_project_id_))
+    if (self.has_requesting_project_number_): n += 1 + self.lengthString(len(self.requesting_project_number_))
     if (self.has_requesting_version_id_): n += 1 + self.lengthString(len(self.requesting_version_id_))
     if (self.has_api_settings_): n += 1 + self.lengthString(len(self.api_settings_))
     return n
@@ -139,14 +139,14 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
   def ByteSizePartial(self):
     n = 0
     if (self.has_requesting_app_id_): n += 1 + self.lengthString(len(self.requesting_app_id_))
-    if (self.has_requesting_project_id_): n += 1 + self.lengthString(len(self.requesting_project_id_))
+    if (self.has_requesting_project_number_): n += 1 + self.lengthString(len(self.requesting_project_number_))
     if (self.has_requesting_version_id_): n += 1 + self.lengthString(len(self.requesting_version_id_))
     if (self.has_api_settings_): n += 1 + self.lengthString(len(self.api_settings_))
     return n
 
   def Clear(self):
     self.clear_requesting_app_id()
-    self.clear_requesting_project_id()
+    self.clear_requesting_project_number()
     self.clear_requesting_version_id()
     self.clear_api_settings()
 
@@ -157,9 +157,9 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
     if (self.has_api_settings_):
       out.putVarInt32(26)
       out.putPrefixedString(self.api_settings_)
-    if (self.has_requesting_project_id_):
+    if (self.has_requesting_project_number_):
       out.putVarInt32(34)
-      out.putPrefixedString(self.requesting_project_id_)
+      out.putPrefixedString(self.requesting_project_number_)
     if (self.has_requesting_version_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.requesting_version_id_)
@@ -171,9 +171,9 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
     if (self.has_api_settings_):
       out.putVarInt32(26)
       out.putPrefixedString(self.api_settings_)
-    if (self.has_requesting_project_id_):
+    if (self.has_requesting_project_number_):
       out.putVarInt32(34)
-      out.putPrefixedString(self.requesting_project_id_)
+      out.putPrefixedString(self.requesting_project_number_)
     if (self.has_requesting_version_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.requesting_version_id_)
@@ -188,7 +188,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
         self.set_api_settings(d.getPrefixedString())
         continue
       if tt == 34:
-        self.set_requesting_project_id(d.getPrefixedString())
+        self.set_requesting_project_number(d.getPrefixedString())
         continue
       if tt == 42:
         self.set_requesting_version_id(d.getPrefixedString())
@@ -202,7 +202,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
   def __str__(self, prefix="", printElemNumber=0):
     res=""
     if self.has_requesting_app_id_: res+=prefix+("requesting_app_id: %s\n" % self.DebugFormatString(self.requesting_app_id_))
-    if self.has_requesting_project_id_: res+=prefix+("requesting_project_id: %s\n" % self.DebugFormatString(self.requesting_project_id_))
+    if self.has_requesting_project_number_: res+=prefix+("requesting_project_number: %s\n" % self.DebugFormatString(self.requesting_project_number_))
     if self.has_requesting_version_id_: res+=prefix+("requesting_version_id: %s\n" % self.DebugFormatString(self.requesting_version_id_))
     if self.has_api_settings_: res+=prefix+("api_settings: %s\n" % self.DebugFormatString(self.api_settings_))
     return res
@@ -212,7 +212,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
   krequesting_app_id = 2
-  krequesting_project_id = 4
+  krequesting_project_number = 4
   krequesting_version_id = 5
   kapi_settings = 3
 
@@ -220,7 +220,7 @@ class InternalHeader(ProtocolBuffer.ProtocolMessage):
     0: "ErrorCode",
     2: "requesting_app_id",
     3: "api_settings",
-    4: "requesting_project_id",
+    4: "requesting_project_number",
     5: "requesting_version_id",
   }, 5)
 

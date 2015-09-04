@@ -41,8 +41,8 @@ _DB_PATH = '/var/log/sqlite'
 _LOGS_PATH = '/var/log/app_engine'
 _TD_AGENT_PATH = '/var/tmp/td-agent'
 
-_LOG_PROCESSOR_IMAGE = 'google/appengine-log-processor'
-_LOG_SERVER_IMAGE = 'google/appengine-log-server'
+_LOG_PROCESSOR_IMAGE = 'gcr.io/google_appengine/log-processor'
+_LOG_SERVER_IMAGE = 'gcr.io/google_appengine/log-server'
 _DEFAULT_LOG_SERVER_PORT = 8080
 
 _LOG_TYPES = ['app', 'appjson', 'request']

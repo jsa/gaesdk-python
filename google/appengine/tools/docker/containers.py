@@ -44,7 +44,9 @@ import threading
 import urlparse
 
 import google
-import docker
+
+from docker import docker
+
 import requests
 
 
@@ -692,7 +694,7 @@ def _KwargsFromEnv():
   if tls_verify and cert_path:
     # assert_hostname=False is needed for boot2docker to work with our custom
     # registry.
-    params['tls'] = docker.docker.tls.TLSConfig(
+    params['tls'] = docker.tls.TLSConfig(
         client_cert=(os.path.join(cert_path, 'cert.pem'),
                      os.path.join(cert_path, 'key.pem')),
         ca_cert=os.path.join(cert_path, 'ca.pem'),
