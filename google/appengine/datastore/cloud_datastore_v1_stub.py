@@ -50,7 +50,7 @@ _CLOUD_DATASTORE_ENABLED = datastore_pbs._CLOUD_DATASTORE_ENABLED
 if _CLOUD_DATASTORE_ENABLED:
   from datastore_pbs import googledatastore
 
-SERVICE_NAME = 'cloud_datastore_v1'
+SERVICE_NAME = 'cloud_datastore_v1beta3'
 V3_SERVICE_NAME = 'datastore_v3'
 
 

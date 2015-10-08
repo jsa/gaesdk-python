@@ -53,7 +53,6 @@ from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import file_watcher
 from google.appengine.tools.devappserver2 import gcs_server
 from google.appengine.tools.devappserver2 import go_runtime
-from google.appengine.tools.devappserver2 import health_check_service
 from google.appengine.tools.devappserver2 import http_proxy
 from google.appengine.tools.devappserver2 import http_runtime
 from google.appengine.tools.devappserver2 import http_runtime_constants
@@ -72,7 +71,6 @@ from google.appengine.tools.devappserver2 import static_files_handler
 from google.appengine.tools.devappserver2 import thread_executor
 from google.appengine.tools.devappserver2 import url_handler
 from google.appengine.tools.devappserver2 import util
-from google.appengine.tools.devappserver2 import vm_runtime_factory
 from google.appengine.tools.devappserver2 import wsgi_handler
 from google.appengine.tools.devappserver2 import wsgi_server
 
@@ -197,8 +195,6 @@ class Module(object):
       'python': python_runtime.PythonRuntimeInstanceFactory,
       'python27': python_runtime.PythonRuntimeInstanceFactory,
       'custom': custom_runtime.CustomRuntimeInstanceFactory,
-      # TODO: uncomment for GA.
-      # 'vm': vm_runtime_factory.VMRuntimeInstanceFactory,
   }
   if java_runtime:
     _RUNTIME_INSTANCE_FACTORIES.update({
@@ -214,8 +210,6 @@ class Module(object):
     Returns:
       The timeout value in seconds.
     """
-    if self.vm_enabled():
-      return self._MAX_REQUEST_WAIT_TIME * _VMENGINE_SLOWDOWN_FACTOR
     return self._MAX_REQUEST_WAIT_TIME
 
   def _create_instance_factory(self,
@@ -233,13 +227,9 @@ class Module(object):
     Raises:
       RuntimeError: if the configuration specifies an unknown runtime.
     """
-    # TODO: Remove this when we have sandboxing disabled for all
-    # runtimes.
-    if (os.environ.get('GAE_LOCAL_VM_RUNTIME') != '0' and
-        module_configuration.runtime == 'vm'):
+    runtime = module_configuration.runtime
+    if runtime == 'vm':
       runtime = module_configuration.effective_runtime
-    else:
-      runtime = module_configuration.runtime
 
     # TODO: a bad runtime should be caught before we get here.
     if runtime not in self._RUNTIME_INSTANCE_FACTORIES:
@@ -375,17 +365,13 @@ class Module(object):
         self._module_configuration.runtime.startswith('python')):
       runtime_config.python_config.CopyFrom(self._python_config)
     if (self._java_config and
-        self._module_configuration.runtime.startswith('java')):
+        (self._module_configuration.runtime.startswith('java') or
+         self._module_configuration.effective_runtime.startswith('java'))):
       runtime_config.java_config.CopyFrom(self._java_config)
 
     if self._vm_config:
       runtime_config.vm_config.CopyFrom(self._vm_config)
-      # If the effective runtime is "custom" and --custom_entrypoint is not set,
-      # bail out early; otherwise, load custom into runtime_config.
-      # TODO: Remove the GAE_LOCAL_VM_RUNTIME check here once
-      # sandboxing is disabled.
-      if (self._module_configuration.effective_runtime == 'custom' and
-          os.environ.get('GAE_LOCAL_VM_RUNTIME') != '0'):
+      if self._module_configuration.effective_runtime == 'custom':
         if not self._custom_config.custom_entrypoint:
           raise ValueError('The --custom_entrypoint flag must be set for '
                            'custom runtimes')
@@ -546,10 +532,6 @@ class Module(object):
     self._default_version_port = default_version_port
     self._port_registry = port_registry
 
-    if self.vm_enabled():
-      self._RUNTIME_INSTANCE_FACTORIES['vm'] = (
-          vm_runtime_factory.VMRuntimeInstanceFactory)
-
     self._instance_factory = self._create_instance_factory(
         self._module_configuration)
     if self._automatic_restarts:
@@ -574,10 +556,6 @@ class Module(object):
       self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_GO
     else:
       self._filesapi_warning_message = None
-
-  def vm_enabled(self):
-    # TODO: change when GA
-    return self._vm_config
 
   @property
   def name(self):
@@ -882,7 +860,9 @@ class Module(object):
               return request_rewriter.frontend_rewriter_middleware(app)(
                   environ, wrapped_start_response)
             else:
-              return handler.handle(match, environ, wrapped_start_response)
+              ret = handler.handle(match, environ, wrapped_start_response)
+              if ret is not None:
+                return ret
         return self._no_handler_for_request(environ, wrapped_start_response,
                                             request_id)
       except StandardError, e:
@@ -1729,25 +1709,7 @@ class ManualScalingModule(Module):
       self._instances.append(inst)
       suspended = self._suspended
     if not suspended:
-      future = self._async_start_instance(wsgi_servr, inst)
-      health_check_config = self.module_configuration.health_check
-      if (self.module_configuration.runtime == 'vm' and
-          health_check_config.enable_health_check and
-          os.environ.get('GAE_LOCAL_VM_RUNTIME') == '0'):
-        # Health checks should only get added after the build is done and the
-        # container starts.
-        def _add_health_checks_callback(unused_future):
-          return self._add_health_checks(inst, wsgi_servr, health_check_config)
-        future.add_done_callback(_add_health_checks_callback)
-
-  def _add_health_checks(self, inst, wsgi_servr, config):
-    do_health_check = functools.partial(
-        self._do_health_check, wsgi_servr, inst)
-    restart_instance = functools.partial(
-        self._restart_instance, inst)
-    health_checker = health_check_service.HealthChecker(
-        inst, config, do_health_check, restart_instance)
-    health_checker.start()
+      self._async_start_instance(wsgi_servr, inst)
 
   def _async_start_instance(self, wsgi_servr, inst):
     return _THREAD_POOL.submit(self._start_instance, wsgi_servr, inst)
@@ -1777,20 +1739,6 @@ class ManualScalingModule(Module):
         self._condition.notify(self.max_instance_concurrent_requests)
     except Exception, e:  # pylint: disable=broad-except
       logging.exception('Internal error while handling start request: %s', e)
-
-  def _do_health_check(self, wsgi_servr, inst, start_response,
-                       is_last_successful):
-    is_last_successful = 'yes' if is_last_successful else 'no'
-    url = '/_ah/health?%s' % urllib.urlencode(
-        [('IsLastSuccessful', is_last_successful)])
-    environ = self.build_request_environ(
-        'GET', url, [], '', '', wsgi_servr.port,
-        fake_login=True)
-    return self._handle_request(
-        environ,
-        start_response,
-        inst=inst,
-        request_type=instance.NORMAL_REQUEST)
 
   def _choose_instance(self, timeout_time):
     """Returns an Instance to handle a request or None if all are busy."""
@@ -1943,12 +1891,6 @@ class ManualScalingModule(Module):
         for wsgi_servr, inst in zip(wsgi_servers, instances_to_start)]
     logging.info('Waiting for instances to restart')
 
-    health_check_config = self.module_configuration.health_check
-    for (inst, wsgi_servr) in zip(instances_to_start, wsgi_servers):
-      if (self.module_configuration.runtime == 'vm'
-          and health_check_config.enable_health_check):
-        self._add_health_checks(inst, wsgi_servr, health_check_config)
-
     _, not_done = futures.wait(start_futures, timeout=_SHUTDOWN_TIMEOUT)
     if not_done:
       logging.warning('All instances may not have restarted')
@@ -1968,12 +1910,7 @@ class ManualScalingModule(Module):
       self._port_registry.add(wsgi_servr.port, self, new_instance)
       # Start the new instance.
       self._start_instance(wsgi_servr, new_instance)
-    health_check_config = self.module_configuration.health_check
-    if (self.module_configuration.runtime == 'vm'
-        and health_check_config.enable_health_check):
-      self._add_health_checks(new_instance, wsgi_servr, health_check_config)
       # Replace it in the module registry.
-    with self._instances_change_lock:
       with self._condition:
         self._instances[new_instance.instance_id] = new_instance
 

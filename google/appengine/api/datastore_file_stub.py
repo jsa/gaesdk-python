@@ -74,26 +74,28 @@ def _FinalElement(key):
 
 
 class _StoredEntity(object):
-  """Simple wrapper around an entity stored by the stub.
+  """Simple wrapper around an entity (and its metadata) stored by the stub.
 
   Public properties:
-    protobuf: Native protobuf Python object, entity_pb.EntityProto.
-    encoded_protobuf: Encoded binary representation of above protobuf.
+    record: the original EntityRecord that was stored by the stub.
+    encoded_protobuf: Encoded binary representation of entity protobuf,
+        including a special property that holds the pickled metadata object.
   """
 
-  def __init__(self, entity):
+  def __init__(self, record):
     """Create a _StoredEntity object and store an entity.
 
     Args:
-      entity: entity_pb.EntityProto to store.
+      record: the EntityRecord to store.
     """
-    self.protobuf = entity
+    self.record = record
 
 
 
 
 
 
+    entity = datastore_stub_util._ToStorageEntity(record)
     self.encoded_protobuf = entity.Encode()
 
 
@@ -201,7 +203,7 @@ class PropertyPseudoKind(object):
 
 
         for entity in entities[app_kind].values():
-          for prop in entity.protobuf.property_list():
+          for prop in entity.record.entity.property_list():
             prop_name = prop.name()
 
             if (prop_name in
@@ -419,21 +421,22 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
     return ((app_ns, kind), eg_k, k)
 
-  def _StoreEntity(self, entity, insert=False):
-    """ Store the given entity.
+  def _StoreRecord(self, record, insert=False):
+    """ Store the given entity record.
 
     Any needed locking should be managed by the caller.
 
     Args:
-      entity: The entity_pb.EntityProto to store.
+      record: The EntityRecord to store.
       insert: If we should check for existence.
     """
-    app_kind, eg_k, k = self._GetEntityLocation(entity.key())
+    app_kind, eg_k, k = self._GetEntityLocation(record.entity.key())
 
     assert not insert or k not in self.__entities_by_kind[app_kind]
 
-    self.__entities_by_kind[app_kind][k] = _StoredEntity(entity)
-    self.__entities_by_group[eg_k][k] = entity
+    stored_entity = _StoredEntity(record)
+    self.__entities_by_kind[app_kind][k] = stored_entity
+    self.__entities_by_group[eg_k][k] = stored_entity
 
 
     if app_kind in self.__schema_cache:
@@ -468,6 +471,7 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
       for encoded_entity in self.__ReadPickled(self.__datastore_file):
         try:
           entity = entity_pb.EntityProto(encoded_entity)
+          record = datastore_stub_util._FromStorageEntity(entity)
         except self.READ_PB_EXCEPTIONS, e:
           raise apiproxy_errors.ApplicationError(
               datastore_pb.Error.INTERNAL_ERROR,
@@ -484,7 +488,7 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
           else:
             raise
 
-        self._StoreEntity(entity)
+        self._StoreRecord(record)
 
         last_path = _FinalElement(entity.key())
         if last_path.id():
@@ -605,12 +609,12 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
 
 
-  def _Put(self, entity, insert):
-    entity = datastore_stub_util.StoreEntity(entity)
+  def _Put(self, record, insert):
+    record = datastore_stub_util.StoreRecord(record)
 
     self.__entities_lock.acquire()
     try:
-      self._StoreEntity(entity, insert)
+      self._StoreRecord(record, insert)
     finally:
       self.__entities_lock.release()
 
@@ -619,8 +623,9 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
 
     try:
-      return datastore_stub_util.LoadEntity(
-          self.__entities_by_kind[app_kind][k].protobuf)
+      stored_entity = self.__entities_by_kind[app_kind][k]
+      return datastore_stub_util.LoadRecord(stored_entity.record)
+
     except KeyError:
       pass
 
@@ -646,7 +651,8 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
   def _GetEntitiesInEntityGroup(self, entity_group):
     eg_k = datastore_types.ReferenceToKeyValue(entity_group)
-    return self.__entities_by_group[eg_k].copy()
+    return dict((k, e.record)
+                for (k, e) in self.__entities_by_group[eg_k].iteritems())
 
   def _GetQueryCursor(self, query, filters, orders, index_list,
                       filter_predicate=None):
@@ -667,13 +673,14 @@ class DatastoreFileStub(datastore_stub_util.BaseDatastore,
 
         (results, filters, orders) = pseudo_kind.Query(query, filters, orders)
       elif query.has_kind():
-        results = [entity.protobuf for entity in
+        results = [entity.record.entity for entity in
                    self.__entities_by_kind[app_ns, query.kind()].values()]
       else:
         results = []
         for (cur_app_ns, _), entities in self.__entities_by_kind.iteritems():
           if cur_app_ns == app_ns:
-            results.extend(entity.protobuf for entity in entities.itervalues())
+            results.extend(entity.record.entity
+                           for entity in entities.itervalues())
     except KeyError:
       results = []
     finally:

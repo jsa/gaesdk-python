@@ -2886,6 +2886,11 @@ class Batch(object):
     if batch.more_results == googledatastore.QueryResultBatch.NOT_FINISHED:
       self.__more_results = True
       self.__datastore_cursor = self.__end_cursor or self.__skipped_cursor
+
+
+      if self.__datastore_cursor == self.__start_cursor:
+        raise datastore_errors.Timeout(
+            'The query was not able to make progress.')
     else:
       self._end()
     self.__results = self._process_v1_results(batch.entity_results)

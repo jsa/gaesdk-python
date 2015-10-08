@@ -210,8 +210,12 @@ class ImagesServiceTransform(ProtocolBuffer.ProtocolMessage):
 class Transform(ProtocolBuffer.ProtocolMessage):
   has_width_ = 0
   width_ = 0
+  has_width_set_ = 0
+  width_set_ = 0
   has_height_ = 0
   height_ = 0
+  has_height_set_ = 0
+  height_set_ = 0
   has_crop_to_fit_ = 0
   crop_to_fit_ = 0
   has_crop_offset_x_ = 0
@@ -230,8 +234,12 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   crop_top_y_ = 0.0
   has_crop_right_x_ = 0
   crop_right_x_ = 1.0
+  has_crop_right_x_set_ = 0
+  crop_right_x_set_ = 0
   has_crop_bottom_y_ = 0
   crop_bottom_y_ = 1.0
+  has_crop_bottom_y_set_ = 0
+  crop_bottom_y_set_ = 0
   has_autolevels_ = 0
   autolevels_ = 0
   has_allow_stretch_ = 0
@@ -253,6 +261,19 @@ class Transform(ProtocolBuffer.ProtocolMessage):
 
   def has_width(self): return self.has_width_
 
+  def width_set(self): return self.width_set_
+
+  def set_width_set(self, x):
+    self.has_width_set_ = 1
+    self.width_set_ = x
+
+  def clear_width_set(self):
+    if self.has_width_set_:
+      self.has_width_set_ = 0
+      self.width_set_ = 0
+
+  def has_width_set(self): return self.has_width_set_
+
   def height(self): return self.height_
 
   def set_height(self, x):
@@ -265,6 +286,19 @@ class Transform(ProtocolBuffer.ProtocolMessage):
       self.height_ = 0
 
   def has_height(self): return self.has_height_
+
+  def height_set(self): return self.height_set_
+
+  def set_height_set(self, x):
+    self.has_height_set_ = 1
+    self.height_set_ = x
+
+  def clear_height_set(self):
+    if self.has_height_set_:
+      self.has_height_set_ = 0
+      self.height_set_ = 0
+
+  def has_height_set(self): return self.has_height_set_
 
   def crop_to_fit(self): return self.crop_to_fit_
 
@@ -383,6 +417,19 @@ class Transform(ProtocolBuffer.ProtocolMessage):
 
   def has_crop_right_x(self): return self.has_crop_right_x_
 
+  def crop_right_x_set(self): return self.crop_right_x_set_
+
+  def set_crop_right_x_set(self, x):
+    self.has_crop_right_x_set_ = 1
+    self.crop_right_x_set_ = x
+
+  def clear_crop_right_x_set(self):
+    if self.has_crop_right_x_set_:
+      self.has_crop_right_x_set_ = 0
+      self.crop_right_x_set_ = 0
+
+  def has_crop_right_x_set(self): return self.has_crop_right_x_set_
+
   def crop_bottom_y(self): return self.crop_bottom_y_
 
   def set_crop_bottom_y(self, x):
@@ -395,6 +442,19 @@ class Transform(ProtocolBuffer.ProtocolMessage):
       self.crop_bottom_y_ = 1.0
 
   def has_crop_bottom_y(self): return self.has_crop_bottom_y_
+
+  def crop_bottom_y_set(self): return self.crop_bottom_y_set_
+
+  def set_crop_bottom_y_set(self, x):
+    self.has_crop_bottom_y_set_ = 1
+    self.crop_bottom_y_set_ = x
+
+  def clear_crop_bottom_y_set(self):
+    if self.has_crop_bottom_y_set_:
+      self.has_crop_bottom_y_set_ = 0
+      self.crop_bottom_y_set_ = 0
+
+  def has_crop_bottom_y_set(self): return self.has_crop_bottom_y_set_
 
   def autolevels(self): return self.autolevels_
 
@@ -426,7 +486,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   def MergeFrom(self, x):
     assert x is not self
     if (x.has_width()): self.set_width(x.width())
+    if (x.has_width_set()): self.set_width_set(x.width_set())
     if (x.has_height()): self.set_height(x.height())
+    if (x.has_height_set()): self.set_height_set(x.height_set())
     if (x.has_crop_to_fit()): self.set_crop_to_fit(x.crop_to_fit())
     if (x.has_crop_offset_x()): self.set_crop_offset_x(x.crop_offset_x())
     if (x.has_crop_offset_y()): self.set_crop_offset_y(x.crop_offset_y())
@@ -436,7 +498,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if (x.has_crop_left_x()): self.set_crop_left_x(x.crop_left_x())
     if (x.has_crop_top_y()): self.set_crop_top_y(x.crop_top_y())
     if (x.has_crop_right_x()): self.set_crop_right_x(x.crop_right_x())
+    if (x.has_crop_right_x_set()): self.set_crop_right_x_set(x.crop_right_x_set())
     if (x.has_crop_bottom_y()): self.set_crop_bottom_y(x.crop_bottom_y())
+    if (x.has_crop_bottom_y_set()): self.set_crop_bottom_y_set(x.crop_bottom_y_set())
     if (x.has_autolevels()): self.set_autolevels(x.autolevels())
     if (x.has_allow_stretch()): self.set_allow_stretch(x.allow_stretch())
 
@@ -444,8 +508,12 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if x is self: return 1
     if self.has_width_ != x.has_width_: return 0
     if self.has_width_ and self.width_ != x.width_: return 0
+    if self.has_width_set_ != x.has_width_set_: return 0
+    if self.has_width_set_ and self.width_set_ != x.width_set_: return 0
     if self.has_height_ != x.has_height_: return 0
     if self.has_height_ and self.height_ != x.height_: return 0
+    if self.has_height_set_ != x.has_height_set_: return 0
+    if self.has_height_set_ and self.height_set_ != x.height_set_: return 0
     if self.has_crop_to_fit_ != x.has_crop_to_fit_: return 0
     if self.has_crop_to_fit_ and self.crop_to_fit_ != x.crop_to_fit_: return 0
     if self.has_crop_offset_x_ != x.has_crop_offset_x_: return 0
@@ -464,8 +532,12 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if self.has_crop_top_y_ and self.crop_top_y_ != x.crop_top_y_: return 0
     if self.has_crop_right_x_ != x.has_crop_right_x_: return 0
     if self.has_crop_right_x_ and self.crop_right_x_ != x.crop_right_x_: return 0
+    if self.has_crop_right_x_set_ != x.has_crop_right_x_set_: return 0
+    if self.has_crop_right_x_set_ and self.crop_right_x_set_ != x.crop_right_x_set_: return 0
     if self.has_crop_bottom_y_ != x.has_crop_bottom_y_: return 0
     if self.has_crop_bottom_y_ and self.crop_bottom_y_ != x.crop_bottom_y_: return 0
+    if self.has_crop_bottom_y_set_ != x.has_crop_bottom_y_set_: return 0
+    if self.has_crop_bottom_y_set_ and self.crop_bottom_y_set_ != x.crop_bottom_y_set_: return 0
     if self.has_autolevels_ != x.has_autolevels_: return 0
     if self.has_autolevels_ and self.autolevels_ != x.autolevels_: return 0
     if self.has_allow_stretch_ != x.has_allow_stretch_: return 0
@@ -479,7 +551,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   def ByteSize(self):
     n = 0
     if (self.has_width_): n += 1 + self.lengthVarInt64(self.width_)
+    if (self.has_width_set_): n += 3
     if (self.has_height_): n += 1 + self.lengthVarInt64(self.height_)
+    if (self.has_height_set_): n += 3
     if (self.has_crop_to_fit_): n += 2
     if (self.has_crop_offset_x_): n += 5
     if (self.has_crop_offset_y_): n += 5
@@ -489,7 +563,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if (self.has_crop_left_x_): n += 5
     if (self.has_crop_top_y_): n += 5
     if (self.has_crop_right_x_): n += 5
+    if (self.has_crop_right_x_set_): n += 3
     if (self.has_crop_bottom_y_): n += 5
+    if (self.has_crop_bottom_y_set_): n += 3
     if (self.has_autolevels_): n += 2
     if (self.has_allow_stretch_): n += 2
     return n
@@ -497,7 +573,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   def ByteSizePartial(self):
     n = 0
     if (self.has_width_): n += 1 + self.lengthVarInt64(self.width_)
+    if (self.has_width_set_): n += 3
     if (self.has_height_): n += 1 + self.lengthVarInt64(self.height_)
+    if (self.has_height_set_): n += 3
     if (self.has_crop_to_fit_): n += 2
     if (self.has_crop_offset_x_): n += 5
     if (self.has_crop_offset_y_): n += 5
@@ -507,14 +585,18 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if (self.has_crop_left_x_): n += 5
     if (self.has_crop_top_y_): n += 5
     if (self.has_crop_right_x_): n += 5
+    if (self.has_crop_right_x_set_): n += 3
     if (self.has_crop_bottom_y_): n += 5
+    if (self.has_crop_bottom_y_set_): n += 3
     if (self.has_autolevels_): n += 2
     if (self.has_allow_stretch_): n += 2
     return n
 
   def Clear(self):
     self.clear_width()
+    self.clear_width_set()
     self.clear_height()
+    self.clear_height_set()
     self.clear_crop_to_fit()
     self.clear_crop_offset_x()
     self.clear_crop_offset_y()
@@ -524,7 +606,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     self.clear_crop_left_x()
     self.clear_crop_top_y()
     self.clear_crop_right_x()
+    self.clear_crop_right_x_set()
     self.clear_crop_bottom_y()
+    self.clear_crop_bottom_y_set()
     self.clear_autolevels()
     self.clear_allow_stretch()
 
@@ -571,6 +655,18 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if (self.has_allow_stretch_):
       out.putVarInt32(112)
       out.putBoolean(self.allow_stretch_)
+    if (self.has_width_set_):
+      out.putVarInt32(808)
+      out.putBoolean(self.width_set_)
+    if (self.has_height_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.height_set_)
+    if (self.has_crop_right_x_set_):
+      out.putVarInt32(864)
+      out.putBoolean(self.crop_right_x_set_)
+    if (self.has_crop_bottom_y_set_):
+      out.putVarInt32(872)
+      out.putBoolean(self.crop_bottom_y_set_)
 
   def OutputPartial(self, out):
     if (self.has_width_):
@@ -615,6 +711,18 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if (self.has_allow_stretch_):
       out.putVarInt32(112)
       out.putBoolean(self.allow_stretch_)
+    if (self.has_width_set_):
+      out.putVarInt32(808)
+      out.putBoolean(self.width_set_)
+    if (self.has_height_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.height_set_)
+    if (self.has_crop_right_x_set_):
+      out.putVarInt32(864)
+      out.putBoolean(self.crop_right_x_set_)
+    if (self.has_crop_bottom_y_set_):
+      out.putVarInt32(872)
+      out.putBoolean(self.crop_bottom_y_set_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -661,6 +769,18 @@ class Transform(ProtocolBuffer.ProtocolMessage):
       if tt == 112:
         self.set_allow_stretch(d.getBoolean())
         continue
+      if tt == 808:
+        self.set_width_set(d.getBoolean())
+        continue
+      if tt == 816:
+        self.set_height_set(d.getBoolean())
+        continue
+      if tt == 864:
+        self.set_crop_right_x_set(d.getBoolean())
+        continue
+      if tt == 872:
+        self.set_crop_bottom_y_set(d.getBoolean())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
@@ -670,7 +790,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   def __str__(self, prefix="", printElemNumber=0):
     res=""
     if self.has_width_: res+=prefix+("width: %s\n" % self.DebugFormatInt32(self.width_))
+    if self.has_width_set_: res+=prefix+("width_set: %s\n" % self.DebugFormatBool(self.width_set_))
     if self.has_height_: res+=prefix+("height: %s\n" % self.DebugFormatInt32(self.height_))
+    if self.has_height_set_: res+=prefix+("height_set: %s\n" % self.DebugFormatBool(self.height_set_))
     if self.has_crop_to_fit_: res+=prefix+("crop_to_fit: %s\n" % self.DebugFormatBool(self.crop_to_fit_))
     if self.has_crop_offset_x_: res+=prefix+("crop_offset_x: %s\n" % self.DebugFormatFloat(self.crop_offset_x_))
     if self.has_crop_offset_y_: res+=prefix+("crop_offset_y: %s\n" % self.DebugFormatFloat(self.crop_offset_y_))
@@ -680,7 +802,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     if self.has_crop_left_x_: res+=prefix+("crop_left_x: %s\n" % self.DebugFormatFloat(self.crop_left_x_))
     if self.has_crop_top_y_: res+=prefix+("crop_top_y: %s\n" % self.DebugFormatFloat(self.crop_top_y_))
     if self.has_crop_right_x_: res+=prefix+("crop_right_x: %s\n" % self.DebugFormatFloat(self.crop_right_x_))
+    if self.has_crop_right_x_set_: res+=prefix+("crop_right_x_set: %s\n" % self.DebugFormatBool(self.crop_right_x_set_))
     if self.has_crop_bottom_y_: res+=prefix+("crop_bottom_y: %s\n" % self.DebugFormatFloat(self.crop_bottom_y_))
+    if self.has_crop_bottom_y_set_: res+=prefix+("crop_bottom_y_set: %s\n" % self.DebugFormatBool(self.crop_bottom_y_set_))
     if self.has_autolevels_: res+=prefix+("autolevels: %s\n" % self.DebugFormatBool(self.autolevels_))
     if self.has_allow_stretch_: res+=prefix+("allow_stretch: %s\n" % self.DebugFormatBool(self.allow_stretch_))
     return res
@@ -690,7 +814,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
   kwidth = 1
+  kwidth_set = 101
   kheight = 2
+  kheight_set = 102
   kcrop_to_fit = 11
   kcrop_offset_x = 12
   kcrop_offset_y = 13
@@ -700,7 +826,9 @@ class Transform(ProtocolBuffer.ProtocolMessage):
   kcrop_left_x = 6
   kcrop_top_y = 7
   kcrop_right_x = 8
+  kcrop_right_x_set = 108
   kcrop_bottom_y = 9
+  kcrop_bottom_y_set = 109
   kautolevels = 10
   kallow_stretch = 14
 
@@ -720,7 +848,11 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     12: "crop_offset_x",
     13: "crop_offset_y",
     14: "allow_stretch",
-  }, 14)
+    101: "width_set",
+    102: "height_set",
+    108: "crop_right_x_set",
+    109: "crop_bottom_y_set",
+  }, 109)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -738,7 +870,11 @@ class Transform(ProtocolBuffer.ProtocolMessage):
     12: ProtocolBuffer.Encoder.FLOAT,
     13: ProtocolBuffer.Encoder.FLOAT,
     14: ProtocolBuffer.Encoder.NUMERIC,
-  }, 14, ProtocolBuffer.Encoder.MAX_TYPE)
+    101: ProtocolBuffer.Encoder.NUMERIC,
+    102: ProtocolBuffer.Encoder.NUMERIC,
+    108: ProtocolBuffer.Encoder.NUMERIC,
+    109: ProtocolBuffer.Encoder.NUMERIC,
+  }, 109, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

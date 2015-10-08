@@ -246,6 +246,63 @@ def _PrepareSpecialProperties(entity_proto, is_load):
         entity_proto.property_list().append(special_property)
 
 
+
+
+_METADATA_PROPERTY_NAME = '__metadata__'
+
+
+def _FromStorageEntity(entity):
+  """Converts a stored entity protobuf to an EntityRecord (with metadata).
+
+  This function is only provided as convenience for storage implementations that
+  wish to store metadata directly on EntityProto.
+
+  Args:
+    entity: An Entity protobuf.
+
+  Returns:
+    The EntityRecord including the EntityMetadata protobuf that was stored as a
+    property on the Entity protobuf or an empty EntityMetadata if that Entity
+    has no metadata property.
+  """
+  clone = entity_pb.EntityProto()
+  clone.CopyFrom(entity)
+  metadata = entity_pb.EntityMetadata()
+  for i in xrange(clone.property_size() - 1, -1, -1):
+    property = clone.property(i)
+    if _METADATA_PROPERTY_NAME == property.name():
+      del clone.property_list()[i]
+      metadata = entity_pb.EntityMetadata(property.value().stringvalue())
+  return EntityRecord(clone, metadata)
+
+
+def _ToStorageEntity(record):
+  """Store a metadata object as a pickled string property on an entity protobuf.
+
+  This function is only provided as convenience for storage implementations that
+  wish to store metadata directly on EntityProto.
+
+  Args:
+    record: An EntityRecord.
+
+  Returns:
+    A copy of the entity with an additional string property that contains the
+    pickled metadata object. Returns None If the record is None.
+  """
+  if record:
+    clone = entity_pb.EntityProto()
+    clone.CopyFrom(record.entity)
+
+    serialized_metadata = record.metadata.SerializeToString()
+    metadata_property = clone.add_property()
+    metadata_property.set_name(_METADATA_PROPERTY_NAME)
+    metadata_property.set_meaning(entity_pb.Property.BLOB)
+    metadata_property.set_multiple(False)
+    metadata_property.mutable_value().set_stringvalue(serialized_metadata)
+
+    return clone
+
+
 def _GetGroupByKey(entity, property_names):
   """Computes a key value that uniquely identifies the 'group' of an entity.
 
@@ -274,7 +331,7 @@ def LoadEntity(entity, keys_only=False, property_names=None):
     entity: a entity_pb.EntityProto or None
     keys_only: if a keys only result should be produced
     property_names: if not None or empty, cause a projected entity
-  to be produced with the given properties.
+        to be produced with the given properties.
 
   Returns:
     A user friendly copy of entity or None.
@@ -309,22 +366,43 @@ def LoadEntity(entity, keys_only=False, property_names=None):
     return clone
 
 
-def StoreEntity(entity):
-  """Prepares an entity for storing.
+def LoadRecord(record, keys_only=False, property_names=None):
+  """Prepares a record to be returned to the user.
 
   Args:
-    entity: a entity_pb.EntityProto to prepare
+    record: an EntityRecord or None
+    keys_only: if a keys only result should be produced
+    property_names: if not None or empty, cause a projected entity
+        to be produced with the given properties.
 
   Returns:
-    A copy of entity that should be stored in its place.
+    A user friendly copy of record or None.
+  """
+  if record:
+    metadata = record.metadata
+    if keys_only or property_names:
+      metadata = entity_pb.EntityMetadata()
+    return EntityRecord(LoadEntity(record.entity, keys_only, property_names),
+                        metadata)
+
+
+def StoreRecord(record):
+  """Prepares a record for storing.
+
+  Args:
+    record: an EntityRecord to prepare
+
+  Returns:
+    A copy of the record that can be stored.
   """
   clone = entity_pb.EntityProto()
-  clone.CopyFrom(entity)
+  clone.CopyFrom(record.entity)
 
 
 
   PrepareSpecialPropertiesForStore(clone)
-  return clone
+
+  return EntityRecord(clone, record.metadata)
 
 
 def PrepareSpecialPropertiesForLoad(entity_proto):
@@ -1473,8 +1551,8 @@ class LiveTxn(object):
       The associated entity_pb.EntityProto or None if no such entity exists.
     """
     snapshot = self._GrabSnapshot(reference)
-    entity = snapshot.get(datastore_types.ReferenceToKeyValue(reference))
-    return LoadEntity(entity)
+    record = snapshot.get(datastore_types.ReferenceToKeyValue(reference))
+    return LoadEntity(record and record.entity)
 
   @_SynchronizeTxn
   def GetQueryCursor(self, query, filters, orders, index_list,
@@ -1498,7 +1576,8 @@ class LiveTxn(object):
     Check(query.has_ancestor(),
           'Query must have an ancestor when performed in a transaction.')
     snapshot = self._GrabSnapshot(query.ancestor())
-    return _ExecuteQuery(snapshot.values(), query, filters, orders, index_list,
+    entities = [record.entity for record in snapshot.values()]
+    return _ExecuteQuery(entities, query, filters, orders, index_list,
                          filter_predicate)
 
   @_SynchronizeTxn
@@ -1584,7 +1663,7 @@ class LiveTxn(object):
           old_entity = None
           key = datastore_types.ReferenceToKeyValue(entity.key())
           if key in snapshot:
-            old_entity = snapshot[key]
+            old_entity = snapshot[key].entity
           self._AddWriteOps(old_entity, entity)
 
         for reference in tracker._delete.itervalues():
@@ -1593,7 +1672,7 @@ class LiveTxn(object):
           old_entity = None
           key = datastore_types.ReferenceToKeyValue(reference)
           if key in snapshot:
-            old_entity = snapshot[key]
+            old_entity = snapshot[key].entity
             if old_entity is not None:
               self._AddWriteOps(None, old_entity)
 
@@ -1680,7 +1759,8 @@ class LiveTxn(object):
 
 
       for entity, insert in tracker._put.itervalues():
-        self._txn_manager._Put(entity, insert)
+        record = EntityRecord(entity, entity_pb.EntityMetadata())
+        self._txn_manager._Put(record, insert)
 
 
       for key in tracker._delete.itervalues():
@@ -1693,6 +1773,14 @@ class LiveTxn(object):
       tracker._meta_data.Unlog(self)
     finally:
       self._apply_lock.release()
+
+
+class EntityRecord(object):
+  """An EntityProto and its associated EntityMetadata protobuf."""
+
+  def __init__(self, entity, metadata=None):
+    self.entity = entity
+    self.metadata = metadata or entity_pb.EntityMetadata()
 
 
 class EntityGroupTracker(object):
@@ -2114,14 +2202,14 @@ class BaseTransactionManager(object):
     """Removes a LiveTxn from the txn_map (if present)."""
     self._txn_map.pop(id(txn), None)
 
-  def _Put(self, entity, insert):
-    """Put the given entity.
+  def _Put(self, record, insert):
+    """Put the given entity record.
 
     This must be implemented by a sub-class. The sub-class can assume that any
     need consistency is enforced at a higher level (and can just put blindly).
 
     Args:
-      entity: The entity_pb.EntityProto to put.
+      record: The EntityRecord to put.
       insert: A boolean that indicates if we should fail if the entity already
         exists.
     """
@@ -2151,7 +2239,7 @@ class BaseTransactionManager(object):
       entity_group: A entity_pb.Reference of the entity group to get.
 
     Returns:
-      A dict mapping datastore_types.ReferenceToKeyValue(key) to EntityProto
+      A dict mapping datastore_types.ReferenceToKeyValue(key) to EntityRecord.
     """
     raise NotImplementedError
 
@@ -2489,7 +2577,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     elif txn:
       return txn.Get(key)
     else:
-      return self._Get(key)
+      record = self._Get(key)
+      return record and record.entity
 
   def Put(self, raw_entities, cost, transaction=None,
           trusted=False, calling_app=None):
@@ -2740,7 +2829,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     raise NotImplementedError
 
   def _Get(self, reference):
-    """Get the entity for the given reference or None.
+    """Get the entity record for the given reference or None.
 
     This must be implemented by a sub-class. The sub-class does not need to
     enforced any consistency guarantees (and can just blindly read).
@@ -2749,7 +2838,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
       reference: A entity_pb.Reference to loop up.
 
     Returns:
-      The entity_pb.EntityProto associated with the given reference or None.
+      The EntityRecord associated with the given reference or None.
     """
     raise NotImplementedError
 

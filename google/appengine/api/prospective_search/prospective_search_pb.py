@@ -1035,6 +1035,8 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
   topic_ = ""
   has_max_results_ = 0
   max_results_ = 1000
+  has_max_results_set_ = 0
+  max_results_set_ = 0
   has_expires_before_ = 0
   expires_before_ = 0
   has_subscription_id_start_ = 0
@@ -1070,6 +1072,19 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
       self.max_results_ = 1000
 
   def has_max_results(self): return self.has_max_results_
+
+  def max_results_set(self): return self.max_results_set_
+
+  def set_max_results_set(self, x):
+    self.has_max_results_set_ = 1
+    self.max_results_set_ = x
+
+  def clear_max_results_set(self):
+    if self.has_max_results_set_:
+      self.has_max_results_set_ = 0
+      self.max_results_set_ = 0
+
+  def has_max_results_set(self): return self.has_max_results_set_
 
   def expires_before(self): return self.expires_before_
 
@@ -1115,6 +1130,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     if (x.has_topic()): self.set_topic(x.topic())
     if (x.has_max_results()): self.set_max_results(x.max_results())
+    if (x.has_max_results_set()): self.set_max_results_set(x.max_results_set())
     if (x.has_expires_before()): self.set_expires_before(x.expires_before())
     if (x.has_subscription_id_start()): self.set_subscription_id_start(x.subscription_id_start())
     if (x.has_app_id()): self.set_app_id(x.app_id())
@@ -1125,6 +1141,8 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     if self.has_topic_ and self.topic_ != x.topic_: return 0
     if self.has_max_results_ != x.has_max_results_: return 0
     if self.has_max_results_ and self.max_results_ != x.max_results_: return 0
+    if self.has_max_results_set_ != x.has_max_results_set_: return 0
+    if self.has_max_results_set_ and self.max_results_set_ != x.max_results_set_: return 0
     if self.has_expires_before_ != x.has_expires_before_: return 0
     if self.has_expires_before_ and self.expires_before_ != x.expires_before_: return 0
     if self.has_subscription_id_start_ != x.has_subscription_id_start_: return 0
@@ -1145,6 +1163,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     n = 0
     n += self.lengthString(len(self.topic_))
     if (self.has_max_results_): n += 1 + self.lengthVarInt64(self.max_results_)
+    if (self.has_max_results_set_): n += 3
     if (self.has_expires_before_): n += 1 + self.lengthVarInt64(self.expires_before_)
     if (self.has_subscription_id_start_): n += 1 + self.lengthString(len(self.subscription_id_start_))
     if (self.has_app_id_): n += 1 + self.lengthString(len(self.app_id_))
@@ -1156,6 +1175,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
       n += 1
       n += self.lengthString(len(self.topic_))
     if (self.has_max_results_): n += 1 + self.lengthVarInt64(self.max_results_)
+    if (self.has_max_results_set_): n += 3
     if (self.has_expires_before_): n += 1 + self.lengthVarInt64(self.expires_before_)
     if (self.has_subscription_id_start_): n += 1 + self.lengthString(len(self.subscription_id_start_))
     if (self.has_app_id_): n += 1 + self.lengthString(len(self.app_id_))
@@ -1164,6 +1184,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
   def Clear(self):
     self.clear_topic()
     self.clear_max_results()
+    self.clear_max_results_set()
     self.clear_expires_before()
     self.clear_subscription_id_start()
     self.clear_app_id()
@@ -1183,6 +1204,9 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_app_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.app_id_)
+    if (self.has_max_results_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.max_results_set_)
 
   def OutputPartial(self, out):
     if (self.has_topic_):
@@ -1200,6 +1224,9 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_app_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.app_id_)
+    if (self.has_max_results_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.max_results_set_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -1219,6 +1246,9 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
       if tt == 42:
         self.set_app_id(d.getPrefixedString())
         continue
+      if tt == 816:
+        self.set_max_results_set(d.getBoolean())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
@@ -1229,6 +1259,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     res=""
     if self.has_topic_: res+=prefix+("topic: %s\n" % self.DebugFormatString(self.topic_))
     if self.has_max_results_: res+=prefix+("max_results: %s\n" % self.DebugFormatInt64(self.max_results_))
+    if self.has_max_results_set_: res+=prefix+("max_results_set: %s\n" % self.DebugFormatBool(self.max_results_set_))
     if self.has_expires_before_: res+=prefix+("expires_before: %s\n" % self.DebugFormatInt64(self.expires_before_))
     if self.has_subscription_id_start_: res+=prefix+("subscription_id_start: %s\n" % self.DebugFormatString(self.subscription_id_start_))
     if self.has_app_id_: res+=prefix+("app_id: %s\n" % self.DebugFormatString(self.app_id_))
@@ -1240,6 +1271,7 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
 
   ktopic = 1
   kmax_results = 2
+  kmax_results_set = 102
   kexpires_before = 3
   ksubscription_id_start = 4
   kapp_id = 5
@@ -1251,7 +1283,8 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     3: "expires_before",
     4: "subscription_id_start",
     5: "app_id",
-  }, 5)
+    102: "max_results_set",
+  }, 102)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -1260,7 +1293,8 @@ class ListSubscriptionsRequest(ProtocolBuffer.ProtocolMessage):
     3: ProtocolBuffer.Encoder.NUMERIC,
     4: ProtocolBuffer.Encoder.STRING,
     5: ProtocolBuffer.Encoder.STRING,
-  }, 5, ProtocolBuffer.Encoder.MAX_TYPE)
+    102: ProtocolBuffer.Encoder.NUMERIC,
+  }, 102, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
@@ -1385,6 +1419,8 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
   topic_start_ = ""
   has_max_results_ = 0
   max_results_ = 1000
+  has_max_results_set_ = 0
+  max_results_set_ = 0
   has_app_id_ = 0
   app_id_ = ""
 
@@ -1417,6 +1453,19 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
 
   def has_max_results(self): return self.has_max_results_
 
+  def max_results_set(self): return self.max_results_set_
+
+  def set_max_results_set(self, x):
+    self.has_max_results_set_ = 1
+    self.max_results_set_ = x
+
+  def clear_max_results_set(self):
+    if self.has_max_results_set_:
+      self.has_max_results_set_ = 0
+      self.max_results_set_ = 0
+
+  def has_max_results_set(self): return self.has_max_results_set_
+
   def app_id(self): return self.app_id_
 
   def set_app_id(self, x):
@@ -1435,6 +1484,7 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     if (x.has_topic_start()): self.set_topic_start(x.topic_start())
     if (x.has_max_results()): self.set_max_results(x.max_results())
+    if (x.has_max_results_set()): self.set_max_results_set(x.max_results_set())
     if (x.has_app_id()): self.set_app_id(x.app_id())
 
   def Equals(self, x):
@@ -1443,6 +1493,8 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     if self.has_topic_start_ and self.topic_start_ != x.topic_start_: return 0
     if self.has_max_results_ != x.has_max_results_: return 0
     if self.has_max_results_ and self.max_results_ != x.max_results_: return 0
+    if self.has_max_results_set_ != x.has_max_results_set_: return 0
+    if self.has_max_results_set_ and self.max_results_set_ != x.max_results_set_: return 0
     if self.has_app_id_ != x.has_app_id_: return 0
     if self.has_app_id_ and self.app_id_ != x.app_id_: return 0
     return 1
@@ -1455,6 +1507,7 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     n = 0
     if (self.has_topic_start_): n += 1 + self.lengthString(len(self.topic_start_))
     if (self.has_max_results_): n += 1 + self.lengthVarInt64(self.max_results_)
+    if (self.has_max_results_set_): n += 3
     if (self.has_app_id_): n += 1 + self.lengthString(len(self.app_id_))
     return n
 
@@ -1462,12 +1515,14 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     n = 0
     if (self.has_topic_start_): n += 1 + self.lengthString(len(self.topic_start_))
     if (self.has_max_results_): n += 1 + self.lengthVarInt64(self.max_results_)
+    if (self.has_max_results_set_): n += 3
     if (self.has_app_id_): n += 1 + self.lengthString(len(self.app_id_))
     return n
 
   def Clear(self):
     self.clear_topic_start()
     self.clear_max_results()
+    self.clear_max_results_set()
     self.clear_app_id()
 
   def OutputUnchecked(self, out):
@@ -1480,6 +1535,9 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_app_id_):
       out.putVarInt32(26)
       out.putPrefixedString(self.app_id_)
+    if (self.has_max_results_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.max_results_set_)
 
   def OutputPartial(self, out):
     if (self.has_topic_start_):
@@ -1491,6 +1549,9 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_app_id_):
       out.putVarInt32(26)
       out.putPrefixedString(self.app_id_)
+    if (self.has_max_results_set_):
+      out.putVarInt32(816)
+      out.putBoolean(self.max_results_set_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -1504,6 +1565,9 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
       if tt == 26:
         self.set_app_id(d.getPrefixedString())
         continue
+      if tt == 816:
+        self.set_max_results_set(d.getBoolean())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
@@ -1514,6 +1578,7 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     res=""
     if self.has_topic_start_: res+=prefix+("topic_start: %s\n" % self.DebugFormatString(self.topic_start_))
     if self.has_max_results_: res+=prefix+("max_results: %s\n" % self.DebugFormatInt64(self.max_results_))
+    if self.has_max_results_set_: res+=prefix+("max_results_set: %s\n" % self.DebugFormatBool(self.max_results_set_))
     if self.has_app_id_: res+=prefix+("app_id: %s\n" % self.DebugFormatString(self.app_id_))
     return res
 
@@ -1523,6 +1588,7 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
 
   ktopic_start = 1
   kmax_results = 2
+  kmax_results_set = 102
   kapp_id = 3
 
   _TEXT = _BuildTagLookupTable({
@@ -1530,14 +1596,16 @@ class ListTopicsRequest(ProtocolBuffer.ProtocolMessage):
     1: "topic_start",
     2: "max_results",
     3: "app_id",
-  }, 3)
+    102: "max_results_set",
+  }, 102)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.STRING,
     2: ProtocolBuffer.Encoder.NUMERIC,
     3: ProtocolBuffer.Encoder.STRING,
-  }, 3, ProtocolBuffer.Encoder.MAX_TYPE)
+    102: ProtocolBuffer.Encoder.NUMERIC,
+  }, 102, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
