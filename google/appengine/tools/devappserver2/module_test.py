@@ -37,6 +37,7 @@ from google.appengine.api import request_info
 from google.appengine.tools.devappserver2 import api_server
 from google.appengine.tools.devappserver2 import application_configuration
 from google.appengine.tools.devappserver2 import constants
+from google.appengine.tools.devappserver2 import custom_runtime
 from google.appengine.tools.devappserver2 import dispatcher
 from google.appengine.tools.devappserver2 import go_application
 from google.appengine.tools.devappserver2 import go_runtime
@@ -58,6 +59,7 @@ class ModuleConfigurationStub(object):
                automatic_scaling=appinfo.AutomaticScaling(),
                version='version',
                runtime='python27',
+               env='1',
                effective_runtime='',
                threadsafe=False,
                skip_files='',
@@ -77,6 +79,7 @@ class ModuleConfigurationStub(object):
     self.basic_scaling = basic_scaling
     self.major_version = version
     self.runtime = runtime
+    self.env = env
     self.effective_runtime = effective_runtime
     self.threadsafe = threadsafe
     self.skip_files = skip_files
@@ -550,8 +553,10 @@ class TestModuleGetRuntimeConfig(parameterized.ParameterizedTestCase):
       ('php55', 'php_config', runtime_config_pb2.PhpConfig),
       ('java', 'java_config', runtime_config_pb2.JavaConfig),
       ('java7', 'java_config', runtime_config_pb2.JavaConfig),
+      ('java-compat', 'java_config', runtime_config_pb2.JavaConfig),
       ('python', 'python_config', runtime_config_pb2.PythonConfig),
       ('python27', 'python_config', runtime_config_pb2.PythonConfig),
+      ('python-compat', 'python_config', runtime_config_pb2.PythonConfig),
   )
   @mock.patch('google.appengine.tools.devappserver2.java_runtime.'
               'JavaRuntimeInstanceFactory._make_java_command',
@@ -2721,10 +2726,11 @@ class InstanceFactoryTest(googletest.TestCase):
     self.mox.UnsetStubs()
     self.mox.VerifyAll()
 
-  def _run_test(self, runtime, vm, expected_factory_class):
-    if vm:
+  def _run_test(self, runtime, expected_factory_class, vm=False, env='1'):
+    if vm or env == '2':
       module_stub = ModuleFacade(vm_config=runtime_config_pb2.VMConfig())
       module_configuration = ModuleConfigurationStub(runtime='vm')
+      module_configuration.env = env
       module_configuration.effective_runtime = runtime
     else:
       module_stub = ModuleFacade()
@@ -2736,22 +2742,42 @@ class InstanceFactoryTest(googletest.TestCase):
     self.assertIsInstance(instance_factory, expected_factory_class)
 
   def test_non_vm_python(self):
-    self._run_test('python', False, python_runtime.PythonRuntimeInstanceFactory)
+    self._run_test('python', python_runtime.PythonRuntimeInstanceFactory)
 
   def test_non_vm_go(self):
     self.mox.StubOutWithMock(go_application, 'GoApplication')
     go_application.GoApplication(mox.IgnoreArg())
-    self._run_test('go', False, go_runtime.GoRuntimeInstanceFactory)
+    self._run_test('go', go_runtime.GoRuntimeInstanceFactory)
 
   def test_non_vm_java(self):
     self.mox.StubOutWithMock(
         java_runtime.JavaRuntimeInstanceFactory, '_make_java_command')
     java_runtime.JavaRuntimeInstanceFactory._make_java_command()
-    self._run_test('java', False, java_runtime.JavaRuntimeInstanceFactory)
+    self._run_test('java', java_runtime.JavaRuntimeInstanceFactory)
 
-  def test_vm_disabled(self):
-    self._run_test('python', True, python_runtime.PythonRuntimeInstanceFactory)
+  def test_vm_python(self):
+    self._run_test(
+        'python', python_runtime.PythonRuntimeInstanceFactory, vm=True)
 
+  def test_vm_go(self):
+    self._run_test(
+        'go', go_runtime.GoRuntimeInstanceFactory, vm=True)
+
+  def test_vm_custom(self):
+    self._run_test(
+        'custom', custom_runtime.CustomRuntimeInstanceFactory, vm=True)
+
+  def test_env_python_compat(self):
+    self._run_test(
+        'python-compat', python_runtime.PythonRuntimeInstanceFactory, env='2')
+
+  def test_env_python_noncompat(self):
+    self._run_test(
+        'python', custom_runtime.CustomRuntimeInstanceFactory, env='2')
+
+  def test_env_go(self):
+    self._run_test(
+        'go', go_runtime.GoRuntimeInstanceFactory, env='2')
 
 if __name__ == '__main__':
   googletest.main()

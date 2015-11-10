@@ -226,7 +226,6 @@ PACKAGES = {
                 '1.1': None,
                 '1.2': None,
                 '1.3': None,
-                '1.4': None,
                 }),
 
 
@@ -357,7 +356,7 @@ def CallSetAllowedModule(name, desired):
 
 
 
-    if desired in ('0.96', '1.2', '1.3', '1.4'):
+    if desired in ('0.96', '1.2', '1.3'):
       sys.path.insert(1, os.path.join(PYTHON_LIB, 'lib', 'django-' + desired))
   SetAllowedModule(name)
 

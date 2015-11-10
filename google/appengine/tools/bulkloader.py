@@ -4130,7 +4130,7 @@ def _PerformBulkload(arg_dict,
     namespace_manager.set_namespace(namespace)
   os.environ['AUTH_DOMAIN'] = auth_domain
 
-  kind = ParseKind(kind)
+  kind = arg_dict['kind'] = ParseKind(kind)
 
   if not dump and not restore and not create_config:
 

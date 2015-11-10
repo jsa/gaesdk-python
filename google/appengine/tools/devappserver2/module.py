@@ -194,12 +194,14 @@ class Module(object):
       'php55': php_runtime.PHPRuntimeInstanceFactory,
       'python': python_runtime.PythonRuntimeInstanceFactory,
       'python27': python_runtime.PythonRuntimeInstanceFactory,
+      'python-compat': python_runtime.PythonRuntimeInstanceFactory,
       'custom': custom_runtime.CustomRuntimeInstanceFactory,
   }
   if java_runtime:
     _RUNTIME_INSTANCE_FACTORIES.update({
         'java': java_runtime.JavaRuntimeInstanceFactory,
         'java7': java_runtime.JavaRuntimeInstanceFactory,
+        'java-compat': java_runtime.JavaRuntimeInstanceFactory,
     })
 
   _MAX_REQUEST_WAIT_TIME = 10
@@ -230,6 +232,11 @@ class Module(object):
     runtime = module_configuration.runtime
     if runtime == 'vm':
       runtime = module_configuration.effective_runtime
+      # NOTE(bryanmau): b/24139391
+      # If in env: 2, users either use a compat runtime or custom.
+      if module_configuration.env == '2':
+        if runtime not in ('python-compat', 'java-compat', 'go'):
+          runtime = 'custom'
 
     # TODO: a bad runtime should be caught before we get here.
     if runtime not in self._RUNTIME_INSTANCE_FACTORIES:
@@ -385,7 +392,7 @@ class Module(object):
   def _maybe_restart_instances(self, config_changed, file_changed):
     """Restarts instances. May avoid some restarts depending on policy.
 
-    One of config_changed or file_changed must be True.
+    If neither config_changed or file_changed is True, returns immediately.
 
     Args:
       config_changed: True if the configuration for the application has changed.
@@ -412,6 +419,14 @@ class Module(object):
 
   def _handle_changes(self, timeout=0):
     """Handle file or configuration changes."""
+    # Check for file changes first, because they can trigger config changes.
+    file_changes = self._watcher.changes(timeout)
+    if file_changes:
+      logging.info(
+          '[%s] Detected file changes:\n  %s', self.name,
+          '\n  '.join(sorted(file_changes)))
+      self._instance_factory.files_changed()
+
     # Always check for config and file changes because checking also clears
     # pending changes.
     config_changes = self._module_configuration.check_for_updates()
@@ -419,13 +434,6 @@ class Module(object):
       handlers = self._create_url_handlers()
       with self._handler_lock:
         self._handlers = handlers
-
-    file_changes = self._watcher.changes(timeout)
-    if file_changes:
-      logging.info(
-          '[%s] Detected file changes:\n  %s', self.name,
-          '\n  '.join(sorted(file_changes)))
-      self._instance_factory.files_changed()
 
     if config_changes & _RESTART_INSTANCES_CONFIG_CHANGES:
       self._instance_factory.configuration_changed(config_changes)
