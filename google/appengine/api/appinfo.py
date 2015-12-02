@@ -251,6 +251,7 @@ RUNTIME = 'runtime'
 API_VERSION = 'api_version'
 ENV = 'env'
 ENTRYPOINT = 'entrypoint'
+RUNTIME_CONFIG = 'runtime_config'
 SOURCE_LANGUAGE = 'source_language'
 BUILTINS = 'builtins'
 INCLUDES = 'includes'
@@ -598,7 +599,8 @@ _MAX_URL_LENGTH = 2047
 _MAX_HEADER_SIZE_FOR_EXEMPTED_HEADERS = 10240
 
 _CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'python',
-                    'python27', 'java', 'java7', 'vm', 'custom', 'nodejs')
+                    'python27', 'python-compat', 'java', 'java7', 'vm',
+                    'custom', 'nodejs', 'ruby')
 _all_runtimes = _CANNED_RUNTIMES
 
 
@@ -1450,6 +1452,19 @@ class BasicScaling(validation.Validated):
   }
 
 
+class RuntimeConfig(validation.ValidatedDict):
+  """Class for "vanilla" runtime configuration.
+
+  Fields used vary by runtime, so we delegate validation to the per-runtime
+  build processes.
+
+  These are intended to be used during Dockerfile generation, not after VM boot.
+  """
+
+  KEY_VALIDATOR = validation.Regex('[a-zA-Z_][a-zA-Z0-9_]*')
+  VALUE_VALIDATOR = str
+
+
 class VmSettings(validation.ValidatedDict):
   """Class for VM settings.
 
@@ -1878,6 +1893,7 @@ class AppInfoExternal(validation.Validated):
       ENV: validation.Optional(ENV_RE_STRING),
 
       ENTRYPOINT: validation.Optional(validation.Type(str)),
+      RUNTIME_CONFIG: validation.Optional(RuntimeConfig),
       INSTANCE_CLASS: validation.Optional(_INSTANCE_CLASS_REGEX),
       SOURCE_LANGUAGE: validation.Optional(
           validation.Regex(SOURCE_LANGUAGE_RE_STRING)),
@@ -1941,12 +1957,12 @@ class AppInfoExternal(validation.Validated):
           and CGI handlers are specified.
       TooManyScalingSettingsError: if more than one scaling settings block is
           present.
-      RuntimeDoesNotSupportLibraries: if libraries clause is used for a runtime
-          that does not support it (e.g. python25).
+      LibrariesNotSupported: if application configuration does not allow for
+          libraries.  e.g. python25 or vm: true or env == 2
       ModuleAndServiceDefined: if both 'module' and 'service' keywords are used.
     """
     super(AppInfoExternal, self).CheckInitialized()
-    if self.runtime is None and not self.vm:
+    if self.runtime is None and not self.vm and self.env != '2':
       raise appinfo_errors.MissingRuntimeError(
           'You must specify a "runtime" field for non-vm applications.')
     elif self.runtime is None:
@@ -1954,7 +1970,7 @@ class AppInfoExternal(validation.Validated):
 
       self.runtime = 'custom'
     if (not self.handlers and not self.builtins and not self.includes
-        and not self.vm):
+        and not (self.vm or self.env == '2')):
       raise appinfo_errors.MissingURLMapping(
           'No URLMap entries found in application configuration')
     if self.handlers and len(self.handlers) > MAX_URL_MAPS:
@@ -1967,17 +1983,15 @@ class AppInfoExternal(validation.Validated):
 
     vm_runtime_python27 = (
         self.runtime == 'vm' and
-        (hasattr(self, 'vm_settings') and
-         self.vm_settings and
+        (self.vm_settings and
          self.vm_settings.get('vm_runtime') == 'python27') or
-        (hasattr(self, 'beta_settings') and
-         self.beta_settings and
+        (self.beta_settings and
          self.beta_settings.get('vm_runtime') == 'python27'))
 
     if (self.threadsafe is None and
         (self.runtime == 'python27' or vm_runtime_python27)):
       raise appinfo_errors.MissingThreadsafe(
-          'threadsafe must be present and set to a true or false YAML value')
+          'threadsafe must be present and set to true or false in python27')
 
     if self.auto_id_policy == DATASTORE_ID_POLICY_LEGACY:
       datastore_auto_ids_url = ('http://developers.google.com/'
@@ -1999,8 +2013,15 @@ class AppInfoExternal(validation.Validated):
           self.beta_settings.get('source_reference'))
 
     if self.libraries:
-      if not (vm_runtime_python27 or self.runtime == 'python27'):
-        raise appinfo_errors.RuntimeDoesNotSupportLibraries(
+      if self.vm or self.env == '2':
+        raise appinfo_errors.LibrariesNotSupported(
+            'The "libraries:" directive has been deprecated for Managed VMs. '
+            'Please delete this section from your app.yaml, use pip '
+            '(https://pip.pypa.io/) to install your dependencies, and save '
+            'them to a requirements.txt.  For more information, please visit '
+            'http://cloud.google.com/python.')
+      elif self.runtime != 'python27':
+        raise appinfo_errors.LibrariesNotSupported(
             'libraries entries are only supported by the "python27" runtime')
 
       library_names = [library.name for library in self.libraries]
