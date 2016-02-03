@@ -53,6 +53,7 @@ import urllib2
 
 
 import google
+from oauth2client import devshell
 import yaml
 
 from google.appengine.cron import groctimespecification
@@ -3279,11 +3280,20 @@ class AppCfgApp(object):
                                  ignore_certs=self.options.ignore_certs,
                                  options=self.options)
 
+  def _MaybeGetDevshellOAuth2AccessToken(self):
+    """Returns a valid OAuth2 access token when running in Cloud Shell."""
+    try:
+      creds = devshell.DevshellCredentials()
+      return creds.access_token
+    except devshell.NoDevshellServer:
+      return None
+
   def _GetOAuth2Parameters(self):
     """Returns appropriate an OAuth2Parameters object for authentication."""
     oauth2_parameters = (
         appengine_rpc_httplib2.HttpRpcServerOAuth2.OAuth2Parameters(
-            access_token=self.options.oauth2_access_token,
+            access_token=(self.options.oauth2_access_token or
+                          self._MaybeGetDevshellOAuth2AccessToken()),
             client_id=self.oauth_client_id,
             client_secret=self.oauth_client_secret,
             scope=self.oauth_scopes,
@@ -3691,10 +3701,10 @@ class AppCfgApp(object):
     paths = self.file_iterator(basepath, appyaml.skip_files, appyaml.runtime)
     openfunc = lambda path: self.opener(os.path.join(basepath, path), 'rb')
 
-
-    if (appyaml.GetEffectiveRuntime() == 'go' and
-        not (appyaml.runtime == 'vm' and
-             'GAE_LOCAL_VM_RUNTIME' in os.environ)):
+    if appyaml.GetEffectiveRuntime() == 'go':
+      if appyaml.runtime == 'vm':
+        raise RuntimeError(
+            'The Go runtime with "vm: true" is only supported with gcloud.')
 
       sdk_base = os.path.normpath(os.path.join(
           google.appengine.__file__, '..', '..', '..'))

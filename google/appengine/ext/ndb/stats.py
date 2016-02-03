@@ -1,5 +1,5 @@
 #
-# Copyright 2008 Google Inc. All Rights Reserved.
+# Copyright 2008 The ndb Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ __all__ = ['BaseKindStatistic',
            'NamespacePropertyTypeStat',
            'NamespaceStat',
            'PropertyTypeStat',
-           ]
+          ]
 
 
 class BaseStatistic(model.Model):
@@ -463,4 +463,4 @@ _DATASTORE_STATS_CLASSES_BY_KIND = {
         NamespaceKindPropertyNamePropertyTypeStat,
     NamespaceKindCompositeIndexStat.STORED_KIND_NAME:
         NamespaceKindCompositeIndexStat,
-    }
+}

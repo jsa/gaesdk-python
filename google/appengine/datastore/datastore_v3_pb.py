@@ -40,8 +40,6 @@ import google.appengine.datastore.entity_pb
 from google.appengine.datastore.snapshot_pb import *
 import google.appengine.datastore.snapshot_pb
 class Transaction(ProtocolBuffer.ProtocolMessage):
-  has_a_field_that_should_never_be_used_ = 0
-  a_field_that_should_never_be_used_ = ""
   has_handle_ = 0
   handle_ = 0
   has_app_ = 0
@@ -54,19 +52,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
   def __init__(self, contents=None):
     self.composite_index_ = []
     if contents is not None: self.MergeFromString(contents)
-
-  def a_field_that_should_never_be_used(self): return self.a_field_that_should_never_be_used_
-
-  def set_a_field_that_should_never_be_used(self, x):
-    self.has_a_field_that_should_never_be_used_ = 1
-    self.a_field_that_should_never_be_used_ = x
-
-  def clear_a_field_that_should_never_be_used(self):
-    if self.has_a_field_that_should_never_be_used_:
-      self.has_a_field_that_should_never_be_used_ = 0
-      self.a_field_that_should_never_be_used_ = ""
-
-  def has_a_field_that_should_never_be_used(self): return self.has_a_field_that_should_never_be_used_
 
   def handle(self): return self.handle_
 
@@ -139,7 +124,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    if (x.has_a_field_that_should_never_be_used()): self.set_a_field_that_should_never_be_used(x.a_field_that_should_never_be_used())
     if (x.has_handle()): self.set_handle(x.handle())
     if (x.has_app()): self.set_app(x.app())
     if (x.has_database()): self.set_database(x.database())
@@ -148,8 +132,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
 
   def Equals(self, x):
     if x is self: return 1
-    if self.has_a_field_that_should_never_be_used_ != x.has_a_field_that_should_never_be_used_: return 0
-    if self.has_a_field_that_should_never_be_used_ and self.a_field_that_should_never_be_used_ != x.a_field_that_should_never_be_used_: return 0
     if self.has_handle_ != x.has_handle_: return 0
     if self.has_handle_ and self.handle_ != x.handle_: return 0
     if self.has_app_ != x.has_app_: return 0
@@ -179,7 +161,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
 
   def ByteSize(self):
     n = 0
-    if (self.has_a_field_that_should_never_be_used_): n += 1 + self.lengthString(len(self.a_field_that_should_never_be_used_))
     n += self.lengthString(len(self.app_))
     if (self.has_database_): n += 1 + self.lengthString(len(self.database_))
     if (self.has_mark_changes_): n += 2
@@ -189,7 +170,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
 
   def ByteSizePartial(self):
     n = 0
-    if (self.has_a_field_that_should_never_be_used_): n += 1 + self.lengthString(len(self.a_field_that_should_never_be_used_))
     if (self.has_handle_):
       n += 9
     if (self.has_app_):
@@ -202,7 +182,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     return n
 
   def Clear(self):
-    self.clear_a_field_that_should_never_be_used()
     self.clear_handle()
     self.clear_app()
     self.clear_database()
@@ -217,9 +196,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     if (self.has_mark_changes_):
       out.putVarInt32(24)
       out.putBoolean(self.mark_changes_)
-    if (self.has_a_field_that_should_never_be_used_):
-      out.putVarInt32(34)
-      out.putPrefixedString(self.a_field_that_should_never_be_used_)
     for i in xrange(len(self.composite_index_)):
       out.putVarInt32(42)
       out.putVarInt32(self.composite_index_[i].ByteSize())
@@ -238,9 +214,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     if (self.has_mark_changes_):
       out.putVarInt32(24)
       out.putBoolean(self.mark_changes_)
-    if (self.has_a_field_that_should_never_be_used_):
-      out.putVarInt32(34)
-      out.putPrefixedString(self.a_field_that_should_never_be_used_)
     for i in xrange(len(self.composite_index_)):
       out.putVarInt32(42)
       out.putVarInt32(self.composite_index_[i].ByteSizePartial())
@@ -261,9 +234,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
       if tt == 24:
         self.set_mark_changes(d.getBoolean())
         continue
-      if tt == 34:
-        self.set_a_field_that_should_never_be_used(d.getPrefixedString())
-        continue
       if tt == 42:
         length = d.getVarInt32()
         tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
@@ -281,7 +251,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
 
   def __str__(self, prefix="", printElemNumber=0):
     res=""
-    if self.has_a_field_that_should_never_be_used_: res+=prefix+("a_field_that_should_never_be_used: %s\n" % self.DebugFormatString(self.a_field_that_should_never_be_used_))
     if self.has_handle_: res+=prefix+("handle: %s\n" % self.DebugFormatFixed64(self.handle_))
     if self.has_app_: res+=prefix+("app: %s\n" % self.DebugFormatString(self.app_))
     if self.has_database_: res+=prefix+("database: %s\n" % self.DebugFormatString(self.database_))
@@ -300,7 +269,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
 
-  ka_field_that_should_never_be_used = 4
   khandle = 1
   kapp = 2
   kdatabase = 6
@@ -312,7 +280,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     1: "handle",
     2: "app",
     3: "mark_changes",
-    4: "a_field_that_should_never_be_used",
     5: "composite_index",
     6: "database",
   }, 6)
@@ -322,7 +289,6 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     1: ProtocolBuffer.Encoder.DOUBLE,
     2: ProtocolBuffer.Encoder.STRING,
     3: ProtocolBuffer.Encoder.NUMERIC,
-    4: ProtocolBuffer.Encoder.STRING,
     5: ProtocolBuffer.Encoder.STRING,
     6: ProtocolBuffer.Encoder.STRING,
   }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
