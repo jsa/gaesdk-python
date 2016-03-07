@@ -133,7 +133,7 @@ _FILESAPI_DEPRECATION_WARNING_GO = (
     '/files_api')
 
 _ALLOWED_RUNTIMES_ENV2 = (
-    'python-compat', 'java-compat', 'java7', 'go', 'custom')
+    'python-compat', 'java', 'java7', 'go', 'custom')
 
 def _static_files_regex_from_handlers(handlers):
   patterns = []

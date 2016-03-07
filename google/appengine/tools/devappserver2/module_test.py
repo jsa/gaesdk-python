@@ -555,7 +555,6 @@ class TestModuleGetRuntimeConfig(parameterized.ParameterizedTestCase):
       ('php55', 'php_config', runtime_config_pb2.PhpConfig),
       ('java', 'java_config', runtime_config_pb2.JavaConfig),
       ('java7', 'java_config', runtime_config_pb2.JavaConfig),
-      ('java-compat', 'java_config', runtime_config_pb2.JavaConfig),
       ('python', 'python_config', runtime_config_pb2.PythonConfig),
       ('python27', 'python_config', runtime_config_pb2.PythonConfig),
       ('python-compat', 'python_config', runtime_config_pb2.PythonConfig),

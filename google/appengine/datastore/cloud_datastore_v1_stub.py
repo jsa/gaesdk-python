@@ -190,6 +190,12 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
 
 
     self.__normalize_v1_run_query_request(req)
+    snapshot_version = None
+
+    txn = None
+
+    txn_to_cleanup = None
+
     new_txn = None
     try:
       try:
@@ -198,6 +204,22 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
           new_txn = self.__begin_adhoc_txn(req)
         v3_req = self.__service_converter.v1_run_query_req_to_v3_query(
             req, new_txn=new_txn)
+
+
+
+        if new_txn:
+          txn = new_txn
+          txn_to_cleanup = new_txn
+        elif req.read_options.transaction:
+          txn = req.read_options.transaction
+        elif (v3_req.has_ancestor() and
+              req.read_options.read_consistency
+              != googledatastore.ReadOptions.EVENTUAL and
+              v3_req.kind != '__property__'):
+          txn = self.__begin_adhoc_txn(req)
+          txn_to_cleanup = txn
+          v3_req.transaction = txn
+
       except datastore_pbs.InvalidConversionError, e:
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                                str(e))
@@ -207,6 +229,23 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
 
       v3_resp = datastore_pb.QueryResult()
       self.__make_v3_call('RunQuery', v3_req, v3_resp)
+
+
+
+      if txn:
+        lookup = googledatastore.LookupRequest()
+        lookup.project_id = req.partition_id.project_id
+        lookup.database_id = req.partition_id.database_id
+        lookup.read_options.transaction = txn
+        key = lookup.keys.add()
+        key.partition_id.CopyFrom(req.partition_id)
+        key.partition_id.database_id = req.database_id
+        path = key.path.add()
+        path.kind = '__none__'
+        path.id = 1
+        lookup_response = googledatastore.LookupResponse()
+        self._Dynamic_Lookup(lookup, lookup_response)
+        snapshot_version = lookup_response.missing[0].version
 
       try:
         v1_resp = self.__service_converter.v3_to_v1_run_query_resp(
@@ -218,12 +257,14 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
           else:
             result_type = googledatastore.EntityResult.PROJECTION
           v1_resp.batch.entity_result_type = result_type
+        if snapshot_version:
+          v1_resp.batch.snapshot_version = snapshot_version
       except datastore_pbs.InvalidConversionError, e:
         raise apiproxy_errors.ApplicationError(
             datastore_pb.Error.INTERNAL_ERROR, str(e))
     except:
-      if new_txn:
-        self.__rollback_adhoc_txn(req, new_txn)
+      if txn_to_cleanup:
+        self.__rollback_adhoc_txn(req, txn_to_cleanup)
       raise
     resp.CopyFrom(v1_resp)
 

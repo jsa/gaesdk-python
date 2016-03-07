@@ -3297,18 +3297,28 @@ class DatastoreStub(object):
     if not request.add_request_list():
       return
 
-    transaction = request.add_request_list()[0].transaction()
+    first_add_request = request.add_request_list()[0]
+    datastore_transaction = None
+    if first_add_request.has_datastore_transaction():
+      datastore_transaction = first_add_request.datastore_transaction()
+      transaction = datastore_pb.Transaction()
+      get_service_converter().v1_to_v3_txn(datastore_transaction, transaction)
+    else:
+      transaction = first_add_request.transaction()
     txn = self._datastore.GetTxn(transaction, self._trusted, self._app_id)
     new_actions = []
     for add_request in request.add_request_list():
 
 
 
-      Check(add_request.transaction() == transaction,
+      Check(datastore_transaction is not None
+            and add_request.datastore_transaction() == datastore_transaction
+            or add_request.transaction() == transaction,
             'Cannot add requests to different transactions')
       clone = taskqueue_service_pb.TaskQueueAddRequest()
       clone.CopyFrom(add_request)
       clone.clear_transaction()
+      clone.clear_datastore_transaction()
       new_actions.append(clone)
 
     txn.AddActions(new_actions, self._MAX_ACTIONS_PER_TXN)
@@ -3338,9 +3348,9 @@ class DatastoreStub(object):
                                                       self._app_id))
 
   @_NeedsIndexes
-  def _Dynamic_GetIndices(self, app_str, composite_indices):
+  def _Dynamic_GetIndices(self, get_indicies_request, composite_indices):
     composite_indices.index_list().extend(self._datastore.GetIndexes(
-        app_str.value(), self._trusted, self._app_id))
+        get_indicies_request.app_id(), self._trusted, self._app_id))
 
   def _Dynamic_UpdateIndex(self, index, _):
     self._datastore.UpdateIndex(index, self._trusted, self._app_id)

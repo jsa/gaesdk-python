@@ -41,7 +41,6 @@ if java_runtime:
   FACTORIES.update({
       'java': java_runtime.JavaRuntimeInstanceFactory,
       'java7': java_runtime.JavaRuntimeInstanceFactory,
-      'java-compat': java_runtime.JavaRuntimeInstanceFactory,
   })
 
 

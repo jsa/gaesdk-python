@@ -489,13 +489,15 @@ class ThrottleHandler(urllib2.BaseHandler):
       return content
 
     res.read = ReturnContent
-    return len(content) + self._CalculateHeaderSize(res.info())
+
+
+    return len(content) + self._CalculateHeaderSize(dict(res.info().items()))
 
   def _CalculateHeaderSize(self, headers):
     """Calculates the size of the headers.
 
     Args:
-      headers: A map of header values.
+      headers: A dict of header values.
 
     Returns:
       the size of the headers.
