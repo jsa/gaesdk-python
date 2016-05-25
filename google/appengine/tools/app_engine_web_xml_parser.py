@@ -305,21 +305,8 @@ class AppEngineWebXmlParser(object):
         self.app_engine_web_xml.api_endpoint_ids.append(api_id)
 
   def ProcessPagespeedNode(self, node):
-    """Processes URLs and puts them into the Pagespeed object."""
-    pagespeed = Pagespeed()
-    pagespeed.url_blacklist = [
-        sub_node.text for sub_node in xml_parser_utils.GetNodes(
-            node, 'url-blacklist')]
-    pagespeed.domains_to_rewrite = [
-        sub_node.text for sub_node in xml_parser_utils.GetNodes(
-            node, 'domain-to-rewrite')]
-    pagespeed.enabled_rewriters = [
-        sub_node.text for sub_node in xml_parser_utils.GetNodes(
-            node, 'enabled-rewriter')]
-    pagespeed.disabled_rewriters = [
-        sub_node.text for sub_node in xml_parser_utils.GetNodes(
-            node, 'disabled-rewriter')]
-    self.app_engine_web_xml.pagespeed = pagespeed
+    """Ignore pagespeed node."""
+    pass
 
   def ProcessClassLoaderConfigNode(self, node):
     for node in xml_parser_utils.GetNodes(node, 'priority-specifier'):
@@ -493,7 +480,6 @@ class AppEngineWebXml(ValueMixin):
     self.env = '1'
     self.api_config = None
     self.api_endpoint_ids = []
-    self.pagespeed = None
     self.class_loader_config = []
     self.url_stream_handler_type = None
     self.use_google_connector_j = None
@@ -654,10 +640,6 @@ class ErrorHandler(ValueMixin):
 class ApiConfig(ValueMixin):
   """Instances contain information about the API config settings."""
   pass
-
-
-class Pagespeed(ValueMixin):
-  """Instances contain information about the pagespeed settings."""
 
 
 class PrioritySpecifierEntry(ValueMixin):

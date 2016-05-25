@@ -590,7 +590,7 @@ def CheckPropertyValue(name, value, max_length, meaning):
           'Property %s is too long. Maximum length is %d.' % (name, max_length))
     if (meaning not in _BLOB_MEANINGS and
         meaning != entity_pb.Property.BYTESTRING):
-      CheckValidUTF8(value.stringvalue(), 'String property value')
+      CheckValidUTF8(value.stringvalue(), 'String property "%s" value' % name)
 
 
 def CheckTransaction(request_trusted, request_app_id, transaction):
@@ -1442,7 +1442,7 @@ class LiveTxn(object):
 
 
   ACTIVE = 1
-  COMMITED = 2
+  COMMITTED = 2
   ROLLEDBACK = 3
   FAILED = 4
 
@@ -1679,7 +1679,7 @@ class LiveTxn(object):
           self._AddWriteOps(old_entity, entity)
 
           if _IsNoOpWrite(old_entity, entity):
-            self._mutation_versions[key] = old_version
+            self._mutation_versions[key] = long(old_version)
 
         for reference in tracker._delete.itervalues():
 
@@ -1692,7 +1692,7 @@ class LiveTxn(object):
             self._AddWriteOps(None, old_entity)
 
           if _IsNoOpWrite(old_entity, None):
-            self._mutation_versions[key] = tracker._read_timestamp
+            self._mutation_versions[key] = long(tracker._read_timestamp)
 
 
       if empty and not self._actions:
@@ -1717,14 +1717,14 @@ class LiveTxn(object):
 
       for tracker in trackers:
         tracker._meta_data.Log(self)
-      self._state = self.COMMITED
+      self._state = self.COMMITTED
       self._commit_time_s = time.time()
       write_timestamp = self._txn_manager._IncrementAndGetCommitTimestamp()
 
       for reference in self._mutated_references:
         key = datastore_types.ReferenceToKeyValue(reference)
         if key not in self._mutation_versions:
-          self._mutation_versions[key] = write_timestamp
+          self._mutation_versions[key] = long(write_timestamp)
     except:
 
       self.Rollback()
@@ -1749,8 +1749,8 @@ class LiveTxn(object):
     return self._cost
 
   def GetMutationVersion(self, reference):
-    """Returns the version of an entity after this transaction has commited."""
-    assert self._state == self.COMMITED
+    """Returns the version of an entity after this transaction has committed."""
+    assert self._state == self.COMMITTED
     key = datastore_types.ReferenceToKeyValue(reference)
     return self._mutation_versions[key]
 
@@ -1779,7 +1779,7 @@ class LiveTxn(object):
     self._apply_lock.acquire()
     try:
 
-      assert self._state == self.COMMITED
+      assert self._state == self.COMMITTED
       for tracker in self._entity_groups.values():
         if tracker._meta_data is meta_data:
           break
@@ -1908,12 +1908,12 @@ class BaseConsistencyPolicy(object):
 
 
   def _OnCommit(self, txn):
-    """Called after a LiveTxn has been commited.
+    """Called after a LiveTxn has been committed.
 
     This function can decide whether to apply the txn right away.
 
     Args:
-      txn: A LiveTxn that has been commited
+      txn: A LiveTxn that has been committed
     """
     raise NotImplementedError
 
@@ -1984,15 +1984,15 @@ class BaseHighReplicationConsistencyPolicy(BaseConsistencyPolicy):
         meta_data._write_lock.release()
 
   def _ShouldApply(self, txn, meta_data):
-    """Determins if the given transaction should be applied."""
+    """Determines if the given transaction should be applied."""
     raise NotImplementedError
 
 
 class TimeBasedHRConsistencyPolicy(BaseHighReplicationConsistencyPolicy):
-  """A High Replication Datastore consiseny policy based on elapsed time.
+  """A High Replication Datastore consistency policy based on elapsed time.
 
   This class tries to simulate performance seen in the high replication
-  datastore using estimated probabilities of a transaction commiting after a
+  datastore using estimated probabilities of a transaction committing after a
   given amount of time.
   """
 
@@ -2007,7 +2007,7 @@ class TimeBasedHRConsistencyPolicy(BaseHighReplicationConsistencyPolicy):
 
     Args:
       classification_map: A list of tuples containing (float between 0 and 1,
-        number of miliseconds) that define the probability of a transaction
+        number of milliseconds) that define the probability of a transaction
         applying after a given amount of time.
     """
     for prob, delay in classification_map:
@@ -2427,7 +2427,7 @@ class BaseIndexManager(object):
 
 
 class BaseDatastore(BaseTransactionManager, BaseIndexManager):
-  """A base implemenation of a Datastore.
+  """A base implementation of a Datastore.
 
   This class implements common functions associated with a datastore and
   enforces security restrictions passed on by a stub or client. It is designed
@@ -2496,6 +2496,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     CheckAppId(trusted, calling_app, raw_query.app())
 
 
+
+
     filters, orders = datastore_index.Normalize(raw_query.filter_list(),
                                                 raw_query.order_list(),
                                                 raw_query.property_name_list())
@@ -2504,7 +2506,8 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     CheckQuery(raw_query, filters, orders, self._MAX_QUERY_COMPONENTS)
     FillUsersInQuery(filters)
 
-    self._CheckHasIndex(raw_query, trusted, calling_app)
+    if self._require_indexes:
+      self._CheckHasIndex(raw_query, trusted, calling_app)
 
 
     index_list = self.__IndexListForQuery(raw_query)
@@ -2547,10 +2550,9 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     index_pb = composite_index_pb.mutable_definition()
     index_pb.set_entity_type(kind)
     index_pb.set_ancestor(bool(ancestor))
-    for name, direction in datastore_index.GetRecommendedIndexProperties(props):
+    for prop in datastore_index.GetRecommendedIndexProperties(props):
       prop_pb = entity_pb.Index_Property()
-      prop_pb.set_name(name)
-      prop_pb.set_direction(direction)
+      prop.CopyToIndexPb(prop_pb)
       index_pb.property_list().append(prop_pb)
     return [composite_index_pb]
 
@@ -2797,7 +2799,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
       op: A function to run on each value in the Txn.
 
     Returns:
-      The transaction that was commited.
+      The transaction that was committed.
     """
     retries = 0
     backoff = _INITIAL_RETRY_DELAY_MS / 1000.0
@@ -2827,8 +2829,11 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
       query: the datastore_pb.Query to check
       trusted: True if the calling app is trusted (like dev_admin_console)
       calling_app: app_id of the current running application
+    Raises:
+      apiproxy_errors.ApplicationError: if the query can be satisfied
+      given the existing indexes.
     """
-    if query.kind() in self._pseudo_kinds or not self._require_indexes:
+    if query.kind() in self._pseudo_kinds:
       return
 
     minimal_index = datastore_index.MinimalCompositeIndexForQuery(query,

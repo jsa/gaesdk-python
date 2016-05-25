@@ -42,6 +42,7 @@ from search import FieldExpression
 from search import GeoField
 from search import GeoPoint
 from search import get_indexes
+from search import get_indexes_async
 from search import GetResponse
 from search import HtmlField
 from search import Index
@@ -88,3 +89,6 @@ from search import TIMESTAMP_FIELD_NAME
 from search import TokenizedPrefixField
 from search import TransientError
 from search import UntokenizedPrefixField
+from search import VECTOR_FIELD_MAX_SIZE
+from search import VectorField
+
