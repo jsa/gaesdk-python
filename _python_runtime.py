@@ -75,7 +75,12 @@ def _run_file(file_path, globals_):
     google_module.__path__.append(google_path)
 
 
-    google_module.__file__ = google_path
+
+
+
+
+    if not hasattr(google_module, '__file__') or not google_module.__file__:
+      google_module.__file__ = os.path.join(google_path, '__init__.py')
 
   execfile(_PATHS.script_file(script_name), globals_)
 

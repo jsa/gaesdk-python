@@ -151,7 +151,7 @@ def _get_default_php_cli_path():
 
   if sys.platform == 'win32':
     default_php_executable_path = os.path.abspath(
-        os.path.join(sdk_directory, 'php/php-5.4-Win32-VC9-x86/php.exe'))
+        os.path.join(sdk_directory, 'php/php-5.5-Win32-VC11-x86/php.exe'))
   elif sys.platform == 'darwin':
     default_php_executable_path = os.path.abspath(
         os.path.join(os.path.dirname(sdk_directory), 'php'))
