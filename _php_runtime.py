@@ -45,28 +45,7 @@ _PATHS = wrapper_util.Paths(_DIR_PATH)
 EXTRA_PATHS = _PATHS.v2_extra_paths
 
 
-def fix_sys_path(extra_extra_paths=()):
-  """Fix the sys.path to include our extra paths.
-
-  fix_sys_path should be called before running testbed-based unit tests so that
-  third-party modules are correctly added to sys.path.
-  """
-  sys.path[1:1] = EXTRA_PATHS
-
-
-def _run_file(file_path, globals_):
-  """Execute the given script with the passed-in globals.
-
-  Args:
-    file_path: the path to the wrapper for the given script. This will usually
-      be a copy of this file.
-    globals_: the global bindings to be used while executing the wrapped script.
-  """
-  script_name = os.path.basename(file_path)
-
-  sys.path = (_PATHS.script_paths(script_name) +
-              _PATHS.scrub_path(script_name, sys.path))
-
+def fix_google_path():
 
 
   if 'google' in sys.modules:
@@ -81,6 +60,39 @@ def _run_file(file_path, globals_):
 
     if not hasattr(google_module, '__file__') or not google_module.__file__:
       google_module.__file__ = os.path.join(google_path, '__init__.py')
+
+
+def fix_sys_path(extra_extra_paths=()):
+  """Fix the sys.path to include our extra paths.
+
+  fix_sys_path should be called before running testbed-based unit tests so that
+  third-party modules are correctly added to sys.path.
+  """
+  sys.path[1:1] = EXTRA_PATHS
+  fix_google_path()
+
+
+def _run_file(file_path, globals_):
+  """Execute the given script with the passed-in globals.
+
+  Args:
+    file_path: the path to the wrapper for the given script. This will usually
+      be a copy of this file.
+    globals_: the global bindings to be used while executing the wrapped script.
+  """
+  script_name = os.path.basename(file_path)
+
+
+
+
+
+  if '--grpc_api' in sys.argv:
+    _PATHS.add_grpc_path(script_name)
+
+  sys.path = (_PATHS.script_paths(script_name) +
+              _PATHS.scrub_path(script_name, sys.path))
+
+  fix_google_path()
 
   execfile(_PATHS.script_file(script_name), globals_)
 

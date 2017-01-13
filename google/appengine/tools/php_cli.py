@@ -130,7 +130,6 @@ def _get_api_server(app_id):
       mail_enable_sendmail=False,
       mail_show_mail_body=False,
       mail_allow_tls=False,
-      matcher_prospective_search_path=tmp_dir,
       search_index_path=None,
       taskqueue_auto_run_tasks=False,
       taskqueue_default_http_server='http://localhost:8080',

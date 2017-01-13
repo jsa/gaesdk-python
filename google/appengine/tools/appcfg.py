@@ -131,7 +131,7 @@ BATCH_OVERHEAD = 500
 verbosity = 1
 
 
-PREFIXED_BY_ADMIN_CONSOLE_RE = '^(?:admin-console)(.*)'
+PREFIXED_BY_ADMIN_CONSOLE_RE = '^(?:admin-console|admin-console-hr)(.*)'
 
 
 SDK_PRODUCT = 'appcfg_py'
@@ -598,6 +598,16 @@ def MigratePython27Notice():
       'possible, which offers performance improvements and many new features. '
       'Learn how simple it is to migrate your application to Python 2.7 at '
       'https://developers.google.com/appengine/docs/python/python25/migrate27.')
+
+
+def MigrateGcloudNotice():
+  """Tells the user that deploying a flex app with appcfg is deprecated."""
+  ErrorUpdate(
+      'WARNING: We highly recommend using the Google Cloud '
+      'SDK for deployments to the App Engine Flexible '
+      'Environment. Using appcfg.py for deployments to the '
+      'flexible environment could lead to downtime. Please '
+      'visit https://cloud.google.com/sdk to learn more.')
 
 
 class IndexDefinitionUpload(object):
@@ -2395,7 +2405,6 @@ class AppVersionUpload(object):
     StatusUpdate('Starting update of %s' % self.Describe(), self.error_fh)
 
 
-    path = ''
     try:
       self.resource_limits = GetResourceLimits(self.logging_context,
                                                self.error_fh)
@@ -2407,8 +2416,8 @@ class AppVersionUpload(object):
       if self._IsExceptionClientDeployLoggable(e):
         self.logging_context.LogClientDeploy(self.config.runtime,
                                              start_time_usec, False)
-      logging.error('An error occurred processing file \'%s\': %s. Aborting.',
-                    path, e)
+      logging.error('An error occurred processing files \'%s\': %s. Aborting.',
+                    list(paths), e)
       raise
 
     try:
@@ -3340,17 +3349,14 @@ class AppCfgApp(object):
       the source context files, and a list of files including the original paths
       plus the generated source context files.
     """
+    if not source_contexts:
+      return (openfunc, paths)
     context_file_map = {}
-    try:
-      if not os.path.exists(
-          os.path.join(basepath, context_util.CONTEXT_FILENAME)):
-        best_context = context_util.BestSourceContext(source_contexts,
-                                                      basepath)
-        context_file_map[context_util.CONTEXT_FILENAME] = json.dumps(
-            best_context)
-    except context_util.GenerateSourceContextError:
-
-      pass
+    if not os.path.exists(
+        os.path.join(basepath, context_util.CONTEXT_FILENAME)):
+      best_context = context_util.BestSourceContext(source_contexts)
+      context_file_map[context_util.CONTEXT_FILENAME] = json.dumps(
+          best_context)
     if not os.path.exists(
         os.path.join(basepath, context_util.EXT_CONTEXT_FILENAME)):
       context_file_map[context_util.EXT_CONTEXT_FILENAME] = json.dumps(
@@ -3417,6 +3423,11 @@ class AppCfgApp(object):
         self.parser.error('Directory %r does not contain configuration file '
                           '%s.yaml' %
                           (os.path.abspath(basepath), basename))
+    else:
+
+
+      appyaml.module = appyaml.module or appyaml.service
+      appyaml.service = None
 
     orig_application = appyaml.application
     orig_module = appyaml.module
@@ -3800,9 +3811,8 @@ class AppCfgApp(object):
         paths = app_paths + overlay.keys()
         openfunc = Open
 
-    if source_contexts:
-      openfunc, paths = self._CreateSourceContextFiles(
-          source_contexts, basepath, openfunc, paths)
+    openfunc, paths = self._CreateSourceContextFiles(
+        source_contexts, basepath, openfunc, paths)
     appversion = AppVersionUpload(
         rpcserver,
         appyaml,
@@ -3828,6 +3838,9 @@ class AppCfgApp(object):
                                                os.path.splitext(file_name)[0])
       if module_yaml.runtime == 'python':
         has_python25_version = True
+
+      if module_yaml.vm is True:
+        MigrateGcloudNotice()
 
 
 

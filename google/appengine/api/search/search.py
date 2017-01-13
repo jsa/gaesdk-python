@@ -32,22 +32,35 @@ Contains API classes that forward to apiproxy.
 import base64
 import datetime
 import logging
+import os
 import re
 import string
 import sys
 import warnings
 from google.net.proto import ProtocolBuffer
 
-from google.appengine.datastore import document_pb
-from google.appengine.api import apiproxy_stub_map
-from google.appengine.api import datastore_types
-from google.appengine.api import namespace_manager
-from google.appengine.api.search import expression_parser
-from google.appengine.api.search import query_parser
-from google.appengine.api.search import search_service_pb
-from google.appengine.api.search import search_util
-from google.appengine.datastore import datastore_rpc
-from google.appengine.runtime import apiproxy_errors
+if os.environ.get('APPENGINE_RUNTIME') == 'python27':
+  from google.appengine.datastore import document_pb
+  from google.appengine.api import apiproxy_stub_map
+  from google.appengine.api import datastore_types
+  from google.appengine.api import namespace_manager
+  from google.appengine.api.search import expression_parser
+  from google.appengine.api.search import query_parser
+  from google.appengine.api.search import search_service_pb
+  from google.appengine.api.search import search_util
+  from google.appengine.datastore import datastore_rpc
+  from google.appengine.runtime import apiproxy_errors
+else:
+  from google.appengine.datastore import document_pb
+  from google.appengine.api import apiproxy_stub_map
+  from google.appengine.api import datastore_types
+  from google.appengine.api import namespace_manager
+  from google.appengine.api.search import expression_parser
+  from google.appengine.api.search import query_parser
+  from google.appengine.api.search import search_service_pb
+  from google.appengine.api.search import search_util
+  from google.appengine.datastore import datastore_rpc
+  from google.appengine.runtime import apiproxy_errors
 
 
 __all__ = [
@@ -1907,10 +1920,13 @@ class Document(object):
 
     self._facet_map = None
 
-    doc_rank = rank
-    if doc_rank is None:
-      doc_rank = self._GetDefaultRank()
-    self._rank = self._CheckRank(doc_rank)
+    if rank is None:
+      rank = self._GetDefaultRank()
+      self._rank_defaulted = True
+    else:
+      self._rank_defaulted = False
+
+    self._rank = self._CheckRank(rank)
 
     _CheckDocument(self)
 
@@ -2057,6 +2073,14 @@ def _CopyDocumentToProtocolBuffer(document, pb):
     facet_pb = pb.add_facet()
     facet._CopyToProtocolBuffer(facet_pb)
   pb.set_order_id(document.rank)
+
+
+  if hasattr(document, '_rank_defaulted'):
+    if document._rank_defaulted:
+      pb.set_order_id_source(document_pb.Document.DEFAULTED)
+    else:
+      pb.set_order_id_source(document_pb.Document.SUPPLIED)
+
   return pb
 
 
@@ -2536,14 +2560,16 @@ class ScoredDocument(Document):
 
   @property
   def sort_scores(self):
-    """The list of scores assigned during sort evaluation.
+    """Deprecated: the list of scores assigned during sort evaluation.
 
-    Each sort dimension is included. Positive scores are used for ascending
-    sorts; negative scores for descending.
+    The right way to retrieve a score is to use '_score' in a
+    FieldExpression.
 
     Returns:
       The list of numeric sort scores.
+
     """
+    logging.warning("sort_scores() is deprecated; please use _score in a FieldExpression.")
     return self._sort_scores
 
   @property

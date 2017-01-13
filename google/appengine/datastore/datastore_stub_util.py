@@ -490,8 +490,8 @@ def CheckReference(request_trusted,
 
   Check(key.path().element_size() > 0, 'key\'s path cannot be empty')
 
-  if require_id_or_name and not datastore_pbs.is_complete_v3_key(key):
-    raise datastore_errors.BadRequestError('missing key id/name')
+  if require_id_or_name:
+    Check(datastore_pbs.is_complete_v3_key(key), 'missing key id/name')
 
   for elem in key.path().element_list():
     Check(not elem.has_id() or not elem.has_name(),
@@ -3397,7 +3397,7 @@ class DatastoreStub(object):
       allocate_ids_response.set_end(end)
     else:
       for reference in allocate_ids_request.reserve_list():
-        CheckAppId(reference.app(), self._trusted, self._app_id)
+        CheckReference(self._trusted, self._app_id, reference)
       self._datastore._AllocateIds(allocate_ids_request.reserve_list())
       allocate_ids_response.set_start(0)
       allocate_ids_response.set_end(0)
