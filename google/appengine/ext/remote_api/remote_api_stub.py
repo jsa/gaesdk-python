@@ -777,7 +777,8 @@ def ConfigureRemoteApiForOAuth(
             _OAUTH_SCOPES)
     else:
       credentials = client.GoogleCredentials.get_application_default()
-      credentials = credentials.create_scoped(_OAUTH_SCOPES)
+      if credentials and credentials.create_scoped_required():
+        credentials = credentials.create_scoped(_OAUTH_SCOPES)
 
 
     oauth2_parameters = (
