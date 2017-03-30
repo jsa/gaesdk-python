@@ -19,13 +19,9 @@
 
 
 import argparse
-import errno
-import getpass
-import itertools
 import logging
 import os
 import sys
-import tempfile
 import time
 
 from google.appengine.api import appinfo
@@ -35,7 +31,6 @@ from google.appengine.tools import boolean_action
 from google.appengine.tools.devappserver2 import api_server
 from google.appengine.tools.devappserver2 import application_configuration
 from google.appengine.tools.devappserver2 import dispatcher
-from google.appengine.tools.devappserver2 import login
 from google.appengine.tools.devappserver2 import metrics
 from google.appengine.tools.devappserver2 import runtime_config_pb2
 from google.appengine.tools.devappserver2 import runtime_factories
@@ -76,58 +71,6 @@ _PROD_DEFAULT_ENCODING = 'ascii'
 
 # The environment variable exposed in the devshell.
 _DEVSHELL_ENV = 'DEVSHELL_CLIENT_PORT'
-
-
-def _generate_storage_paths(app_id):
-  """Yield an infinite sequence of possible storage paths."""
-  if sys.platform == 'win32':
-    # The temp directory is per-user on Windows so there is no reason to add
-    # the username to the generated directory name.
-    user_format = ''
-  else:
-    try:
-      user_name = getpass.getuser()
-    except Exception:  # The possible set of exceptions is not documented.
-      user_format = ''
-    else:
-      user_format = '.%s' % user_name
-
-  tempdir = tempfile.gettempdir()
-  yield os.path.join(tempdir, 'appengine.%s%s' % (app_id, user_format))
-  for i in itertools.count(1):
-    yield os.path.join(tempdir, 'appengine.%s%s.%d' % (app_id, user_format, i))
-
-
-def _get_storage_path(path, app_id):
-  """Returns a path to the directory where stub data can be stored."""
-  _, _, app_id = app_id.replace(':', '_').rpartition('~')
-  if path is None:
-    for path in _generate_storage_paths(app_id):
-      try:
-        os.mkdir(path, 0700)
-      except OSError, e:
-        if e.errno == errno.EEXIST:
-          # Check that the directory is only accessable by the current user to
-          # protect against an attacker creating the directory in advance in
-          # order to access any created files. Windows has per-user temporary
-          # directories and st_mode does not include per-user permission
-          # information so assume that it is safe.
-          if sys.platform == 'win32' or (
-              (os.stat(path).st_mode & 0777) == 0700 and os.path.isdir(path)):
-            return path
-          else:
-            continue
-        raise
-      else:
-        return path
-  elif not os.path.exists(path):
-    os.mkdir(path)
-    return path
-  elif not os.path.isdir(path):
-    raise IOError('the given storage path %r is a file, a directory was '
-                  'expected' % path)
-  else:
-    return path
 
 
 class PortParser(object):
@@ -425,6 +368,14 @@ def create_command_line_parser():
       'an instance of the app. May be specified more than once. Example: '
       '--jvm_flag=-Xmx1024m --jvm_flag=-Xms256m')
 
+  # Go
+  go_group = parser.add_argument_group('Go')
+  go_group.add_argument(
+      '--go_work_dir',
+      help='working directory of compiled Go packages. Defaults to temporary '
+      'directory. Contents of the working directory are persistent and need to '
+      'be cleaned up manually.')
+
   # Custom
   custom_group = parser.add_argument_group('Custom VM Runtime')
   custom_group.add_argument(
@@ -673,30 +624,6 @@ def create_command_line_parser():
 PARSER = create_command_line_parser()
 
 
-def _clear_datastore_storage(datastore_path):
-  """Delete the datastore storage file at the given path."""
-  # lexists() returns True for broken symlinks, where exists() returns False.
-  if os.path.lexists(datastore_path):
-    try:
-      os.remove(datastore_path)
-    except OSError, e:
-      logging.warning('Failed to remove datastore file %r: %s',
-                      datastore_path,
-                      e)
-
-
-def _clear_search_indexes_storage(search_index_path):
-  """Delete the search indexes storage file at the given path."""
-  # lexists() returns True for broken symlinks, where exists() returns False.
-  if os.path.lexists(search_index_path):
-    try:
-      os.remove(search_index_path)
-    except OSError, e:
-      logging.warning('Failed to remove search indexes file %r: %s',
-                      search_index_path,
-                      e)
-
-
 def _setup_environ(app_id):
   """Sets up the os.environ dictionary for the front-end server and API server.
 
@@ -745,12 +672,13 @@ class DevelopmentServer(object):
     logging.getLogger().setLevel(
         _LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
 
+    runtime = 'vm' if options.runtime == 'python-compat' else options.runtime
     parsed_env_variables = dict(options.env_variables or [])
 
     configuration = application_configuration.ApplicationConfiguration(
         config_paths=options.config_paths,
         app_id=options.app_id,
-        runtime=options.runtime,
+        runtime=runtime,
         env_variables=parsed_env_variables)
 
     if options.google_analytics_client_id:
@@ -791,6 +719,7 @@ class DevelopmentServer(object):
         self._create_php_config(options),
         self._create_python_config(options),
         self._create_java_config(options),
+        self._create_go_config(options),
         self._create_custom_config(options),
         self._create_cloud_sql_config(options),
         self._create_vm_config(options),
@@ -803,16 +732,17 @@ class DevelopmentServer(object):
                                        configuration, '--threadsafe_override'),
         options.external_port)
 
-    request_data = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
-    storage_path = _get_storage_path(options.storage_path, configuration.app_id)
+    wsgi_request_info_ = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
+    storage_path = api_server.get_storage_path(
+        options.storage_path, configuration.app_id)
 
     # TODO: Remove after the Files API is really gone.
     api_server.set_filesapi_enabled(options.blobstore_enable_files_api)
     if options.blobstore_warn_on_files_api_use:
-      api_server.enable_filesapi_tracking(request_data)
+      api_server.enable_filesapi_tracking(wsgi_request_info_)
 
-    apiserver = self._create_api_server(
-        request_data, storage_path, options, configuration)
+    apiserver = api_server.create_api_server(
+        wsgi_request_info_, storage_path, options, configuration)
     apiserver.start()
     self._running_modules.append(apiserver)
 
@@ -821,8 +751,8 @@ class DevelopmentServer(object):
       grpc_apiserver.start()
       self._running_modules.append(grpc_apiserver)
 
-    self._dispatcher.start(options.api_host, apiserver.port, request_data,
-                           options.grpc_apis)
+    self._dispatcher.start(
+        options.api_host, apiserver.port, wsgi_request_info_, options.grpc_apis)
 
     xsrf_path = os.path.join(storage_path, 'xsrf')
     admin = admin_server.AdminServer(options.admin_host, options.admin_port,
@@ -843,85 +773,6 @@ class DevelopmentServer(object):
       self._dispatcher.quit()
     if self._options.google_analytics_client_id:
       metrics.GetMetricsLogger().Stop()
-
-  @staticmethod
-  def _create_api_server(request_data, storage_path, options, configuration):
-    datastore_path = options.datastore_path or os.path.join(storage_path,
-                                                            'datastore.db')
-    logs_path = options.logs_path or os.path.join(storage_path, 'logs.db')
-
-    search_index_path = options.search_indexes_path or os.path.join(
-        storage_path, 'search_indexes')
-
-    blobstore_path = options.blobstore_path or os.path.join(storage_path,
-                                                            'blobs')
-
-    if options.clear_datastore:
-      _clear_datastore_storage(datastore_path)
-
-    if options.clear_search_indexes:
-      _clear_search_indexes_storage(search_index_path)
-
-    if options.auto_id_policy == datastore_stub_util.SEQUENTIAL:
-      logging.warn("--auto_id_policy='sequential' is deprecated. This option "
-                   "will be removed in a future release.")
-
-    application_address = '%s' % options.host
-    if options.port and options.port != 80:
-      application_address += ':' + str(options.port)
-
-    user_login_url = '/%s?%s=%%s' % (login.LOGIN_URL_RELATIVE,
-                                     login.CONTINUE_PARAM)
-    user_logout_url = '%s&%s=%s' % (user_login_url, login.ACTION_PARAM,
-                                    login.LOGOUT_ACTION)
-
-    if options.datastore_consistency_policy == 'time':
-      consistency = datastore_stub_util.TimeBasedHRConsistencyPolicy()
-    elif options.datastore_consistency_policy == 'random':
-      consistency = datastore_stub_util.PseudoRandomHRConsistencyPolicy()
-    elif options.datastore_consistency_policy == 'consistent':
-      consistency = datastore_stub_util.PseudoRandomHRConsistencyPolicy(1.0)
-    else:
-      assert 0, ('unknown consistency policy: %r' %
-                 options.datastore_consistency_policy)
-
-    api_server.maybe_convert_datastore_file_stub_data_to_sqlite(
-        configuration.app_id, datastore_path)
-    api_server.setup_stubs(
-        request_data=request_data,
-        app_id=configuration.app_id,
-        application_root=configuration.modules[0].application_root,
-        # The "trusted" flag is only relevant for Google administrative
-        # applications.
-        trusted=getattr(options, 'trusted', False),
-        appidentity_email_address=options.appidentity_email_address,
-        appidentity_private_key_path=os.path.abspath(
-            options.appidentity_private_key_path)
-        if options.appidentity_private_key_path else None,
-        blobstore_path=blobstore_path,
-        datastore_path=datastore_path,
-        datastore_consistency=consistency,
-        datastore_require_indexes=options.require_indexes,
-        datastore_auto_id_policy=options.auto_id_policy,
-        images_host_prefix='http://%s' % application_address,
-        logs_path=logs_path,
-        mail_smtp_host=options.smtp_host,
-        mail_smtp_port=options.smtp_port,
-        mail_smtp_user=options.smtp_user,
-        mail_smtp_password=options.smtp_password,
-        mail_enable_sendmail=options.enable_sendmail,
-        mail_show_mail_body=options.show_mail_body,
-        mail_allow_tls=options.smtp_allow_tls,
-        search_index_path=search_index_path,
-        taskqueue_auto_run_tasks=options.enable_task_running,
-        taskqueue_default_http_server=application_address,
-        user_login_url=user_login_url,
-        user_logout_url=user_logout_url,
-        default_gcs_bucket_name=options.default_gcs_bucket_name,
-        appidentity_oauth_url=options.appidentity_oauth_url)
-
-    return api_server.APIServer(options.api_host, options.api_port,
-                                configuration.app_id)
 
   @staticmethod
   def _create_php_config(options):
@@ -955,6 +806,13 @@ class DevelopmentServer(object):
     if options.jvm_flag:
       java_config.jvm_args.extend(options.jvm_flag)
     return java_config
+
+  @staticmethod
+  def _create_go_config(options):
+    go_config = runtime_config_pb2.GoConfig()
+    if options.go_work_dir:
+      go_config.work_dir = options.go_work_dir
+    return go_config
 
   @staticmethod
   def _create_custom_config(options):
