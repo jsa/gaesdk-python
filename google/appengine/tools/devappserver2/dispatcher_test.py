@@ -120,6 +120,7 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -166,6 +167,7 @@ class ManualScalingModuleFacade(module.ManualScalingModule):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -207,6 +209,7 @@ def _make_dispatcher(app_config):
       vm_config=None,
       module_to_max_instances={},
       use_mtime_file_watcher=False,
+      watcher_ignore_re=None,
       automatic_restart=True,
       allow_skipped_files=False,
       module_to_threadsafe_override={},

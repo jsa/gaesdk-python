@@ -174,7 +174,7 @@ BUILTIN_NAME_PREFIX = 'ah-builtin'
 RUNTIME_RE_STRING = r'[a-z][a-z0-9\-]{0,29}'
 
 API_VERSION_RE_STRING = r'[\w.]{1,32}'
-ENV_RE_STRING = r'[\w.]{1,32}'
+ENV_RE_STRING = r'(1|2|standard|flex|flexible)'
 
 SOURCE_LANGUAGE_RE_STRING = r'[\w.\-]{1,32}'
 
@@ -389,7 +389,8 @@ class _VersionedLibrary(object):
                latest_version,
                default_version=None,
                deprecated_versions=None,
-               experimental_versions=None):
+               experimental_versions=None,
+               hidden_versions=None):
     """Initializer for `_VersionedLibrary`.
 
     Args:
@@ -409,9 +410,14 @@ class _VersionedLibrary(object):
           in the Python 2.7 runtime, or `None` if the library is not available
           by default; for example, `v1`.
       deprecated_versions: A list of the versions of the library that have been
-          deprecated; for example, `["v1", "v2"]`.
+          deprecated; for example, `["v1", "v2"]`. Order by release version.
       experimental_versions: A list of the versions of the library that are
-          currently experimental; for example, `["v1"]`.
+          currently experimental; for example, `["v1"]`. Order by release
+          version.
+      hidden_versions: A list of versions that will not show up in public
+          documentation for release purposes.  If, as a result, the library
+          has no publicly documented versions, the entire library won't show
+          up in the docs. Order by release version.
     """
     self.name = name
     self.url = url
@@ -421,6 +427,16 @@ class _VersionedLibrary(object):
     self.default_version = default_version
     self.deprecated_versions = deprecated_versions or []
     self.experimental_versions = experimental_versions or []
+    self.hidden_versions = hidden_versions or []
+
+  @property
+  def hidden(self):
+    """Determines if the entire library should be hidden from public docs.
+
+    Returns:
+      True if there is every supported version is hidden.
+    """
+    return sorted(self.supported_versions) == sorted(self.hidden_versions)
 
   @property
   def non_deprecated_versions(self):
@@ -440,6 +456,7 @@ _SUPPORTED_LIBRARIES = [
         'A fast, powerful, and language-neutral HTML template system.',
         ['0.10.5'],
         latest_version='0.10.5',
+        hidden_versions=['0.10.5'],
         ),
     _VersionedLibrary(
         'django',
@@ -481,9 +498,10 @@ _SUPPORTED_LIBRARIES = [
         'lxml',
         'http://lxml.de/',
         'A Pythonic binding for the C libraries libxml2 and libxslt.',
-        ['2.3', '2.3.5'],
+        ['2.3', '2.3.5', '3.7.3'],
         latest_version='2.3',
         experimental_versions=['2.3.5'],
+        hidden_versions=['3.7.3'],
         ),
     _VersionedLibrary(
         'markupsafe',
@@ -671,9 +689,9 @@ _MAX_URL_LENGTH = 2047
 
 _MAX_HEADER_SIZE_FOR_EXEMPTED_HEADERS = 10240
 
-_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'python',
-                    'python27', 'python-compat', 'java', 'java7', 'vm',
-                    'custom', 'nodejs', 'ruby')
+_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'php7',
+                    'python', 'python27', 'python-compat', 'java', 'java7',
+                    'vm', 'custom', 'nodejs', 'ruby')
 _all_runtimes = _CANNED_RUNTIMES
 
 

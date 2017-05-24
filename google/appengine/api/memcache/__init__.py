@@ -737,7 +737,10 @@ class Client(object):
       elif status == MemcacheDeleteResponse.NOT_FOUND:
         result.append(DELETE_ITEM_MISSING)
       else:
-        result.append(DELETE_NETWORK_FAILURE)
+
+
+
+        return None
     return result
 
 
@@ -1011,6 +1014,12 @@ class Client(object):
     assert response.set_status_size() == len(server_keys)
     status_dict = {}
     for server_key, status in zip(server_keys, response.set_status_list()):
+
+
+      if status in (MemcacheSetResponse.DEADLINE_EXCEEDED,
+                    MemcacheSetResponse.UNREACHABLE,
+                    MemcacheSetResponse.OTHER_ERROR):
+        status = MemcacheSetResponse.ERROR
       status_dict[user_key[server_key]] = status
     return status_dict
 

@@ -132,6 +132,7 @@ class ModuleFacade(module.Module):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=allow_skipped_files,
         threadsafe_override=threadsafe_override)
@@ -177,6 +178,7 @@ class AutoScalingModuleFacade(module.AutoScalingModule):
         dispatcher=None,
         max_instances=max_instances,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -224,6 +226,7 @@ class ManualScalingModuleFacade(module.ManualScalingModule):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -269,6 +272,7 @@ class BasicScalingModuleFacade(module.BasicScalingModule):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -314,6 +318,7 @@ class ExternalModuleFacade(module.ExternalModule):
         dispatcher=None,
         max_instances=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         automatic_restarts=True,
         allow_skipped_files=False,
         threadsafe_override=None)
@@ -2537,6 +2542,7 @@ class TestInteractiveCommandModule(googletest.TestCase):
         request_data=None,
         dispatcher=None,
         use_mtime_file_watcher=False,
+        watcher_ignore_re=None,
         allow_skipped_files=False,
         threadsafe_override=None)
     self.mox.StubOutWithMock(self.servr._instance_factory, 'new_instance')

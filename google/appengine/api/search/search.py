@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
 """A Python Search API used by app developers.
 
 Contains methods used to interface with Search API.
@@ -332,7 +330,7 @@ def _ConvertToUTF8(value):
              'nan': 'NaN'}.get(value, value)
   elif isinstance(value, (int, long)):
     value = str(value)
-  return _ConvertToUnicode(value).encode("utf-8")
+  return _ConvertToUnicode(value).encode('utf-8')
 
 
 class OperationResult(object):
@@ -1180,7 +1178,7 @@ class NumberFacet(Facet):
 
   @classmethod
   def _CheckValue(cls, value):
-    _CheckNumber(value, "number facet value", True)
+    _CheckNumber(value, 'number facet value', True)
     if value >= MIN_NUMBER_VALUE and value <= MAX_NUMBER_VALUE:
       return value
     raise ValueError('value must be between %f and %f (got %f)' %
@@ -2588,7 +2586,8 @@ class ScoredDocument(Document):
       The list of numeric sort scores.
 
     """
-    logging.warning("sort_scores() is deprecated; please use _score in a FieldExpression.")
+    logging.warning(
+        'sort_scores() is deprecated; please use _score in a FieldExpression.')
     return self._sort_scores
 
   @property
@@ -4114,7 +4113,7 @@ def _MakeSyncSearchServiceCall(call, request, response, deadline):
     ValueError: If the deadline is less than zero.
   """
   _ValidateDeadline(deadline)
-  logging.warning("_MakeSyncSearchServiceCall is deprecated; please use API.")
+  logging.warning('_MakeSyncSearchServiceCall is deprecated; please use API.')
   try:
     if deadline is None:
       apiproxy_stub_map.MakeSyncCall('search', call, request, response)

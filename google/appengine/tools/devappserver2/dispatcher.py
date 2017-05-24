@@ -84,6 +84,7 @@ class Dispatcher(request_info.Dispatcher):
                vm_config,
                module_to_max_instances,
                use_mtime_file_watcher,
+               watcher_ignore_re,
                automatic_restart,
                allow_skipped_files,
                module_to_threadsafe_override,
@@ -125,6 +126,8 @@ class Dispatcher(request_info.Dispatcher):
       use_mtime_file_watcher: A bool containing whether to use mtime polling to
           monitor file changes even if other options are available on the
           current platform.
+      watcher_ignore_re: A RegexObject that optionally defines a pattern for the
+          file watcher to ignore.
       automatic_restart: If True then instances will be restarted when a
           file or configuration change that affects them is detected.
       allow_skipped_files: If True then all files in the application's directory
@@ -163,6 +166,7 @@ class Dispatcher(request_info.Dispatcher):
         name='Dispatcher Update Checking')
     self._module_to_max_instances = module_to_max_instances or {}
     self._use_mtime_file_watcher = use_mtime_file_watcher
+    self._watcher_ignore_re = watcher_ignore_re
     self._automatic_restart = automatic_restart
     self._allow_skipped_files = allow_skipped_files
     self._module_to_threadsafe_override = module_to_threadsafe_override
@@ -295,6 +299,7 @@ class Dispatcher(request_info.Dispatcher):
         dispatcher=self,
         max_instances=max_instances,
         use_mtime_file_watcher=self._use_mtime_file_watcher,
+        watcher_ignore_re=self._watcher_ignore_re,
         automatic_restarts=self._automatic_restart,
         allow_skipped_files=self._allow_skipped_files,
         threadsafe_override=threadsafe_override,

@@ -125,6 +125,8 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
       deleted or modified) in these directories will trigger a restart of all
       instances created with this factory.
     """
+    if not self._runtime_config_getter().go_config.enable_watching_go_path:
+      return []
     try:
       go_path = os.environ['GOPATH']
     except KeyError:

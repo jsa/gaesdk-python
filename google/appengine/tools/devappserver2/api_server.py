@@ -16,7 +16,23 @@
 #
 """Serves the stub App Engine APIs (e.g. memcache, datastore) over HTTP.
 
-The Remote API protocol is used for communication.
+The Remote API protocol is used for communication with the API stubs.
+
+The APIServer can be started either as a stand alone binary or directly from
+other scripts, eg dev_appserver.py. When using as a stand alone binary, the
+APIServer can be launched with or without the context of a specific application.
+
+To launch the API Server in the context of an application, launch the APIServer
+in the same way as dev_appserver.py:
+
+  api_server.py [flags] <module> [<module>...]
+
+When launching without the context of an application, a default application id
+is provided, which can be overidden with the --application flag. Either of the
+following are acceptable:
+
+  api_server.py [flags]
+  api_server.py --application=my-app-id [flags]
 """
 
 
@@ -42,6 +58,7 @@ from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import datastore
 from google.appengine.api import datastore_file_stub
 from google.appengine.api import mail_stub
+from google.appengine.api import request_info as request_info_lib
 from google.appengine.api import urlfetch_stub
 from google.appengine.api import user_service_stub
 from google.appengine.api.app_identity import app_identity_stub
@@ -65,9 +82,14 @@ from google.appengine.datastore import datastore_v4_stub
 from google.appengine.ext.remote_api import remote_api_pb
 from google.appengine.ext.remote_api import remote_api_services
 from google.appengine.runtime import apiproxy_errors
+from google.appengine.tools.devappserver2 import application_configuration
+from google.appengine.tools.devappserver2 import cli_parser
+from google.appengine.tools.devappserver2 import constants
 from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import login
 from google.appengine.tools.devappserver2 import metrics
+from google.appengine.tools.devappserver2 import shutdown
+from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2 import wsgi_server
 
 
@@ -75,6 +97,9 @@ from google.appengine.tools.devappserver2 import wsgi_server
 # safety.
 GLOBAL_API_LOCK = threading.RLock()
 
+# The default app id used when launching the api_server.py as a binary, without
+# providing the context of a specific application.
+DEFAULT_API_SERVER_APP_ID = 'dev~app_id'
 
 # We don't want to support datastore_v4 everywhere, because users are supposed
 # to use the Cloud Datastore API going forward, so we don't want to put these
@@ -286,6 +311,16 @@ class APIServer(wsgi_server.WsgiServer):
     self._balanced_address = balanced_address
 
   def _handle_POST(self, environ, start_response):
+    """Handles a POST request containing a serialized remote_api_pb.Request.
+
+    Args:
+      environ: An environ dict for the request as defined in PEP-333.
+      start_response: A start_response function with semantics defined in
+        PEP-333.
+
+    Returns:
+      A single element list containing the string body of the HTTP response.
+    """
     start_response('200 OK', [('Content-Type', 'application/octet-stream')])
 
     start_time = time.time()
@@ -362,7 +397,7 @@ class APIServer(wsgi_server.WsgiServer):
       return []
 
 
-def create_api_server(request_info, storage_path, options, configuration):
+def create_api_server(request_info, storage_path, options, app_id, app_root):
   """Creates an API server.
 
   Args:
@@ -370,9 +405,11 @@ def create_api_server(request_info, storage_path, options, configuration):
       lookup information about the request associated with an API call.
     storage_path: A string directory for storing API stub data.
     options: An instance of argparse.Namespace containing command line flags.
-    configuration: An instance of
-      application_configuration.ApplicationConfiguration for configuring API
-      stub settings.
+    app_id: String representing an application ID, used for configuring paths
+      and string constants in API stubs.
+    app_root: The path to the directory containing the user's
+        application e.g. "/home/joe/myapp", used for locating application yaml
+        files, eg index.yaml for the datastore stub.
 
   Returns:
     An instance of APIServer.
@@ -412,12 +449,11 @@ def create_api_server(request_info, storage_path, options, configuration):
     assert 0, ('unknown consistency policy: %r' %
                options.datastore_consistency_policy)
 
-  maybe_convert_datastore_file_stub_data_to_sqlite(
-      configuration.app_id, datastore_path)
+  maybe_convert_datastore_file_stub_data_to_sqlite(app_id, datastore_path)
   setup_stubs(
       request_data=request_info,
-      app_id=configuration.app_id,
-      application_root=configuration.modules[0].application_root,
+      app_id=app_id,
+      application_root=app_root,
       # The "trusted" flag is only relevant for Google administrative
       # applications.
       trusted=getattr(options, 'trusted', False),
@@ -447,7 +483,7 @@ def create_api_server(request_info, storage_path, options, configuration):
       default_gcs_bucket_name=options.default_gcs_bucket_name,
       appidentity_oauth_url=options.appidentity_oauth_url)
 
-  return APIServer(options.api_host, options.api_port, configuration.app_id)
+  return APIServer(options.api_host, options.api_port, app_id)
 
 
 def _clear_datastore_storage(datastore_path):
@@ -638,18 +674,16 @@ def setup_stubs(
       'channel',
       channel_service_stub.ChannelServiceStub(request_data=request_data))
 
-  datastore_stub = datastore_sqlite_stub.DatastoreSqliteStub(
-      app_id,
-      datastore_path,
-      datastore_require_indexes,
-      trusted,
-      root_path=application_root,
-      auto_id_policy=datastore_auto_id_policy)
-
-  datastore_stub.SetConsistencyPolicy(datastore_consistency)
-
   apiproxy_stub_map.apiproxy.ReplaceStub(
-      'datastore_v3', datastore_stub)
+      'datastore_v3',
+      datastore_sqlite_stub.DatastoreSqliteStub(
+          app_id,
+          datastore_path,
+          datastore_require_indexes,
+          trusted,
+          root_path=application_root,
+          auto_id_policy=datastore_auto_id_policy,
+          consistency_policy=datastore_consistency))
 
   apiproxy_stub_map.apiproxy.RegisterStub(
       'datastore_v4',
@@ -866,3 +900,47 @@ def cleanup_stubs():
   logging.info('Saving search indexes')
   apiproxy_stub_map.apiproxy.GetStub('search').Write()
   apiproxy_stub_map.apiproxy.GetStub('taskqueue').Shutdown()
+
+
+def main():
+  """Parses command line options and launches the API server."""
+  shutdown.install_signal_handlers()
+
+  options = cli_parser.create_command_line_parser(
+      cli_parser.API_SERVER_CONFIGURATION).parse_args()
+  logging.getLogger().setLevel(
+      constants.LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
+
+  # Parse the application configuration if config_paths are provided, else
+  # provide sensible defaults.
+  if options.config_paths:
+    app_config = application_configuration.ApplicationConfiguration(
+        options.config_paths, options.app_id)
+    app_id = app_config.app_id
+    app_root = app_config.modules[0].application_root
+  else:
+    app_id = ('dev~' + options.app_id if
+              options.app_id else DEFAULT_API_SERVER_APP_ID)
+    app_root = tempfile.mkdtemp()
+
+  # pylint: disable=protected-access
+  # TODO: Rename LocalFakeDispatcher or re-implement for api_server.py.
+  request_info = wsgi_request_info.WSGIRequestInfo(
+      request_info_lib._LocalFakeDispatcher())
+  # pylint: enable=protected-access
+
+  server = create_api_server(
+      request_info=request_info,
+      storage_path=get_storage_path(options.storage_path, app_id),
+      options=options, app_id=app_id, app_root=app_root)
+
+  try:
+    server.start()
+    shutdown.wait_until_shutdown()
+  finally:
+    server.quit()
+
+
+if __name__ == '__main__':
+  main()
+

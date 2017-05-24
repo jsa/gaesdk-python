@@ -934,6 +934,19 @@ class ApplicationConfiguration(object):
     return app_yamls + backend_yamls
 
   def _config_files_from_web_inf_dir(self, web_inf):
+    """Return a list of the configuration files found in a WEB-INF directory.
+
+    We expect to find web.xml and application-web.xml in the directory.
+
+    Args:
+      web_inf: a string that is the path to a WEB-INF directory.
+
+    Raises:
+      AppConfigNotFoundError: If the xml files are not found.
+
+    Returns:
+      A list of strings that are file paths.
+    """
     required = ['appengine-web.xml', 'web.xml']
     missing = [f for f in required
                if not os.path.exists(os.path.join(web_inf, f))]
@@ -945,6 +958,21 @@ class ApplicationConfiguration(object):
 
   @staticmethod
   def _files_in_dir_matching(dir_path, names):
+    """Return a single-element list containing an absolute path to a file.
+
+    The method accepts a list of filenames. If multiple are found, an error is
+    raised. If only one match is found, the full path to this file is returned.
+
+    Args:
+      dir_path: A string base directory for searching for filenames.
+      names: A list of string relative file names to seek within dir_path.
+
+    Raises:
+      InvalidAppConfigError: If the xml files are not found.
+
+    Returns:
+      A single-element list containing a full path to a file.
+    """
     abs_names = [os.path.join(dir_path, name) for name in names]
     files = [f for f in abs_names if os.path.exists(f)]
     if len(files) > 1:

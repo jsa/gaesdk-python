@@ -29,6 +29,7 @@ import os.path
 import random
 import re
 import string
+import thread
 import threading
 import time
 import urllib
@@ -120,19 +121,10 @@ _CHANGE_POLLING_MS = 1000
 _QUIETER_RESOURCES = ('/_ah/health',)
 
 # TODO: Remove after the Files API is really gone.
-_FILESAPI_DEPRECATION_WARNING_PYTHON = (
+_FILESAPI_DEPRECATION_WARNING = (
     'The Files API is deprecated and will soon be removed. Further information'
     ' is available here: https://cloud.google.com/appengine/docs/deprecations'
     '/files_api')
-_FILESAPI_DEPRECATION_WARNING_JAVA = (
-    'The Files API is deprecated and will soon be removed. Further information'
-    ' is available here: https://cloud.google.com/appengine/docs/deprecations'
-    '/files_api')
-_FILESAPI_DEPRECATION_WARNING_GO = (
-    'The Files API is deprecated and will soon be removed. Further information'
-    ' is available here: https://cloud.google.com/appengine/docs/deprecations'
-    '/files_api')
-
 _ALLOWED_RUNTIMES_ENV_FLEX = (
     'python-compat', 'java', 'java7', 'go', 'custom')
 
@@ -454,6 +446,7 @@ class Module(object):
                dispatcher,
                max_instances,
                use_mtime_file_watcher,
+               watcher_ignore_re,
                automatic_restarts,
                allow_skipped_files,
                threadsafe_override,
@@ -502,6 +495,8 @@ class Module(object):
       use_mtime_file_watcher: A bool containing whether to use mtime polling to
           monitor file changes even if other options are available on the
           current platform.
+      watcher_ignore_re: A regex that optionally defines a pattern for the file
+          watcher to ignore.
       automatic_restarts: If True then instances will be restarted when a
           file or configuration change that effects them is detected.
       allow_skipped_files: If True then all files in the application's directory
@@ -540,6 +535,7 @@ class Module(object):
     self._max_instances = max_instances
     self._automatic_restarts = automatic_restarts
     self._use_mtime_file_watcher = use_mtime_file_watcher
+    self._watcher_ignore_re = watcher_ignore_re
     self._default_version_port = default_version_port
     self._port_registry = port_registry
 
@@ -564,6 +560,8 @@ class Module(object):
           [self._module_configuration.application_root] +
           self._instance_factory.get_restart_directories(),
           self._use_mtime_file_watcher)
+      if hasattr(self._watcher, 'set_watcher_ignore_re'):
+        self._watcher.set_watcher_ignore_re(self._watcher_ignore_re)
       if hasattr(self._watcher, 'set_skip_files_re'):
         self._watcher.set_skip_files_re(self._module_configuration.skip_files)
     else:
@@ -575,12 +573,10 @@ class Module(object):
     self._quit_event = threading.Event()  # Set when quit() has been called.
 
     # TODO: Remove after the Files API is really gone.
-    if self._module_configuration.runtime.startswith('python'):
-      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_PYTHON
-    elif self._module_configuration.runtime.startswith('java'):
-      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_JAVA
-    elif self._module_configuration.runtime.startswith('go'):
-      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING_GO
+    if (self._module_configuration.runtime.startswith('python') or
+        self._module_configuration.runtime.startswith('java') or
+        self._module_configuration.runtime.startswith('go')):
+      self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING
     else:
       self._filesapi_warning_message = None
 
@@ -1085,6 +1081,7 @@ class Module(object):
                                       self._request_data,
                                       self._dispatcher,
                                       self._use_mtime_file_watcher,
+                                      self._watcher_ignore_re,
                                       self._allow_skipped_files,
                                       self._threadsafe_override)
     else:
@@ -1512,7 +1509,15 @@ class AutoScalingModule(Module):
           self._handle_changes(_CHANGE_POLLING_MS)
         else:
           time.sleep(_CHANGE_POLLING_MS/1000.0)
-        self._adjust_instances()
+        try:
+          self._adjust_instances()
+        except Exception as e:  # pylint: disable=broad-except
+          logging.error(e.message)
+          # thread.interrupt_main() throws a KeyboardInterrupt error in the main
+          # thread, which triggers devappserver.stop() and shuts down all other
+          # processes.
+          thread.interrupt_main()
+          break
 
   def __call__(self, environ, start_response):
     return self._handle_request(environ, start_response)
@@ -2705,6 +2710,7 @@ class InteractiveCommandModule(Module):
                request_data,
                dispatcher,
                use_mtime_file_watcher,
+               watcher_ignore_re,
                allow_skipped_files,
                threadsafe_override):
     """Initializer for InteractiveCommandModule.
@@ -2751,6 +2757,8 @@ class InteractiveCommandModule(Module):
       use_mtime_file_watcher: A bool containing whether to use mtime polling to
           monitor file changes even if other options are available on the
           current platform.
+      watcher_ignore_re: A regex that optionally defines a pattern for the file
+          watcher to ignore.
       allow_skipped_files: If True then all files in the application's directory
           are readable, even if they appear in a static handler or "skip_files"
           directive.
@@ -2778,6 +2786,7 @@ class InteractiveCommandModule(Module):
         dispatcher,
         max_instances=1,
         use_mtime_file_watcher=use_mtime_file_watcher,
+        watcher_ignore_re=watcher_ignore_re,
         automatic_restarts=True,
         allow_skipped_files=allow_skipped_files,
         threadsafe_override=threadsafe_override)
