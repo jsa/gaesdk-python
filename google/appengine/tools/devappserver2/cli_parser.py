@@ -355,6 +355,13 @@ def create_command_line_parser(configuration=None):
       '-A', '--application', action='store', dest='app_id',
       help='Set the application, overriding the application value from the '
       'app.yaml file.')
+  # The default application ID prefix for use in API stubs. This flag is
+  # suppressed because users should not be changing this. It is used only for
+  # testing purposes.
+  # TODO: Unify py/java use of dev~ prefix.
+  common_group.add_argument(
+      '--application_prefix', dest='app_id_prefix', default='dev~',
+      help=argparse.SUPPRESS)
   common_group.add_argument(
       '--host', default=default_server_host,
       help='host name to which application modules should bind')
@@ -436,6 +443,17 @@ def create_command_line_parser(configuration=None):
                          type=parse_path,
                          restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
                          help='path to the xdebug extension')
+
+
+
+
+
+
+
+
+
+
+
 
   # App Identity
   appidentity_group = parser.add_argument_group('Application Identity')

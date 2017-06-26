@@ -123,8 +123,8 @@ class MemcacheServiceStub(apiproxy_stub.APIProxyStub):
       gettime: time.time()-like function used for testing.
       service_name: Service name expected for all calls.
     """
-    super(MemcacheServiceStub, self).__init__(service_name,
-                                              max_request_size=MAX_REQUEST_SIZE)
+    super(MemcacheServiceStub, self).__init__(
+        service_name, max_request_size=MAX_REQUEST_SIZE)
     self._next_cas_id = 1
     self._gettime = lambda: int(gettime())
     self._ResetStats()
@@ -235,11 +235,12 @@ class MemcacheServiceStub(apiproxy_stub.APIProxyStub):
       if set_status == MemcacheSetResponse.STORED:
         if namespace not in self._the_cache:
           self._the_cache[namespace] = {}
-        self._the_cache[namespace][key] = CacheEntry(item.value(),
-                                                     item.expiration_time(),
-                                                     item.flags(),
-                                                     self._next_cas_id,
-                                                     gettime=self._gettime)
+        self._the_cache[namespace][key] = CacheEntry(
+            item.value(),
+            item.expiration_time(),
+            item.flags(),
+            self._next_cas_id,
+            gettime=self._gettime)
         self._next_cas_id += 1
 
       response.add_set_status(set_status)
@@ -363,8 +364,7 @@ class MemcacheServiceStub(apiproxy_stub.APIProxyStub):
       request: A MemcacheFlushRequest.
       response: A MemcacheFlushResponse.
     """
-    self._the_cache.clear()
-    self._ResetStats()
+    self.Clear()
 
   @apiproxy_stub.Synchronized
   def _Dynamic_Stats(self, request, response):
@@ -389,3 +389,9 @@ class MemcacheServiceStub(apiproxy_stub.APIProxyStub):
 
 
     stats.set_oldest_item_age(self._gettime() - self._cache_creation_time)
+
+  @apiproxy_stub.Synchronized
+  def Clear(self):
+    """Clears the memcache stub and resets stats."""
+    self._the_cache.clear()
+    self._ResetStats()

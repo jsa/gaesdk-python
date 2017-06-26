@@ -55,7 +55,6 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   serialized_pb=_b('\n\x1fstorage/speckle/proto/sql.proto\x12\x0bspeckle.sql\x1a\"storage/speckle/proto/client.proto\"\x8c\x03\n\x0b\x45xecRequest\x12\x10\n\x08instance\x18\x01 \x02(\t\x12\x14\n\x0cstatement_id\x18\x02 \x01(\x04\x12\x11\n\tstatement\x18\x03 \x01(\t\x12\x31\n\rbind_variable\x18\x04 \x03(\x0b\x32\x1a.speckle.BindVariableProto\x12\x15\n\rconnection_id\x18\x05 \x02(\x0c\x12%\n\x07options\x18\x06 \x01(\x0b\x32\x14.speckle.ExecOptions\x12I\n\x0estatement_type\x18\t \x01(\x0e\x32&.speckle.sql.ExecRequest.StatementType:\tSTATEMENT\x12\"\n\x05\x62\x61tch\x18\n \x01(\x0b\x32\x13.speckle.BatchProto\x12\x12\n\nrequest_id\x18\x0b \x01(\x04\"N\n\rStatementType\x12\r\n\tSTATEMENT\x10\x01\x12\x16\n\x12PREPARED_STATEMENT\x10\x02\x12\x16\n\x12\x43\x41LLABLE_STATEMENT\x10\x03\"b\n\x0c\x45xecResponse\x12$\n\x06result\x18\x01 \x01(\x0b\x32\x14.speckle.ResultProto\x12,\n\rsql_exception\x18\x02 \x01(\x0b\x32\x15.speckle.SqlException\"j\n\rExecOpRequest\x12\x10\n\x08instance\x18\x01 \x02(\t\x12\x15\n\rconnection_id\x18\x02 \x02(\x0c\x12\x1c\n\x02op\x18\x03 \x02(\x0b\x32\x10.speckle.OpProto\x12\x12\n\nrequest_id\x18\x08 \x01(\x04\"\xed\x01\n\x0e\x45xecOpResponse\x12\x12\n\nnative_sql\x18\x01 \x01(\t\x12%\n\tsavepoint\x18\x02 \x01(\x0b\x32\x12.speckle.SavePoint\x12,\n\rsql_exception\x18\x03 \x01(\x0b\x32\x15.speckle.SqlException\x12$\n\x06result\x18\x04 \x01(\x0b\x32\x14.speckle.ResultProto\x12\x30\n\x10\x63\x61\x63hed_rpc_error\x18\x05 \x01(\x0b\x32\x16.speckle.RpcErrorProto\x12\x1a\n\x0e\x63\x61\x63hed_payload\x18\x06 \x01(\x0c\x42\x02\x08\x01\"\xaa\x01\n\x0fMetadataRequest\x12\x10\n\x08instance\x18\x01 \x02(\t\x12\'\n\x08metadata\x18\x03 \x02(\x0e\x32\x15.speckle.MetadataType\x12\x31\n\rbind_variable\x18\x04 \x03(\x0b\x32\x1a.speckle.BindVariableProto\x12\x15\n\rconnection_id\x18\x05 \x02(\x0c\x12\x12\n\nrequest_id\x18\x08 \x01(\x04\"\xaa\x01\n\x10MetadataResponse\x12$\n\x06result\x18\x01 \x01(\x0b\x32\x14.speckle.ResultProto\x12\x42\n\x16jdbc_database_metadata\x18\x02 \x01(\x0b\x32\".speckle.JdbcDatabaseMetaDataProto\x12,\n\rsql_exception\x18\x03 \x01(\x0b\x32\x15.speckle.SqlException\"\xac\x01\n\x15OpenConnectionRequest\x12\x10\n\x08instance\x18\x01 \x02(\t\x12#\n\x08property\x18\x02 \x03(\x0b\x32\x11.speckle.Property\x12\x1b\n\x10protocol_version\x18\x05 \x01(\x04:\x01\x31\x12?\n\x0b\x63lient_type\x18\x06 \x01(\x0e\x32\x13.speckle.ClientType:\x15\x43LIENT_TYPE_JAVA_JDBC\"\x86\x01\n\x16OpenConnectionResponse\x12\x15\n\rconnection_id\x18\x01 \x01(\x0c\x12,\n\rsql_exception\x18\x02 \x01(\x0b\x32\x15.speckle.SqlException\x12\'\n\x08warnings\x18\x06 \x03(\x0b\x32\x15.speckle.SqlException\"A\n\x16\x43loseConnectionRequest\x12\x10\n\x08instance\x18\x01 \x02(\t\x12\x15\n\rconnection_id\x18\x02 \x02(\x0c\"G\n\x17\x43loseConnectionResponse\x12,\n\rsql_exception\x18\x01 \x01(\x0b\x32\x15.speckle.SqlException2\xac\x03\n\nSqlService\x12?\n\x04\x45xec\x12\x18.speckle.sql.ExecRequest\x1a\x19.speckle.sql.ExecResponse\"\x02P\x01\x12\x45\n\x06\x45xecOp\x12\x1a.speckle.sql.ExecOpRequest\x1a\x1b.speckle.sql.ExecOpResponse\"\x02P\x01\x12N\n\x0bGetMetadata\x12\x1c.speckle.sql.MetadataRequest\x1a\x1d.speckle.sql.MetadataResponse\"\x02P\x01\x12\x64\n\x0eOpenConnection\x12\".speckle.sql.OpenConnectionRequest\x1a#.speckle.sql.OpenConnectionResponse\"\tP\x01\x9a\x01\x04read\x12`\n\x0f\x43loseConnection\x12#.speckle.sql.CloseConnectionRequest\x1a$.speckle.sql.CloseConnectionResponse\"\x02P\x01\x42%\n\x1b\x63om.google.protos.cloud.sql\x10\x02 \x02(\x02P\x01')
   ,
   dependencies=[google_dot_storage_dot_speckle_dot_proto_dot_client__pb2.DESCRIPTOR,])
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
@@ -631,6 +630,7 @@ DESCRIPTOR.message_types_by_name['OpenConnectionRequest'] = _OPENCONNECTIONREQUE
 DESCRIPTOR.message_types_by_name['OpenConnectionResponse'] = _OPENCONNECTIONRESPONSE
 DESCRIPTOR.message_types_by_name['CloseConnectionRequest'] = _CLOSECONNECTIONREQUEST
 DESCRIPTOR.message_types_by_name['CloseConnectionResponse'] = _CLOSECONNECTIONRESPONSE
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 ExecRequest = _reflection.GeneratedProtocolMessageType('ExecRequest', (_message.Message,), dict(
   DESCRIPTOR = _EXECREQUEST,
@@ -707,6 +707,65 @@ DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n\033com.google.protos.cloud.sql\020\002 \002(\002P\001'))
 _EXECOPRESPONSE.fields_by_name['cached_payload'].has_options = True
 _EXECOPRESPONSE.fields_by_name['cached_payload']._options = _descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b('\010\001'))
+
+_SQLSERVICE = _descriptor.ServiceDescriptor(
+  name='SqlService',
+  full_name='speckle.sql.SqlService',
+  file=DESCRIPTOR,
+  index=0,
+  options=None,
+  serialized_start=1730,
+  serialized_end=2158,
+  methods=[
+  _descriptor.MethodDescriptor(
+    name='Exec',
+    full_name='speckle.sql.SqlService.Exec',
+    index=0,
+    containing_service=None,
+    input_type=_EXECREQUEST,
+    output_type=_EXECRESPONSE,
+    options=_descriptor._ParseOptions(descriptor_pb2.MethodOptions(), _b('P\001')),
+  ),
+  _descriptor.MethodDescriptor(
+    name='ExecOp',
+    full_name='speckle.sql.SqlService.ExecOp',
+    index=1,
+    containing_service=None,
+    input_type=_EXECOPREQUEST,
+    output_type=_EXECOPRESPONSE,
+    options=_descriptor._ParseOptions(descriptor_pb2.MethodOptions(), _b('P\001')),
+  ),
+  _descriptor.MethodDescriptor(
+    name='GetMetadata',
+    full_name='speckle.sql.SqlService.GetMetadata',
+    index=2,
+    containing_service=None,
+    input_type=_METADATAREQUEST,
+    output_type=_METADATARESPONSE,
+    options=_descriptor._ParseOptions(descriptor_pb2.MethodOptions(), _b('P\001')),
+  ),
+  _descriptor.MethodDescriptor(
+    name='OpenConnection',
+    full_name='speckle.sql.SqlService.OpenConnection',
+    index=3,
+    containing_service=None,
+    input_type=_OPENCONNECTIONREQUEST,
+    output_type=_OPENCONNECTIONRESPONSE,
+    options=_descriptor._ParseOptions(descriptor_pb2.MethodOptions(), _b('P\001\232\001\004read')),
+  ),
+  _descriptor.MethodDescriptor(
+    name='CloseConnection',
+    full_name='speckle.sql.SqlService.CloseConnection',
+    index=4,
+    containing_service=None,
+    input_type=_CLOSECONNECTIONREQUEST,
+    output_type=_CLOSECONNECTIONRESPONSE,
+    options=_descriptor._ParseOptions(descriptor_pb2.MethodOptions(), _b('P\001')),
+  ),
+])
+
+DESCRIPTOR.services_by_name['SqlService'] = _SQLSERVICE
+
 
 
 class _SqlService_ClientBaseStub(_client_stub_base_class):

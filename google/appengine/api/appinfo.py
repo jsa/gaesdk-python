@@ -278,6 +278,7 @@ DATASTORE_AUTO_ID_POLICY = 'auto_id_policy'
 API_CONFIG = 'api_config'
 CODE_LOCK = 'code_lock'
 ENV_VARIABLES = 'env_variables'
+STANDARD_WEBSOCKET = 'standard_websocket'
 
 SOURCE_REPO_RE_STRING = r'^[a-z][a-z0-9\-\+\.]*:[^#]*$'
 SOURCE_REVISION_RE_STRING = r'^[0-9a-fA-F]+$'
@@ -353,8 +354,11 @@ OFF_ALIASES = ['no', 'n', 'False', 'f', '0', 'false']
 ENABLE_HEALTH_CHECK = 'enable_health_check'
 CHECK_INTERVAL_SEC = 'check_interval_sec'
 TIMEOUT_SEC = 'timeout_sec'
+APP_START_TIMEOUT_SEC = 'app_start_timeout_sec'
 UNHEALTHY_THRESHOLD = 'unhealthy_threshold'
 HEALTHY_THRESHOLD = 'healthy_threshold'
+FAILURE_THRESHOLD = 'failure_threshold'
+SUCCESS_THRESHOLD = 'success_threshold'
 RESTART_THRESHOLD = 'restart_threshold'
 INITIAL_DELAY_SEC = 'initial_delay_sec'
 HOST = 'host'
@@ -376,6 +380,7 @@ FORWARDED_PORTS = 'forwarded_ports'
 INSTANCE_TAG = 'instance_tag'
 NETWORK_NAME = 'name'
 SUBNETWORK_NAME = 'subnetwork_name'
+SESSION_AFFINITY = 'session_affinity'
 
 
 class _VersionedLibrary(object):
@@ -459,6 +464,14 @@ _SUPPORTED_LIBRARIES = [
         hidden_versions=['0.10.5'],
         ),
     _VersionedLibrary(
+        'click',
+        'http://click.pocoo.org/',
+        'A command line library for Python.',
+        ['6.6'],
+        latest_version='6.6',
+        hidden_versions=['6.6'],
+        ),
+    _VersionedLibrary(
         'django',
         'http://www.djangoproject.com/',
         'A full-featured web application framework for Python.',
@@ -474,10 +487,19 @@ _SUPPORTED_LIBRARIES = [
         ),
     _VersionedLibrary(
         'endpoints',
-        'https://developers.google.com/appengine/docs/python/endpoints/',
+        'https://cloud.google.com/appengine/docs/standard/python/endpoints/',
         'Libraries for building APIs in an App Engine application.',
         ['1.0'],
         latest_version='1.0',
+        ),
+    _VersionedLibrary(
+        'flask',
+        'http://flask.pocoo.org/',
+        'Flask is a microframework for Python based on Werkzeug, Jinja 2 '
+        'and good intentions.',
+        ['0.12'],
+        latest_version='0.12',
+        hidden_versions=['0.12'],
         ),
     _VersionedLibrary(
         'grpcio',
@@ -486,6 +508,15 @@ _SUPPORTED_LIBRARIES = [
         ['1.0.0'],
         latest_version='1.0.0',
         default_version='1.0.0',
+        hidden_versions=['1.0.0'],
+        ),
+    _VersionedLibrary(
+        'itsdangerous',
+        'http://pythonhosted.org/itsdangerous/',
+        'HMAC and SHA1 signing for Python.',
+        ['0.24'],
+        latest_version='0.24',
+        hidden_versions=['0.24'],
         ),
     _VersionedLibrary(
         'jinja2',
@@ -600,6 +631,14 @@ _SUPPORTED_LIBRARIES = [
         latest_version='2.7',
         ),
     _VersionedLibrary(
+        'ujson',
+        'https://pypi.python.org/pypi/ujson',
+        'UltraJSON is an ultra fast JSON encoder and decoder written in pure C',
+        ['1.35'],
+        latest_version='1.35',
+        hidden_versions=['1.35'],
+        ),
+    _VersionedLibrary(
         'webapp2',
         'http://webapp-improved.appspot.com/',
         'A lightweight Python web framework.',
@@ -640,6 +679,8 @@ _NAME_TO_SUPPORTED_LIBRARY = dict((library.name, library)
 
 
 REQUIRED_LIBRARIES = {
+    ('flask', '0.12'): [('click', '6.6'), ('itsdangerous', '0.24'),
+                        ('jinja2', '2.6'), ('werkzeug', '0.11.10')],
     ('jinja2', '2.6'): [('markupsafe', '0.15'), ('setuptools', '0.6c11')],
     ('jinja2', 'latest'): [('markupsafe', 'latest'), ('setuptools', 'latest')],
     ('matplotlib', '1.2.0'): [('numpy', '1.6.1')],
@@ -880,7 +921,7 @@ class HttpHeadersDict(validation.ValidatedDict):
 
 
       printable = set(string.printable[:-5])
-      if not all(char in printable for char in value):
+      if not all(char in printable for char in str(value)):
         raise appinfo_errors.InvalidHttpHeaderValue(
             'HTTP header field values must consist of printable characters.')
 
@@ -1746,8 +1787,8 @@ class LivenessCheck(validation.Validated):
   ATTRIBUTES = {
       CHECK_INTERVAL_SEC: validation.Optional(validation.Range(0, sys.maxint)),
       TIMEOUT_SEC: validation.Optional(validation.Range(0, sys.maxint)),
-      UNHEALTHY_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
-      HEALTHY_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
+      FAILURE_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
+      SUCCESS_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
       INITIAL_DELAY_SEC: validation.Optional(validation.Range(0, sys.maxint)),
       PATH: validation.Optional(validation.TYPE_STR),
       HOST: validation.Optional(validation.TYPE_STR)}
@@ -1758,8 +1799,10 @@ class ReadinessCheck(validation.Validated):
   ATTRIBUTES = {
       CHECK_INTERVAL_SEC: validation.Optional(validation.Range(0, sys.maxint)),
       TIMEOUT_SEC: validation.Optional(validation.Range(0, sys.maxint)),
-      UNHEALTHY_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
-      HEALTHY_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
+      APP_START_TIMEOUT_SEC: validation.Optional(
+          validation.Range(0, sys.maxint)),
+      FAILURE_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
+      SUCCESS_THRESHOLD: validation.Optional(validation.Range(0, sys.maxint)),
       PATH: validation.Optional(validation.TYPE_STR),
       HOST: validation.Optional(validation.TYPE_STR)}
 
@@ -1811,6 +1854,9 @@ class Network(validation.Validated):
 
       SUBNETWORK_NAME: validation.Optional(validation.Regex(
           GCE_RESOURCE_NAME_REGEX)),
+
+      SESSION_AFFINITY:
+          validation.Optional(bool)
   }
 
 
@@ -2108,6 +2154,7 @@ class AppInfoExternal(validation.Validated):
       API_CONFIG: validation.Optional(ApiConfigHandler),
       CODE_LOCK: validation.Optional(bool),
       ENV_VARIABLES: validation.Optional(EnvironmentVariables),
+      STANDARD_WEBSOCKET: validation.Optional(bool),
   }
 
   def CheckInitialized(self):
@@ -2384,6 +2431,7 @@ class AppInfoExternal(validation.Validated):
   def IsVm(self):
     return (self.vm or
             self.env in ['2', 'flex', 'flexible'])
+
 
 def ValidateHandlers(handlers, is_include_file=False):
   """Validates a list of handler (`URLMap`) objects.

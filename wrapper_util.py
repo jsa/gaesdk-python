@@ -132,7 +132,7 @@ class Paths(object):
       self.v1_extra_paths.extend([
           os.path.join(dir_path, 'lib', 'httplib2'),
           os.path.join(dir_path, 'lib', 'oauth2client'),
-          os.path.join(dir_path, 'lib', 'six'),
+          os.path.join(dir_path, 'lib', 'six-1.9.0'),
       ])
 
     self.api_server_extra_paths = [
@@ -158,7 +158,7 @@ class Paths(object):
       self.oauth_client_extra_paths.extend([
           os.path.join(dir_path, 'lib', 'apiclient'),
           os.path.join(dir_path, 'lib', 'oauth2client'),
-          os.path.join(dir_path, 'lib', 'six'),
+          os.path.join(dir_path, 'lib', 'six-1.9.0'),
           os.path.join(dir_path, 'lib', 'uritemplate'),
       ])
     else:
@@ -177,6 +177,10 @@ class Paths(object):
 
     devappserver2_dir = os.path.join(
         dir_path, 'google', 'appengine', 'tools', 'devappserver2')
+
+
+
+
     php_runtime_dir = os.path.join(devappserver2_dir, 'php')
     python_runtime_dir = os.path.join(devappserver2_dir, 'python')
 
@@ -191,7 +195,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'pyasn1_modules'),
         os.path.join(dir_path, 'lib', 'httplib2'),
         os.path.join(dir_path, 'lib', 'oauth2client_devserver'),
-        os.path.join(dir_path, 'lib', 'six'),
+        os.path.join(dir_path, 'lib', 'six-1.9.0'),
     ]
 
 
@@ -225,6 +229,13 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'webapp2-2.5.1'),
     ]
 
+
+
+
+
+
+
+
     php_runtime_paths = [
         dir_path,
         os.path.join(dir_path, 'lib', 'concurrent'),
@@ -254,12 +265,22 @@ class Paths(object):
         'php_cli.py': devappserver2_paths,
         'remote_api_shell.py': self.v1_extra_paths,
         'vmboot.py': self.v1_extra_paths,
+
+
+
+
+
         '_php_runtime.py': php_runtime_paths,
         '_python_runtime.py': python_runtime_paths,
     }
 
     self._wrapper_name_to_real_name = {
         'dev_appserver.py': 'devappserver2.py',
+
+
+
+
+
         '_php_runtime.py': 'runtime.py',
         '_python_runtime.py': 'runtime.py',
     }
@@ -272,6 +293,11 @@ class Paths(object):
 
     self._script_to_dir = {
         'dev_appserver.py': devappserver2_dir,
+
+
+
+
+
         '_php_runtime.py': php_runtime_dir,
         '_python_runtime.py': python_runtime_dir,
     }

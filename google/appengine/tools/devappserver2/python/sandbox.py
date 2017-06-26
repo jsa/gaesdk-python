@@ -185,10 +185,10 @@ class _ThirdPartyCModules(object):
 
 
 THIRD_PARTY_C_MODULES = _ThirdPartyCModules([
-    _ThirdPartyCModule('grpcio', r'grpc(\..*)?$', import_name='grpc'),
     _ThirdPartyCModule('pycrypto', r'Crypto(\..*)?$', import_name='Crypto'),
     _ThirdPartyCModule('lxml', r'lxml(\..*)?$'),
     _ThirdPartyCModule('numpy', r'numpy(\..*)?$'),
+    _ThirdPartyCModule('ujson', r'ujson(\..*)?$'),
     _ThirdPartyCModule(
         'PIL', r'(PIL(\..*)?|_imaging|_imagingft|_imagingmath)$'),
     _ThirdPartyCModule('pytz', r'pytz(\..*)?$'),
@@ -804,9 +804,24 @@ class PathOverrideImportHook(BaseImportHook):
   """
 
   def __init__(self, modules):
+    """Initializes the PathOverrideImportHook.
+
+    Note, self._modules is a dict that maps string module names to *either* a
+    string directory where that module can be found *or* an instance of an
+    import hook that provides a 'load_module' method.
+
+    Args:
+      modules: A set of string module names to enable.
+    """
     self._modules = {}
     self.extra_accessible_paths = []
     self.extra_sys_paths = []
+    # cssselect was included with lxml until 3.0. With >v3.0, cssselect is a
+    # standalone package that users must install separately. When we whitelist
+    # lxml, we also need to whitelist cssselect for lxml >v3.0 to work properly
+    # with the devappserver. b/36791900.
+    if 'lxml' in modules:
+      modules.add('cssselect')
     for module in modules:
       module_path = self._get_module_path(module)
       if module_path:

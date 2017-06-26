@@ -69,12 +69,20 @@ class Dispatcher(request_info.Dispatcher):
   manages their lifetimes.
   """
 
+  # TODO: Make the *_config arguments optional, and clean up associated
+  # tests in module_test, dispatcher_test, and java_config_files_test that
+  # explicitely pass in *_config=None.
   def __init__(self,
                configuration,
                host,
                port,
                auth_domain,
                runtime_stderr_loglevel,
+
+
+
+
+
                php_config,
                python_config,
                java_config,
@@ -102,6 +110,11 @@ class Dispatcher(request_info.Dispatcher):
       runtime_stderr_loglevel: An int reprenting the minimum logging level at
           which runtime log messages should be written to stderr. See
           devappserver2.py for possible values.
+
+
+
+
+
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
@@ -142,6 +155,10 @@ class Dispatcher(request_info.Dispatcher):
           ports is more flexible.
     """
     self._configuration = configuration
+
+
+
+
     self._php_config = php_config
     self._python_config = python_config
     self._java_config = java_config
@@ -237,6 +254,17 @@ class Dispatcher(request_info.Dispatcher):
       self._check_for_updates()
       self._quit_event.wait(timeout=1)
 
+  def get_watcher_results(self):
+    """Returns a list of tuples of file watcher results for google analytics."""
+    results = []
+    for _module in self._module_name_to_module.values():
+      result = _module.get_watcher_result()
+      # Make sure the module has file watcher, and file change hisotry
+      # was not empty.
+      if result and result[1]:
+        results.append(result)
+    return results
+
   def quit(self):
     """Quits all modules."""
     self._executor.quit()
@@ -286,6 +314,11 @@ class Dispatcher(request_info.Dispatcher):
         api_port=self._api_port,
         auth_domain=self._auth_domain,
         runtime_stderr_loglevel=self._runtime_stderr_loglevel,
+
+
+
+
+
         php_config=self._php_config,
         python_config=self._python_config,
         custom_config=self._custom_config,

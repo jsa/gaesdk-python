@@ -352,6 +352,12 @@ class Module(object):
     if (self._php_config and
         self._module_configuration.runtime.startswith('php')):
       runtime_config.php_config.CopyFrom(self._php_config)
+
+
+
+
+
+
     if (self._python_config and
         self._module_configuration.runtime.startswith('python')):
       runtime_config.python_config.CopyFrom(self._python_config)
@@ -381,13 +387,12 @@ class Module(object):
       config_changed: True if the configuration for the application has changed.
       file_changed: True if any file relevant to the application has changed.
     """
-    if not config_changed and not file_changed:
+    policy = self._instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY
+    assert policy is not None, 'FILE_CHANGE_INSTANCE_RESTART_POLICY not set'
+    if policy == instance.NEVER or (not config_changed and not file_changed):
       return
 
     logging.debug('Restarting instances.')
-    policy = self._instance_factory.FILE_CHANGE_INSTANCE_RESTART_POLICY
-    assert policy is not None, 'FILE_CHANGE_INSTANCE_RESTART_POLICY not set'
-
     with self._condition:
       instances_to_quit = set()
       for inst in self._instances:
@@ -403,7 +408,8 @@ class Module(object):
   def _handle_changes(self, timeout=0):
     """Handle file or configuration changes."""
     # Check for file changes first, because they can trigger config changes.
-    file_changes = self._watcher.changes(timeout)
+    file_changes = self._get_file_changes(timeout)
+
     if file_changes:
       logging.info(
           '[%s] Detected file changes:\n  %s', self.name,
@@ -433,6 +439,11 @@ class Module(object):
                api_port,
                auth_domain,
                runtime_stderr_loglevel,
+
+
+
+
+
                php_config,
                python_config,
                java_config,
@@ -466,6 +477,11 @@ class Module(object):
       runtime_stderr_loglevel: An int reprenting the minimum logging level at
           which runtime log messages should be written to stderr. See
           devappserver2.py for possible values.
+
+
+
+
+
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
@@ -521,6 +537,10 @@ class Module(object):
     self._auth_domain = auth_domain
     self._runtime_stderr_loglevel = runtime_stderr_loglevel
     self._balanced_port = balanced_port
+
+
+
+
     self._php_config = php_config
     self._python_config = python_config
     self._java_config = java_config
@@ -579,6 +599,9 @@ class Module(object):
       self._filesapi_warning_message = _FILESAPI_DEPRECATION_WARNING
     else:
       self._filesapi_warning_message = None
+
+    self._total_file_change_time = 0.0
+    self._file_change_count = 0
 
   @property
   def name(self):
@@ -1069,6 +1092,11 @@ class Module(object):
                                       self._api_port,
                                       self._auth_domain,
                                       self._runtime_stderr_loglevel,
+
+
+
+
+
                                       self._php_config,
                                       self._python_config,
                                       self._java_config,
@@ -1120,6 +1148,42 @@ class Module(object):
     util.put_headers_in_environ(headers, environ)
     environ['HTTP_HOST'] = host
     return environ
+
+  def _get_file_changes(self, timeout):
+    """Returns a set of paths that have changed and update metrics information.
+
+    Args:
+      timeout: Integer milliseconds on which this watcher will be allowed to
+      wait for a change.
+
+    Returns:
+      A set of string paths that have changed since the last call to this
+      function.
+    """
+    t1 = time.time()
+    res = self._watcher.changes(timeout)
+    t2 = time.time()
+
+
+
+
+
+    if res:
+      self._total_file_change_time += t2 - t1
+      self._file_change_count += 1
+    return res
+
+  def get_watcher_result(self):
+    """Returns a tuple of file watcher cumulated results for google analytics.
+
+    Returns:
+      A 3-tuple of:
+        An int representing total time spent detecting file changes in seconds.
+        An int representing total number of file change events detected.
+        The class of file watcher.
+    """
+    return (self._total_file_change_time, self._file_change_count,
+            self._watcher.__class__.__name__) if self._watcher else None
 
 
 class AutoScalingModule(Module):
@@ -1796,7 +1860,7 @@ class ManualScalingModule(Module):
       with self._handler_lock:
         self._handlers = handlers
 
-    file_changes = self._watcher.changes(timeout)
+    file_changes = self._get_file_changes(timeout)
     if file_changes:
       logging.info(
           '[%s] Detected file changes:\n  %s', self.name,
@@ -2599,7 +2663,7 @@ class BasicScalingModule(Module):
       with self._handler_lock:
         self._handlers = handlers
 
-    file_changes = self._watcher.changes(timeout)
+    file_changes = self._get_file_changes(timeout)
     if file_changes:
       self._instance_factory.files_changed()
 
@@ -2698,6 +2762,11 @@ class InteractiveCommandModule(Module):
                api_port,
                auth_domain,
                runtime_stderr_loglevel,
+
+
+
+
+
                php_config,
                python_config,
                java_config,
@@ -2731,6 +2800,11 @@ class InteractiveCommandModule(Module):
       runtime_stderr_loglevel: An int reprenting the minimum logging level at
           which runtime log messages should be written to stderr. See
           devappserver2.py for possible values.
+
+
+
+
+
       php_config: A runtime_config_pb2.PhpConfig instances containing PHP
           runtime-specific configuration. If None then defaults are used.
       python_config: A runtime_config_pb2.PythonConfig instance containing
@@ -2773,6 +2847,11 @@ class InteractiveCommandModule(Module):
         api_port,
         auth_domain,
         runtime_stderr_loglevel,
+
+
+
+
+
         php_config,
         python_config,
         java_config,

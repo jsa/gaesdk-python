@@ -155,6 +155,19 @@ class ModuleConfiguration(object):
     self._runtime = runtime or self._app_info_external.runtime
     self._effective_runtime = self._app_info_external.GetEffectiveRuntime()
 
+    if self._runtime == 'python-compat':
+      logging.warn(
+          'The python-compat runtime is deprecated, please consider upgrading '
+          'your application to use the Flexible runtime. See '
+          'https://cloud.google.com/appengine/docs/flexible/python/upgrading '
+          'for more details.')
+    elif self._runtime == 'vm':
+      logging.warn(
+          'The Managed VMs runtime is deprecated, please consider migrating '
+          'your application to use the Flexible runtime. See '
+          'https://cloud.google.com/appengine/docs/flexible/python/migrating '
+          'for more details.')
+
     dockerfile_dir = os.path.dirname(self._config_path)
     dockerfile = os.path.join(dockerfile_dir, 'Dockerfile')
 

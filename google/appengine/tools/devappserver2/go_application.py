@@ -279,14 +279,8 @@ class GoApplication(object):
     logging.debug('Build succeeded:\n%s\n%s', gab_stdout, gab_stderr)
     self._go_executable = os.path.join(self._work_dir, '_go_app')
 
-  def maybe_build(self, maybe_modified_since_last_build):
+  def maybe_build(self):
     """Builds an executable for the application if necessary.
-
-    Args:
-      maybe_modified_since_last_build: True if any files in the application root
-          or the GOPATH have changed since the last call to maybe_build, False
-          otherwise. This argument is used to decide whether a build is Required
-          or not.
 
     Returns:
       True if compilation was successfully performed (will raise
@@ -300,7 +294,7 @@ class GoApplication(object):
       self._work_dir = tempfile.mkdtemp('appengine-go-bin')
       atexit.register(_rmtree, self._work_dir)
 
-    if self._go_executable and not maybe_modified_since_last_build:
+    if self._go_executable:
       return False
 
     (self._go_file_to_mtime,

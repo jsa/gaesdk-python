@@ -93,8 +93,7 @@ from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2 import wsgi_server
 
 
-# TODO: Remove this lock when stubs have been audited for thread
-# safety.
+# The API lock is applied when calling API stubs that are not threadsafe.
 GLOBAL_API_LOCK = threading.RLock()
 
 # The default app id used when launching the api_server.py as a binary, without
@@ -164,6 +163,8 @@ def _execute_request(request, use_proto3=False):
     apiproxy_errors.CallNotFoundError: if the requested method doesn't exist.
     apiproxy_errors.ApplicationError: if the API method calls fails.
   """
+  logging.debug('API server executing remote_api_pb.Request: \n%s', request)
+
   if use_proto3:
     service = request.service_name
     method = request.method
@@ -230,6 +231,8 @@ def _execute_request(request, use_proto3=False):
       metrics.API_STUB_USAGE_CATEGORY,
       metrics.API_STUB_USAGE_ACTION_TEMPLATE % service)
 
+  logging.debug('API server responding with remote_api_pb.Response: \n%s',
+                response_data)
   return response_data
 
 
@@ -251,6 +254,7 @@ class GRPCAPIServer(object):
       """Handles gRPC method calls."""
 
       def HandleCall(self, request, context):
+        # TODO: b/36590656#comment3 - Add exception handling logic here.
         api_response = _execute_request(request, use_proto3=True)
         response = grpc_service_pb2.Response(response=api_response.Encode())
         return response
@@ -263,6 +267,8 @@ class GRPCAPIServer(object):
     # from the caller thread.
     # 'localhost' works with both ipv4 and ipv6.
     self._port = self._server.add_insecure_port('localhost:' + str(self._port))
+    # We set this GRPC_PORT in environment variable as it is only accessed by
+    # the devappserver process.
     os.environ['GRPC_PORT'] = str(self._port)
     if self._port:
       logging.info('Starting GRPC_API_server at: http://localhost:%d',
@@ -285,11 +291,20 @@ class GRPCAPIServer(object):
 class APIServer(wsgi_server.WsgiServer):
   """Serves API calls over HTTP."""
 
-  def __init__(self, host, port, app_id):
+  def __init__(self, host, port, app_id, datastore_emulator_host=None):
     self._app_id = app_id
     self._host = host
     super(APIServer, self).__init__((host, port), self)
     self.set_balanced_address('localhost:8080')
+
+    self._datastore_emulator_stub = None
+    if datastore_emulator_host:
+      global grpc_proxy_util
+      # pylint: disable=g-import-not-at-top
+      # We lazy import here because grpc binaries are not always present.
+      from google.appengine.tools.devappserver2 import grpc_proxy_util
+      self._datastore_emulator_stub = grpc_proxy_util.create_stub(
+          datastore_emulator_host)
 
   def start(self):
     """Start the API Server."""
@@ -338,16 +353,22 @@ class APIServer(wsgi_server.WsgiServer):
       else:
         wsgi_input = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
       request.ParseFromString(wsgi_input)
-      if request.has_request_id():
-        request_id = request.request_id()
-        service = request.service_name()
-        service_stub = apiproxy_stub_map.apiproxy.GetStub(service)
-        environ['HTTP_HOST'] = self._balanced_address
-        op = getattr(service_stub.request_data, 'register_request_id', None)
-        if callable(op):
-          op(environ, request_id)
-      api_response = _execute_request(request).Encode()
-      response.set_response(api_response)
+
+      service = request.service_name()
+
+      if service == 'datastore_v3' and self._datastore_emulator_stub:
+        response = grpc_proxy_util.make_grpc_call_from_remote_api(
+            self._datastore_emulator_stub, request)
+      else:
+        if request.has_request_id():
+          request_id = request.request_id()
+          service_stub = apiproxy_stub_map.apiproxy.GetStub(service)
+          environ['HTTP_HOST'] = self._balanced_address
+          op = getattr(service_stub.request_data, 'register_request_id', None)
+          if callable(op):
+            op(environ, request_id)
+        api_response = _execute_request(request).Encode()
+        response.set_response(api_response)
     except Exception, e:
       if isinstance(e, apiproxy_errors.ApplicationError):
         level = logging.DEBUG
@@ -387,7 +408,22 @@ class APIServer(wsgi_server.WsgiServer):
     return [yaml.dump({'app_id': self._app_id,
                        'rtok': rtok})]
 
+  def _handle_CLEAR(self, environ, start_response):
+    """Clear the stateful content from the API server."""
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+
+    # TODO: Add more services as needed.
+    stubs_to_clear = ['datastore_v3', 'memcache']
+    for stub_name in stubs_to_clear:
+      stub = apiproxy_stub_map.apiproxy.GetStub(stub_name)
+      stub.Clear()
+
+    # No response is necessary, a 200 status code is enough.
+    return []
+
   def __call__(self, environ, start_response):
+    if environ.get('PATH_INFO') == '/clear':
+      return self._handle_CLEAR(environ, start_response)
     if environ['REQUEST_METHOD'] == 'GET':
       return self._handle_GET(environ, start_response)
     elif environ['REQUEST_METHOD'] == 'POST':
@@ -397,7 +433,9 @@ class APIServer(wsgi_server.WsgiServer):
       return []
 
 
-def create_api_server(request_info, storage_path, options, app_id, app_root):
+def create_api_server(
+    request_info, storage_path, options, app_id, app_root,
+    datastore_emulator_host=None):
   """Creates an API server.
 
   Args:
@@ -408,8 +446,10 @@ def create_api_server(request_info, storage_path, options, app_id, app_root):
     app_id: String representing an application ID, used for configuring paths
       and string constants in API stubs.
     app_root: The path to the directory containing the user's
-        application e.g. "/home/joe/myapp", used for locating application yaml
-        files, eg index.yaml for the datastore stub.
+      application e.g. "/home/joe/myapp", used for locating application yaml
+      files, eg index.yaml for the datastore stub.
+    datastore_emulator_host: String, the hostname:port on which cloud datastore
+      emualtor runs.
 
   Returns:
     An instance of APIServer.
@@ -483,7 +523,8 @@ def create_api_server(request_info, storage_path, options, app_id, app_root):
       default_gcs_bucket_name=options.default_gcs_bucket_name,
       appidentity_oauth_url=options.appidentity_oauth_url)
 
-  return APIServer(options.api_host, options.api_port, app_id)
+  return APIServer(options.api_host, options.api_port, app_id,
+                   datastore_emulator_host)
 
 
 def _clear_datastore_storage(datastore_path):
@@ -730,12 +771,16 @@ def setup_stubs(
       memcache_stub.MemcacheServiceStub())
 
   apiproxy_stub_map.apiproxy.RegisterStub(
-      'search',
-      simple_search_stub.SearchServiceStub(index_file=search_index_path))
-
-  apiproxy_stub_map.apiproxy.RegisterStub(
       'modules',
       modules_stub.ModulesServiceStub(request_data))
+
+  apiproxy_stub_map.apiproxy.RegisterStub(
+      'remote_socket',
+      _remote_socket_stub.RemoteSocketServiceStub())
+
+  apiproxy_stub_map.apiproxy.RegisterStub(
+      'search',
+      simple_search_stub.SearchServiceStub(index_file=search_index_path))
 
   apiproxy_stub_map.apiproxy.RegisterStub(
       'system',
@@ -763,10 +808,6 @@ def setup_stubs(
   apiproxy_stub_map.apiproxy.RegisterStub(
       'xmpp',
       xmpp_service_stub.XmppServiceStub())
-
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'remote_socket',
-      _remote_socket_stub.RemoteSocketServiceStub())
 
 
 def maybe_convert_datastore_file_stub_data_to_sqlite(app_id, filename):
@@ -919,7 +960,7 @@ def main():
     app_id = app_config.app_id
     app_root = app_config.modules[0].application_root
   else:
-    app_id = ('dev~' + options.app_id if
+    app_id = (options.app_id_prefix + options.app_id if
               options.app_id else DEFAULT_API_SERVER_APP_ID)
     app_root = tempfile.mkdtemp()
 
@@ -943,4 +984,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
