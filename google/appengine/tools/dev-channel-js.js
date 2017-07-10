@@ -1188,42 +1188,42 @@ goog.asserts.doAssertFailure_ = function(defaultMessage, defaultArgs, givenMessa
 goog.asserts.setErrorHandler = function(errorHandler) {
   goog.asserts.ENABLE_ASSERTS && (goog.asserts.errorHandler_ = errorHandler);
 };
-goog.asserts.assert = function(condition, opt_message, var_args) {
+goog.asserts.assert = function(condition, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !condition && goog.asserts.doAssertFailure_("", null, opt_message, Array.prototype.slice.call(arguments, 2));
   return condition;
 };
-goog.asserts.fail = function(opt_message, var_args) {
+goog.asserts.fail = function(opt_message) {
   goog.asserts.ENABLE_ASSERTS && goog.asserts.errorHandler_(new goog.asserts.AssertionError("Failure" + (opt_message ? ": " + opt_message : ""), Array.prototype.slice.call(arguments, 1)));
 };
-goog.asserts.assertNumber = function(value, opt_message, var_args) {
+goog.asserts.assertNumber = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isNumber(value) && goog.asserts.doAssertFailure_("Expected number but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertString = function(value, opt_message, var_args) {
+goog.asserts.assertString = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isString(value) && goog.asserts.doAssertFailure_("Expected string but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertFunction = function(value, opt_message, var_args) {
+goog.asserts.assertFunction = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isFunction(value) && goog.asserts.doAssertFailure_("Expected function but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertObject = function(value, opt_message, var_args) {
+goog.asserts.assertObject = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isObject(value) && goog.asserts.doAssertFailure_("Expected object but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertArray = function(value, opt_message, var_args) {
+goog.asserts.assertArray = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isArray(value) && goog.asserts.doAssertFailure_("Expected array but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertBoolean = function(value, opt_message, var_args) {
+goog.asserts.assertBoolean = function(value, opt_message) {
   goog.asserts.ENABLE_ASSERTS && !goog.isBoolean(value) && goog.asserts.doAssertFailure_("Expected boolean but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertElement = function(value, opt_message, var_args) {
+goog.asserts.assertElement = function(value, opt_message) {
   !goog.asserts.ENABLE_ASSERTS || goog.isObject(value) && value.nodeType == goog.dom.NodeType.ELEMENT || goog.asserts.doAssertFailure_("Expected Element but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.assertInstanceof = function(value, type, opt_message, var_args) {
+goog.asserts.assertInstanceof = function(value, type, opt_message) {
   !goog.asserts.ENABLE_ASSERTS || value instanceof type || goog.asserts.doAssertFailure_("Expected instanceof %s but got %s.", [goog.asserts.getType_(type), goog.asserts.getType_(value)], opt_message, Array.prototype.slice.call(arguments, 3));
   return value;
 };
@@ -3994,13 +3994,13 @@ goog.dom.setTextContent = function(node, text) {
     node.textContent = text;
   } else {
     if (node.nodeType == goog.dom.NodeType.TEXT) {
-      node.data = text;
+      node.data = String(text);
     } else {
       if (node.firstChild && node.firstChild.nodeType == goog.dom.NodeType.TEXT) {
         for (; node.lastChild != node.firstChild;) {
           node.removeChild(node.lastChild);
         }
-        node.firstChild.data = text;
+        node.firstChild.data = String(text);
       } else {
         goog.dom.removeChildren(node);
         var doc = goog.dom.getOwnerDocument(node);
@@ -4508,7 +4508,7 @@ goog.functions.rateLimit = function(f, interval, opt_scope) {
   var timeout = 0, handleTimeout = function() {
     timeout = 0;
   };
-  return function(var_args) {
+  return function() {
     timeout || (timeout = goog.global.setTimeout(handleTimeout, interval), f.apply(opt_scope, arguments));
   };
 };
@@ -5181,9 +5181,22 @@ goog.disposeAll = function(var_args) {
   }
 };
 goog.events = {};
+$jscomp.scope.purify = function(fn) {
+  return fn();
+};
 goog.events.BrowserFeature = {HAS_W3C_BUTTON:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), HAS_W3C_EVENT_SUPPORT:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), SET_KEY_CODE_TO_PREVENT_DEFAULT:goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), HAS_NAVIGATOR_ONLINE_PROPERTY:!goog.userAgent.WEBKIT || goog.userAgent.isVersionOrHigher("528"), HAS_HTML5_NETWORK_EVENT_SUPPORT:goog.userAgent.GECKO && goog.userAgent.isVersionOrHigher("1.9b") || goog.userAgent.IE && 
 goog.userAgent.isVersionOrHigher("8") || goog.userAgent.OPERA && goog.userAgent.isVersionOrHigher("9.5") || goog.userAgent.WEBKIT && goog.userAgent.isVersionOrHigher("528"), HTML5_NETWORK_EVENTS_FIRE_ON_BODY:goog.userAgent.GECKO && !goog.userAgent.isVersionOrHigher("8") || goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), TOUCH_ENABLED:"ontouchstart" in goog.global || !!(goog.global.document && document.documentElement && "ontouchstart" in document.documentElement) || !(!goog.global.navigator || 
-!goog.global.navigator.msMaxTouchPoints)};
+!goog.global.navigator.msMaxTouchPoints), PASSIVE_EVENTS:(0,$jscomp.scope.purify)(function() {
+  if (!goog.global.addEventListener || !Object.defineProperty) {
+    return !1;
+  }
+  var passive = !1, options = Object.defineProperty({}, "passive", {get:function() {
+    passive = !0;
+  }});
+  goog.global.addEventListener("test", null, options);
+  goog.global.removeEventListener("test", null, options);
+  return passive;
+})};
 goog.events.EventId = function(eventId) {
   this.id = eventId;
 };
@@ -5400,21 +5413,28 @@ goog.events.onStringMap_ = {};
 goog.events.CaptureSimulationMode = {OFF_AND_FAIL:0, OFF_AND_SILENT:1, ON:2};
 goog.events.CAPTURE_SIMULATION_MODE = 2;
 goog.events.listenerCountEstimate_ = 0;
-goog.events.listen = function(src, type, listener, opt_capt, opt_handler) {
+goog.events.listen = function(src, type, listener, opt_options, opt_handler) {
+  if (opt_options && opt_options.once) {
+    return goog.events.listenOnce(src, type, listener, opt_options, opt_handler);
+  }
   if (goog.isArray(type)) {
     for (var i = 0; i < type.length; i++) {
-      goog.events.listen(src, type[i], listener, opt_capt, opt_handler);
+      goog.events.listen(src, type[i], listener, opt_options, opt_handler);
     }
     return null;
   }
   listener = goog.events.wrapListener(listener);
-  return goog.events.Listenable.isImplementedBy(src) ? src.listen(type, listener, opt_capt, opt_handler) : goog.events.listen_(src, type, listener, !1, opt_capt, opt_handler);
+  if (goog.events.Listenable.isImplementedBy(src)) {
+    var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options;
+    return src.listen(type, listener, capture, opt_handler);
+  }
+  return goog.events.listen_(src, type, listener, !1, opt_options, opt_handler);
 };
-goog.events.listen_ = function(src, type, listener, callOnce, opt_capt, opt_handler) {
+goog.events.listen_ = function(src, type, listener, callOnce, opt_options, opt_handler) {
   if (!type) {
     throw Error("Invalid event type");
   }
-  var capture = !!opt_capt;
+  var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options;
   if (capture && !goog.events.BrowserFeature.HAS_W3C_EVENT_SUPPORT) {
     if (goog.events.CAPTURE_SIMULATION_MODE == goog.events.CaptureSimulationMode.OFF_AND_FAIL) {
       return goog.asserts.fail("Can not register capture listener in IE8-."), null;
@@ -5425,7 +5445,7 @@ goog.events.listen_ = function(src, type, listener, callOnce, opt_capt, opt_hand
   }
   var listenerMap = goog.events.getListenerMap_(src);
   listenerMap || (src[goog.events.LISTENER_MAP_PROP_] = listenerMap = new goog.events.ListenerMap(src));
-  var listenerObj = listenerMap.add(type, listener, callOnce, opt_capt, opt_handler);
+  var listenerObj = listenerMap.add(type, listener, callOnce, capture, opt_handler);
   if (listenerObj.proxy) {
     return listenerObj;
   }
@@ -5434,7 +5454,7 @@ goog.events.listen_ = function(src, type, listener, callOnce, opt_capt, opt_hand
   proxy.src = src;
   proxy.listener = listenerObj;
   if (src.addEventListener) {
-    src.addEventListener(type.toString(), proxy, capture);
+    goog.events.BrowserFeature.PASSIVE_EVENTS || (opt_options = capture), void 0 === opt_options && (opt_options = !1), src.addEventListener(type.toString(), proxy, opt_options);
   } else {
     if (src.attachEvent) {
       src.attachEvent(goog.events.getOnString_(type.toString()), proxy);
@@ -5456,34 +5476,39 @@ goog.events.getProxy = function() {
   };
   return f;
 };
-goog.events.listenOnce = function(src, type, listener, opt_capt, opt_handler) {
+goog.events.listenOnce = function(src, type, listener, opt_options, opt_handler) {
   if (goog.isArray(type)) {
     for (var i = 0; i < type.length; i++) {
-      goog.events.listenOnce(src, type[i], listener, opt_capt, opt_handler);
-    }
-    return null;
-  }
-  listener = goog.events.wrapListener(listener);
-  return goog.events.Listenable.isImplementedBy(src) ? src.listenOnce(type, listener, opt_capt, opt_handler) : goog.events.listen_(src, type, listener, !0, opt_capt, opt_handler);
-};
-goog.events.listenWithWrapper = function(src, wrapper, listener, opt_capt, opt_handler) {
-  wrapper.listen(src, listener, opt_capt, opt_handler);
-};
-goog.events.unlisten = function(src, type, listener, opt_capt, opt_handler) {
-  if (goog.isArray(type)) {
-    for (var i = 0; i < type.length; i++) {
-      goog.events.unlisten(src, type[i], listener, opt_capt, opt_handler);
+      goog.events.listenOnce(src, type[i], listener, opt_options, opt_handler);
     }
     return null;
   }
   listener = goog.events.wrapListener(listener);
   if (goog.events.Listenable.isImplementedBy(src)) {
-    return src.unlisten(type, listener, opt_capt, opt_handler);
+    var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options;
+    return src.listenOnce(type, listener, capture, opt_handler);
+  }
+  return goog.events.listen_(src, type, listener, !0, opt_options, opt_handler);
+};
+goog.events.listenWithWrapper = function(src, wrapper, listener, opt_capt, opt_handler) {
+  wrapper.listen(src, listener, opt_capt, opt_handler);
+};
+goog.events.unlisten = function(src, type, listener, opt_options, opt_handler) {
+  if (goog.isArray(type)) {
+    for (var i = 0; i < type.length; i++) {
+      goog.events.unlisten(src, type[i], listener, opt_options, opt_handler);
+    }
+    return null;
+  }
+  var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options;
+  listener = goog.events.wrapListener(listener);
+  if (goog.events.Listenable.isImplementedBy(src)) {
+    return src.unlisten(type, listener, capture, opt_handler);
   }
   if (!src) {
     return !1;
   }
-  var capture = !!opt_capt, listenerMap = goog.events.getListenerMap_(src);
+  var listenerMap = goog.events.getListenerMap_(src);
   if (listenerMap) {
     var listenerObj = listenerMap.getListener(type, listener, capture, opt_handler);
     if (listenerObj) {

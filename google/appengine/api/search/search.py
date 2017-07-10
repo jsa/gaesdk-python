@@ -2874,7 +2874,7 @@ def _CheckFacetDiscoveryLimit(facet_limit):
     return None
   else:
     return _CheckInteger(
-        facet_limit, 'discover_facet_limit',
+        facet_limit, 'discovery_limit',
         upper_bound=MAXIMUM_FACETS_TO_RETURN)
 
 
@@ -2933,8 +2933,8 @@ class FacetOptions(object):
     If you wish to discovering 5 facets with 10 values each in 6000 search
     results, you can use a FacetOption object like this:
 
-    facet_option = FacetOptions(discover_facet_limit=5,
-                                discover_facet_value_limit=10,
+    facet_option = FacetOptions(discovery_limit=5,
+                                discovery_value_limit=10,
                                 depth=6000)
 
     Args:

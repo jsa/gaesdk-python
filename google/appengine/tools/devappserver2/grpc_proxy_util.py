@@ -73,8 +73,14 @@ def make_grpc_call_from_remote_api(stub, request):
 
   # Translate grpc_service_pb2.Response back to remote_api_pb.Response
   response = remote_api_pb.Response()
-  # TODO: b/36590656#comment3 add exception handling logic.
+  # TODO: b/36590656#comment3 continuously complete exception handling.
   response.set_response(response_pb.response)
+  if response_pb.HasField('rpc_error'):
+    response.mutable_rpc_error().ParseFromString(
+        response_pb.rpc_error.SerializeToString())
+  if response_pb.HasField('application_error'):
+    response.mutable_application_error().ParseFromString(
+        response_pb.application_error.SerializeToString())
   return response
 
 

@@ -298,8 +298,6 @@ SERVICE_PB_MAP = {
                             user_service_pb.CreateLogoutURLResponse),
         'GetOAuthUser': (user_service_pb.GetOAuthUserRequest,
                          user_service_pb.GetOAuthUserResponse),
-        'CheckOAuthSignature': (user_service_pb.CheckOAuthSignatureRequest,
-                                user_service_pb.CheckOAuthSignatureResponse),
     },
     'xmpp': {
         'GetPresence': (xmpp_service_pb.PresenceRequest,

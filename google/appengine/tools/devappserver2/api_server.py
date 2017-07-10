@@ -54,6 +54,7 @@ import urlparse
 import google
 import yaml
 
+from google.appengine.api import apiproxy_stub
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import datastore
 from google.appengine.api import datastore_file_stub
@@ -357,6 +358,12 @@ class APIServer(wsgi_server.WsgiServer):
       service = request.service_name()
 
       if service == 'datastore_v3' and self._datastore_emulator_stub:
+        # len(request.request()) is equivalent to calling ByteSize() on
+        # deserialized request.request.
+        if len(request.request()) > apiproxy_stub.MAX_REQUEST_SIZE:
+          raise apiproxy_errors.RequestTooLargeError(
+              apiproxy_stub.REQ_SIZE_EXCEEDS_LIMIT_MSG_TEMPLATE % (
+                  'datastore_v3', request.method()))
         response = grpc_proxy_util.make_grpc_call_from_remote_api(
             self._datastore_emulator_stub, request)
       else:

@@ -152,14 +152,8 @@ class GoManagedVMApp(object):
     logging.debug('Build succeeded:\n%s\n%s', stdout, stderr)
     self._go_executable = exe_name
 
-  def maybe_build(self, maybe_modified_since_last_build):
+  def maybe_build(self):
     """Builds an executable for the application if necessary.
-
-    Args:
-      maybe_modified_since_last_build: True if any files in the application root
-          or the GOPATH have changed since the last call to maybe_build, False
-          otherwise. This argument is used to decide whether a build is Required
-          or not.
 
     Returns:
       True if compilation was successfully performed (will raise
@@ -172,9 +166,6 @@ class GoManagedVMApp(object):
     if not self._work_dir:
       self._work_dir = tempfile.mkdtemp('appengine-go-bin')
       atexit.register(_rmtree, self._work_dir)
-
-    if self._go_executable and not maybe_modified_since_last_build:
-      return False
 
     if self._go_executable:
       logging.debug('Rebuilding Go application due to source modification')

@@ -38,6 +38,7 @@ from google.appengine.api import apiproxy_stub
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import urlfetch_service_pb
 from google.appengine.api import user_service_pb
+from google.appengine.datastore import datastore_pb
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.datastore import datastore_v4_pb
 from google.appengine.ext.remote_api import remote_api_pb
@@ -241,6 +242,19 @@ class TestAPIServer(wsgi_test_utils.WSGITestCase):
 
     self._assert_remote_call(
         expected_remote_response, urlfetch_request, 'urlfetch', 'Fetch')
+
+  def test_datastore_emulator_request_too_large(self):
+    self.server._datastore_emulator_stub = object()
+    fake_put_request = datastore_pb.PutRequest()
+    fake_put_request.Encode = lambda: 'x' * (apiproxy_stub.MAX_REQUEST_SIZE + 1)
+
+    expected_remote_response = remote_api_pb.Response()
+    expected_remote_response.set_exception(pickle.dumps(
+        apiproxy_errors.RequestTooLargeError(
+            apiproxy_stub.REQ_SIZE_EXCEEDS_LIMIT_MSG_TEMPLATE % (
+                'datastore_v3', 'Put'))))
+    self._assert_remote_call(expected_remote_response, fake_put_request,
+                             'datastore_v3', 'Put')
 
 
 class GetStoragePathTest(unittest.TestCase):

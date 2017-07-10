@@ -475,8 +475,9 @@ _SUPPORTED_LIBRARIES = [
         'django',
         'http://www.djangoproject.com/',
         'A full-featured web application framework for Python.',
-        ['1.2', '1.3', '1.4', '1.5', '1.9'],
+        ['1.2', '1.3', '1.4', '1.5', '1.9', '1.11'],
         latest_version='1.4',
+        hidden_versions=['1.11'],
         ),
     _VersionedLibrary(
         'enum',
@@ -499,7 +500,6 @@ _SUPPORTED_LIBRARIES = [
         'and good intentions.',
         ['0.12'],
         latest_version='0.12',
-        hidden_versions=['0.12'],
         ),
     _VersionedLibrary(
         'grpcio',
@@ -530,9 +530,8 @@ _SUPPORTED_LIBRARIES = [
         'http://lxml.de/',
         'A Pythonic binding for the C libraries libxml2 and libxslt.',
         ['2.3', '2.3.5', '3.7.3'],
-        latest_version='2.3',
+        latest_version='3.7.3',
         experimental_versions=['2.3.5'],
-        hidden_versions=['3.7.3'],
         ),
     _VersionedLibrary(
         'markupsafe',
@@ -636,7 +635,6 @@ _SUPPORTED_LIBRARIES = [
         'UltraJSON is an ultra fast JSON encoder and decoder written in pure C',
         ['1.35'],
         latest_version='1.35',
-        hidden_versions=['1.35'],
         ),
     _VersionedLibrary(
         'webapp2',
@@ -679,6 +677,7 @@ _NAME_TO_SUPPORTED_LIBRARY = dict((library.name, library)
 
 
 REQUIRED_LIBRARIES = {
+    ('django', '1.11'): [('pytz', '2016.4')],
     ('flask', '0.12'): [('click', '6.6'), ('itsdangerous', '0.24'),
                         ('jinja2', '2.6'), ('werkzeug', '0.11.10')],
     ('jinja2', '2.6'): [('markupsafe', '0.15'), ('setuptools', '0.6c11')],
