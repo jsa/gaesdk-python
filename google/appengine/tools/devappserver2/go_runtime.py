@@ -185,8 +185,7 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
 
     with self._application_lock:
       try:
-        if (not self._modified_since_last_build and
-            self._go_application.maybe_build()):
+        if self._go_application.maybe_build(self._modified_since_last_build):
           if self._last_build_error:
             logging.info('Go application successfully built.')
           self._last_build_error = None
