@@ -191,7 +191,7 @@ class Dispatcher(request_info.Dispatcher):
     self._port_registry = PortRegistry()
     self._external_port = external_port
 
-  def start(self, api_host, api_port, request_data, grpc_apis=None):
+  def start(self, api_host, api_port, request_data):
     """Starts the configured modules.
 
     Args:
@@ -199,12 +199,10 @@ class Dispatcher(request_info.Dispatcher):
       api_port: The port that APIServer listens for RPC requests on.
       request_data: A wsgi_request_info.WSGIRequestInfo that will be provided
           with request information for use by API stubs.
-      grpc_apis: a list of apis that use grpc.
     """
     self._api_host = api_host
     self._api_port = api_port
     self._request_data = request_data
-    self._grpc_apis = grpc_apis or []
     port = self._port
     self._executor.start()
     if self._configuration.dispatch:
@@ -294,14 +292,11 @@ class Dispatcher(request_info.Dispatcher):
         module_configuration.module_name)
 
     if self._external_port:
-      # TODO: clean this up
       module_configuration.external_port = self._external_port
       module_class = module.ExternalModule
-    elif (module_configuration.manual_scaling or
-          module_configuration.runtime == 'vm'):
-      # TODO: Remove this 'or' when we support auto-scaled VMs.
+    elif module_configuration.is_manual_scaling:
       module_class = module.ManualScalingModule
-    elif module_configuration.basic_scaling:
+    elif module_configuration.is_basic_scaling:
       module_class = module.BasicScalingModule
     else:
       module_class = module.AutoScalingModule
@@ -335,8 +330,7 @@ class Dispatcher(request_info.Dispatcher):
         watcher_ignore_re=self._watcher_ignore_re,
         automatic_restarts=self._automatic_restart,
         allow_skipped_files=self._allow_skipped_files,
-        threadsafe_override=threadsafe_override,
-        grpc_apis=self._grpc_apis)
+        threadsafe_override=threadsafe_override)
 
     return module_instance, (0 if port == 0 else port + 1)
 

@@ -60,11 +60,11 @@ class ModuleConfigurationStub(object):
     self.normalized_libraries = []
     self.env_variables = []
     if manual_scaling:
-      self.automatic_scaling = appinfo.AutomaticScaling()
-      self.manual_scaling = None
+      self.automatic_scaling_config = appinfo.AutomaticScaling()
+      self.manual_scaling_config = None
     else:
-      self.automatic_scaling = None
-      self.manual_scaling = appinfo.ManualScaling(instances=1)
+      self.automatic_scaling_config = None
+      self.manual_scaling_config = appinfo.ManualScaling(instances=1)
     self.inbound_services = None
 
   def add_change_callback(self, fn):
@@ -232,7 +232,7 @@ class DispatcherTest(unittest.TestCase):
 
   def setUp(self):
     self.mox = mox.Mox()
-    api_server.test_setup_stubs()
+    api_server.setup_test_stubs()
     self.dispatch_config = DispatchConfigurationStub()
     app_config = ApplicationConfigurationStub(MODULE_CONFIGURATIONS)
     self.dispatcher = _make_dispatcher(app_config)

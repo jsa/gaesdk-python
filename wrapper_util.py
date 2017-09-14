@@ -146,6 +146,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'cherrypy'),
         os.path.join(dir_path, 'lib', 'concurrent'),
         os.path.join(dir_path, 'lib', 'endpoints-1.0'),
+        os.path.join(dir_path, 'lib', 'portpicker'),
     ]
 
 
@@ -181,8 +182,8 @@ class Paths(object):
 
 
 
-    php_runtime_dir = os.path.join(devappserver2_dir, 'php')
-    python_runtime_dir = os.path.join(devappserver2_dir, 'python')
+    php_runtime_dir = os.path.join(devappserver2_dir, 'php', 'runtime')
+    python_runtime_dir = os.path.join(devappserver2_dir, 'python', 'runtime')
 
     stub_paths = [
         os.path.join(dir_path, 'lib', 'antlr3'),

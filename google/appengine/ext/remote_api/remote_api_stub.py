@@ -68,7 +68,6 @@ A few caveats:
 
 import Cookie
 import hashlib
-import httplib
 import os
 import pickle
 import random
@@ -111,10 +110,6 @@ class ConfigurationError(Error):
 
 class UnknownJavaServerError(Error):
   """Exception for exceptions returned from a Java remote_api handler."""
-
-
-class MissingGrpcProxyPortError(Error):
-  """Exception for missing grpc proxy port."""
 
 
 def GetUserAgent():
@@ -177,12 +172,7 @@ class RemoteStub(object):
 
   _local = threading.local()
 
-  def __init__(self,
-               server,
-               path,
-               _test_stub_map=None,
-               grpc_apis=(),
-               grpc_proxy_port=None):
+  def __init__(self, server, path, _test_stub_map=None):
     """Constructs a new RemoteStub that communicates with the specified server.
 
     Args:
@@ -191,15 +181,10 @@ class RemoteStub(object):
       path: The path to the handler this stub should send requests to.
       _test_stub_map: If supplied, send RPC calls to stubs in this map instead
         of over the wire.
-      grpc_apis: an iterable of strings representing APIs that use grpc. If
-        'all' is in the list, then every API speaks grpc.
-      grpc_proxy_port: Int, the port on which grpc proxy server listens.
     """
     self._server = server
     self._path = path
     self._test_stub_map = _test_stub_map
-    self._grpc_apis = grpc_apis
-    self._grpc_proxy_port = grpc_proxy_port
 
   def _PreHookHandler(self, service, call, request, response):
     pass
@@ -230,7 +215,7 @@ class RemoteStub(object):
     cls._local.request_id = request_id
 
   def _MakeRealSyncCall(self, service, call, request, response):
-    """Constructs, sends and receives remote_api.proto & grpc_service.proto."""
+    """Constructs, sends and receives remote_api.proto."""
     request_pb = remote_api_pb.Request()
     request_pb.set_service_name(service)
     request_pb.set_method(call)
@@ -240,14 +225,7 @@ class RemoteStub(object):
 
     response_pb = remote_api_pb.Response()
     encoded_request = request_pb.Encode()
-    if service in self._grpc_apis or 'all' in self._grpc_apis:
-      if not self._grpc_proxy_port:
-        raise MissingGrpcProxyPortError()
-      conn = httplib.HTTPConnection('localhost', self._grpc_proxy_port)
-      conn.request('POST', '', encoded_request)
-      encoded_response = conn.getresponse().read()
-    else:
-      encoded_response = self._server.Send(self._path, encoded_request)
+    encoded_response = self._server.Send(self._path, encoded_request)
 
     response_pb.ParseFromString(encoded_response)
 

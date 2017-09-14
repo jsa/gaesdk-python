@@ -721,10 +721,16 @@ class Struct(object):
 
   def get_or_create_list(self, key):
     """Returns a list for this key, creating if it didn't exist already."""
+    if not self.fields[key].HasField('list_value'):
+
+      self.fields[key].list_value.Clear()
     return self.fields[key].list_value
 
   def get_or_create_struct(self, key):
     """Returns a struct for this key, creating if it didn't exist already."""
+    if not self.fields[key].HasField('struct_value'):
+
+      self.fields[key].struct_value.Clear()
     return self.fields[key].struct_value
 
 

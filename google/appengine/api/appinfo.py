@@ -383,6 +383,13 @@ SUBNETWORK_NAME = 'subnetwork_name'
 SESSION_AFFINITY = 'session_affinity'
 
 
+STANDARD_SCHEDULER_SETTINGS = 'standard_scheduler_settings'
+STANDARD_MIN_INSTANCES = 'min_instances'
+STANDARD_MAX_INSTANCES = 'max_instances'
+STANDARD_TARGET_CPU_UTILIZATION = 'target_cpu_utilization'
+STANDARD_TARGET_THROUGHPUT_UTILIZATION = 'target_throughput_utilization'
+
+
 class _VersionedLibrary(object):
   """A versioned library supported by App Engine."""
 
@@ -477,7 +484,6 @@ _SUPPORTED_LIBRARIES = [
         'A full-featured web application framework for Python.',
         ['1.2', '1.3', '1.4', '1.5', '1.9', '1.11'],
         latest_version='1.4',
-        hidden_versions=['1.11'],
         ),
     _VersionedLibrary(
         'enum',
@@ -502,13 +508,18 @@ _SUPPORTED_LIBRARIES = [
         latest_version='0.12',
         ),
     _VersionedLibrary(
+        'futures',
+        'https://docs.python.org/3/library/concurrent.futures.html',
+        'Backport of Python 3.2 Futures.',
+        ['3.0.5'],
+        latest_version='3.0.5',
+        ),
+    _VersionedLibrary(
         'grpcio',
         'http://http://www.grpc.io/',
         'A high performance general RPC framework',
         ['1.0.0'],
         latest_version='1.0.0',
-        default_version='1.0.0',
-        hidden_versions=['1.0.0'],
         ),
     _VersionedLibrary(
         'itsdangerous',
@@ -582,7 +593,7 @@ _SUPPORTED_LIBRARIES = [
         'pytz',
         'https://pypi.python.org/pypi/pytz?',
         'A library for cross-platform timezone calculations',
-        ['2016.4'],
+        ['2016.4', '2017.2'],
         latest_version='2016.4',
         default_version='2016.4',
         ),
@@ -592,6 +603,13 @@ _SUPPORTED_LIBRARIES = [
         'A library for generating Cyclic Redundancy Checks (CRC).',
         ['1.7'],
         latest_version='1.7',
+        ),
+    _VersionedLibrary(
+        'protobuf',
+        'https://developers.google.com/protocol-buffers/',
+        'A library for serializing structured data',
+        ['3.0.0'],
+        latest_version='3.0.0',
         ),
     _VersionedLibrary(
         'PyAMF',
@@ -627,7 +645,7 @@ _SUPPORTED_LIBRARIES = [
         'http://docs.python.org/dev/library/ssl.html',
         'The SSL socket wrapper built-in module.',
         ['2.7', '2.7.11'],
-        latest_version='2.7',
+        latest_version='2.7.11',
         ),
     _VersionedLibrary(
         'ujson',
@@ -676,6 +694,12 @@ _NAME_TO_SUPPORTED_LIBRARY = dict((library.name, library)
 
 
 
+
+
+
+
+
+
 REQUIRED_LIBRARIES = {
     ('django', '1.11'): [('pytz', '2016.4')],
     ('flask', '0.12'): [('click', '6.6'), ('itsdangerous', '0.24'),
@@ -684,7 +708,19 @@ REQUIRED_LIBRARIES = {
     ('jinja2', 'latest'): [('markupsafe', 'latest'), ('setuptools', 'latest')],
     ('matplotlib', '1.2.0'): [('numpy', '1.6.1')],
     ('matplotlib', 'latest'): [('numpy', 'latest')],
+    ('protobuf', '3.0.0'): [('six', '1.9.0')],
+    ('protobuf', 'latest'): [('six', 'latest')],
+    ('grpcio', '1.0.0'): [('protobuf', '3.0.0'), ('enum', '0.9.23'),
+                          ('futures', '3.0.5'), ('six', '1.9.0'),
+                          ('setuptools', '0.6c11')],
+    ('grpcio', 'latest'): [('protobuf', 'latest'), ('enum', 'latest'),
+                           ('futures', 'latest'), ('six', 'latest'),
+                           ('setuptools', 'latest')]
 }
+
+
+
+
 
 _USE_VERSION_FORMAT = ('use one of: "%s"')
 
@@ -984,7 +1020,7 @@ class HttpHeadersDict(validation.ValidatedDict):
 
 
 class URLMap(HandlerBase):
-  """Maps from URLs to handlers.
+  r"""Maps from URLs to handlers.
 
   This class acts similar to a union type. Its purpose is to describe a mapping
   between a set of URLs and their handlers. The handler type of a given instance
@@ -1419,6 +1455,12 @@ class BuiltinHandler(validation.Validated):
       raise AttributeError
     return None
 
+  def GetUnnormalized(self, key):
+    try:
+      return super(BuiltinHandler, self).GetUnnormalized(key)
+    except AttributeError:
+      return getattr(self, key)
+
   def ToDict(self):
     """Converts a `BuiltinHander` object to a dictionary.
 
@@ -1565,6 +1607,21 @@ class CpuUtilization(validation.Validated):
   }
 
 
+class StandardSchedulerSettings(validation.Validated):
+  """Class representing StandardSchedulerSettings in AppInfoExternal."""
+
+  ATTRIBUTES = {
+      STANDARD_MAX_INSTANCES: validation.Optional(
+          validation.TYPE_INT),
+      STANDARD_MIN_INSTANCES: validation.Optional(
+          validation.TYPE_INT),
+      STANDARD_TARGET_CPU_UTILIZATION: validation.Optional(
+          validation.TYPE_FLOAT),
+      STANDARD_TARGET_THROUGHPUT_UTILIZATION: validation.Optional(
+          validation.TYPE_FLOAT),
+  }
+
+
 class EndpointsApiService(validation.Validated):
   """Class representing EndpointsApiService in AppInfoExternal."""
   ATTRIBUTES = {
@@ -1588,6 +1645,8 @@ class AutomaticScaling(validation.Validated):
       COOL_DOWN_PERIOD_SEC: validation.Optional(
           validation.Range(60, sys.maxint, int)),
       CPU_UTILIZATION: validation.Optional(CpuUtilization),
+      STANDARD_SCHEDULER_SETTINGS: validation.Optional(
+          StandardSchedulerSettings),
       TARGET_NETWORK_SENT_BYTES_PER_SEC:
       validation.Optional(validation.Range(1, sys.maxint)),
       TARGET_NETWORK_SENT_PACKETS_PER_SEC:
@@ -2505,6 +2564,8 @@ def LoadSingleAppInfo(app_info):
 
 
 
+
+
   if appyaml.service and appyaml.module:
     raise appinfo_errors.ModuleAndServiceDefined(
         'Cannot define both "module" and "service" in configuration')
@@ -2597,9 +2658,6 @@ def ParseExpiration(expiration):
 
 
 
-_file_path_positive_re = re.compile(r'^.{1,256}$')
-
-
 _file_path_negative_1_re = re.compile(r'\.\.|^\./|\.$|/\./|^-|^_ah/|^/')
 
 
@@ -2607,7 +2665,7 @@ _file_path_negative_2_re = re.compile(r'//|/$')
 
 
 
-_file_path_negative_3_re = re.compile(r'^ | $|/ | /')
+_file_path_negative_3_re = re.compile(r'^ | $|/ | /|\n')
 
 
 
@@ -2631,8 +2689,10 @@ def ValidFilename(filename):
     An error string if the file name is invalid. `''` is returned if the file
     name is valid.
   """
-  if _file_path_positive_re.match(filename) is None:
-    return 'Invalid character in filename: %s' % filename
+  if not filename:
+    return 'Filename cannot be empty'
+  if len(filename) > 1024:
+    return 'Filename cannot exceed 1024 characters: %s' % filename
   if _file_path_negative_1_re.search(filename) is not None:
     return ('Filename cannot contain "." or ".." '
             'or start with "-" or "_ah/": %s' %

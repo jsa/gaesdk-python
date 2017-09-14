@@ -155,6 +155,13 @@ from google.appengine.ext.cloudstorage import stub_dispatcher as gcs_dispatcher
 
 
 
+
+
+
+
+
+
+
 DEFAULT_ENVIRONMENT = {
     'APPLICATION_ID': 'testbed-test',
     'AUTH_DOMAIN': 'gmail.com',
@@ -517,7 +524,28 @@ class Testbed(object):
       auto_id_policy: How datastore stub assigns auto IDs. This value can be
           either `AUTO_ID_POLICY_SEQUENTIAL` or `AUTO_ID_POLICY_SCATTERED`.
       **stub_kw_args: Keyword arguments passed on to the service stub.
+
+    Raises:
+      StubNotSupportedError: If datastore_sqlite_stub is None.
     """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if not enable:
       self._disable_stub(DATASTORE_SERVICE_NAME)
       self._disable_stub(datastore_v4_stub.SERVICE_NAME)

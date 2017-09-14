@@ -22,7 +22,6 @@ import logging
 import os
 import sys
 import time
-import portpicker
 
 from google.appengine.api import request_info
 from google.appengine.tools.devappserver2 import api_server
@@ -134,10 +133,6 @@ class DevelopmentServer(object):
 
     _setup_environ(configuration.app_id)
 
-    # grpc_proxy is only needed for python2 because remote_api_stub.py is
-    # imported in local python runtime sandbox. For more details, see
-    # grpc_proxy_util.py.
-    grpc_proxy_port = portpicker.PickUnusedPort()
     self._dispatcher = dispatcher.Dispatcher(
         configuration, options.host, options.port, options.auth_domain,
         constants.LOG_LEVEL_TO_RUNTIME_CONSTANT[options.log_level],
@@ -147,7 +142,7 @@ class DevelopmentServer(object):
 
 
         self._create_php_config(options),
-        self._create_python_config(options, grpc_proxy_port),
+        self._create_python_config(options),
         self._create_java_config(options),
         self._create_go_config(options),
         self._create_custom_config(options),
@@ -167,33 +162,14 @@ class DevelopmentServer(object):
     storage_path = api_server.get_storage_path(
         options.storage_path, configuration.app_id)
 
-    datastore_emulator_host = (
-        parsed_env_variables['DATASTORE_EMULATOR_HOST']
-        if 'DATASTORE_EMULATOR_HOST' in parsed_env_variables else None)
-
     apiserver = api_server.create_api_server(
         wsgi_request_info_, storage_path, options, configuration.app_id,
-        configuration.modules[0].application_root, datastore_emulator_host)
+        configuration.modules[0].application_root)
     apiserver.start()
     self._running_modules.append(apiserver)
 
-    if options.grpc_apis:
-      grpc_apiserver = api_server.GRPCAPIServer(options.grpc_api_port)
-      grpc_apiserver.start()
-      self._running_modules.append(grpc_apiserver)
-
-      # We declare grpc_proxy_util as global, otherwise it cannot be accessed
-      # from outside of this function.
-      global grpc_proxy_util
-      # pylint: disable=g-import-not-at-top
-      # We lazy import here because grpc binaries are not always present.
-      from google.appengine.tools.devappserver2 import grpc_proxy_util
-      grpc_proxy = grpc_proxy_util.GrpcProxyServer(grpc_proxy_port)
-      grpc_proxy.start()
-      self._running_modules.append(grpc_proxy)
-
     self._dispatcher.start(
-        options.api_host, apiserver.port, wsgi_request_info_, options.grpc_apis)
+        options.api_host, apiserver.port, wsgi_request_info_)
 
     xsrf_path = os.path.join(storage_path, 'xsrf')
     admin = admin_server.AdminServer(options.admin_host, options.admin_port,
@@ -269,15 +245,13 @@ class DevelopmentServer(object):
 
 
   @staticmethod
-  def _create_python_config(options, grpc_proxy_port=None):
+  def _create_python_config(options):
     python_config = runtime_config_pb2.PythonConfig()
     if options.python_startup_script:
       python_config.startup_script = os.path.abspath(
           options.python_startup_script)
       if options.python_startup_args:
         python_config.startup_args = options.python_startup_args
-    if grpc_proxy_port:
-      python_config.grpc_proxy_port = grpc_proxy_port
     return python_config
 
   @staticmethod

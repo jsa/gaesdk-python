@@ -103,10 +103,6 @@ GOOGLE_ANALYTICS_METRICS = {
 }
 
 
-class MetricsLoggerError(Exception):
-  """Used for MetricsLogger related errors."""
-
-
 class _MetricsLogger(object):
   """Logs metrics for the devappserver to Google Analytics."""
 
@@ -171,10 +167,6 @@ class _MetricsLogger(object):
       value: A number to use as the Google Analytics event value.
       **kwargs: Additional Google Analytics event parameters to include in the
         request body.
-
-    Raises:
-      MetricsLoggerError: Raised if the _client_id attribute has not been set
-        on the MetricsLogger.
     """
     self._SendRequestToGoogleAnalytics(
         _GOOGLE_ANALYTICS_COLLECT_ENDPOINT,
@@ -219,14 +211,11 @@ class _MetricsLogger(object):
     Args:
       endpoint: The string endpoint path for the request, eg "/collect".
       body: The string body to send with the request.
-
-    Raises:
-      MetricsLoggerError: Raised if the _client_id attribute has not been set
-        on the MetricsLogger.
     """
     if not self._client_id:
-      raise MetricsLoggerError(
-          'The Client ID must be set to log devappserver metrics.')
+      logging.debug('Google Analytics is not configured. '
+                    'If it were, we would send %r:', body)
+      return
 
     headers = {'User-Agent': self._user_agent} if self._user_agent else {}
 

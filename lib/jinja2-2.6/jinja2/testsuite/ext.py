@@ -277,7 +277,7 @@ class InternationalizationTestCase(JinjaTestCase):
         {% trans %}Hello World{% endtrans %}
         {% trans %}{{ users }} user{% pluralize %}{{ users }} users{% endtrans %}
         '''.encode('ascii')) # make python 3 happy
-        assert list(babel_extract(source, ('gettext', 'ngettext', '_'), [], {})) == [
+        assert list(babel_ext# make python 3 happyt', 'ngettext', '_'), [], {})) == [
             (2, 'gettext', u'Hello World', []),
             (3, 'gettext', u'Hello World', []),
             (4, 'ngettext', (u'%(users)s user', u'%(users)s users', None), [])
@@ -292,7 +292,7 @@ class InternationalizationTestCase(JinjaTestCase):
         {#: third #}
         {% trans %}{{ users }} user{% pluralize %}{{ users }} users{% endtrans %}
         '''.encode('utf-8')) # make python 3 happy
-        assert list(babel_extract(source, ('gettext', 'ngettext', '_'), ['trans', ':'], {})) == [
+        assert list(babel_ext# make python 3 happyt', 'ngettext', '_'), ['trans', ':'], {})) == [
             (3, 'gettext', u'Hello World', ['first']),
             (4, 'gettext', u'Hello World', ['second']),
             (6, 'ngettext', (u'%(users)s user', u'%(users)s users', None), ['third'])

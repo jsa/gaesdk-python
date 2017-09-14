@@ -480,7 +480,7 @@ def create_command_line_parser(configuration=None):
       '--python_startup_script',
       restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
       help='the script to run at the startup of new Python runtime instances '
-      '(useful for tools such as debuggers.')
+      '(useful for tools such as debuggers).')
   python_group.add_argument(
       '--python_startup_args',
       restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
@@ -713,15 +713,24 @@ def create_command_line_parser(configuration=None):
       '--api_port', type=PortParser(), default=0,
       help='port to which the server for API calls should bind')
   misc_group.add_argument(
-      '--grpc_api', action='append', dest='grpc_apis',
-      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
-      help='apis that talk grpc to api_server. For example: '
-      '--grpc_api memcache --grpc_api datastore. Setting --grpc_api all '
-      'lets every api talk grpc.')
+      '--api_server_supports_grpc',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
+      help=argparse.SUPPRESS)
+
+
+
+
+  misc_group.add_argument(
+      '--support_datastore_emulator',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
+      help=argparse.SUPPRESS)
   misc_group.add_argument(
       '--grpc_api_port', type=PortParser(), default=0,
-      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
-      help='port to which the server for grpc API calls should bind')
+      help='port on which the gRPC API server listens.')
   misc_group.add_argument(
       '--automatic_restart',
       action=boolean_action.BooleanAction,
@@ -756,20 +765,18 @@ def create_command_line_parser(configuration=None):
       'in the format of key=value, and you can define multiple envrionment '
       'variables. For example: --env_var KEY_1=val1 --env_var KEY_2=val2. '
       'You can also define environment variables in app.yaml.')
+  # The client id used for Google Analytics usage reporting. If this is set,
+  # usage metrics will be sent to Google Analytics. This should only be set by
+  # the Cloud SDK dev_appserver.py wrapper.
   misc_group.add_argument(
       '--google_analytics_client_id', default=None,
       restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
-      help='the client id user for Google Analytics usage reporting. If this '
-      'is set, usage metrics will be sent to Google Analytics.')
+      help=argparse.SUPPRESS)
+  # The user agent to use for Google Analytics usage reporting. This should only
+  # be set by the Cloud SDK dev_appserver.py wrapper.
   misc_group.add_argument(
       '--google_analytics_user_agent', default=None,
       restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
-      help='the user agent to use for Google Analytics usage reporting.')
-
-
-
-
-
-
+      help=argparse.SUPPRESS)
 
   return parser

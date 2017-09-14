@@ -90,7 +90,7 @@ class FakeDatastoreV4ServiceStub(apiproxy_stub.APIProxyStub):
 
 def setup_stubs():
   """Setup the API stubs. This can only be done once."""
-  api_server.test_setup_stubs(
+  api_server.setup_test_stubs(
       request_data,
       app_id=APP_ID,
       application_root=APPLICATION_ROOT,

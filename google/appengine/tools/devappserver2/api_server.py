@@ -99,7 +99,7 @@ GLOBAL_API_LOCK = threading.RLock()
 
 # The default app id used when launching the api_server.py as a binary, without
 # providing the context of a specific application.
-DEFAULT_API_SERVER_APP_ID = 'dev~app_id'
+DEFAULT_API_SERVER_APP_ID = 'dev~app-id'
 
 # We don't want to support datastore_v4 everywhere, because users are supposed
 # to use the Cloud Datastore API going forward, so we don't want to put these
@@ -237,15 +237,30 @@ def _execute_request(request, use_proto3=False):
   return response_data
 
 
-class GRPCAPIServer(object):
-  """Serves API calls over GPC."""
+class APIServer(wsgi_server.WsgiServer):
+  """Serves API calls over HTTP and GRPC(optional)."""
 
-  def __init__(self, port):
-    self._port = port
-    self._stop = False
-    self._server = None
+  def __init__(self, host, port, app_id, use_grpc=False, grpc_api_port=0,
+               support_datastore_emulator=False):
+    self._app_id = app_id
+    self._host = host
+    super(APIServer, self).__init__((host, port), self)
+    self.set_balanced_address('localhost:8080')
 
-  def _start_server(self):
+    self._use_grpc = use_grpc
+    self._grpc_api_port = grpc_api_port
+
+    self._datastore_emulator_stub = None
+    datastore_emulator_host = os.environ.get('DATASTORE_EMULATOR_HOST')
+    if support_datastore_emulator and datastore_emulator_host:
+      # pylint: disable=g-import-not-at-top
+      # We lazy import here because grpc binaries are not always present.
+      from google.appengine.tools.devappserver2 import grpc_stub_util
+      self._grpc_stub_util = grpc_stub_util
+      self._datastore_emulator_stub = self._grpc_stub_util.create_stub(
+          datastore_emulator_host)
+
+  def _start_grpc_server(self):
     """Starts gRPC API server."""
     grpc_service_pb2 = __import__('google.appengine.tools.devappserver2.'
                                   'grpc_service_pb2', globals(), locals(),
@@ -260,61 +275,36 @@ class GRPCAPIServer(object):
         response = grpc_service_pb2.Response(response=api_response.Encode())
         return response
 
-    self._server = grpc_service_pb2.beta_create_CallHandler_server(
+    self._grpc_server = grpc_service_pb2.beta_create_CallHandler_server(
         CallHandler())
 
     # add_insecure_port() returns positive port number when port allocation is
-    # successful. Otherwise it returns 0, and we handle the exception in start()
-    # from the caller thread.
+    # successful. Otherwise it returns 0.
     # 'localhost' works with both ipv4 and ipv6.
-    self._port = self._server.add_insecure_port('localhost:' + str(self._port))
+    self._grpc_api_port = self._grpc_server.add_insecure_port(
+        'localhost:' + str(self._grpc_api_port))
+    if not self._grpc_api_port:
+      raise errors.GrpcPortError('Error assigning grpc api port!')
+
     # We set this GRPC_PORT in environment variable as it is only accessed by
     # the devappserver process.
-    os.environ['GRPC_PORT'] = str(self._port)
-    if self._port:
-      logging.info('Starting GRPC_API_server at: http://localhost:%d',
-                   self._port)
-    self._server.start()
-
-  def start(self):
-    with threading.Lock():
-      self._server_thread = threading.Thread(target=self._start_server)
-      self._server_thread.start()
-      self._server_thread.join()
-      if not self._port:
-        raise errors.GrpcPortError('Error assigning grpc api port!')
-
-  def quit(self):
-    logging.info('Keyboard interrupting grpc_api_server')
-    self._server.stop(0)
-
-
-class APIServer(wsgi_server.WsgiServer):
-  """Serves API calls over HTTP."""
-
-  def __init__(self, host, port, app_id, datastore_emulator_host=None):
-    self._app_id = app_id
-    self._host = host
-    super(APIServer, self).__init__((host, port), self)
-    self.set_balanced_address('localhost:8080')
-
-    self._datastore_emulator_stub = None
-    if datastore_emulator_host:
-      global grpc_proxy_util
-      # pylint: disable=g-import-not-at-top
-      # We lazy import here because grpc binaries are not always present.
-      from google.appengine.tools.devappserver2 import grpc_proxy_util
-      self._datastore_emulator_stub = grpc_proxy_util.create_stub(
-          datastore_emulator_host)
+    os.environ['GRPC_PORT'] = str(self._grpc_api_port)
+    logging.info('Starting GRPC_API_server at: http://localhost:%d',
+                 self._grpc_api_port)
+    self._grpc_server.start()
 
   def start(self):
     """Start the API Server."""
     super(APIServer, self).start()
     logging.info('Starting API server at: http://%s:%d', self._host, self.port)
+    if self._use_grpc:
+      self._start_grpc_server()
 
   def quit(self):
     cleanup_stubs()
     super(APIServer, self).quit()
+    if self._use_grpc:
+      self._grpc_server.stop(0)
 
   def set_balanced_address(self, balanced_address):
     """Sets the balanced address from the dispatcher (e.g. "localhost:8080").
@@ -364,7 +354,7 @@ class APIServer(wsgi_server.WsgiServer):
           raise apiproxy_errors.RequestTooLargeError(
               apiproxy_stub.REQ_SIZE_EXCEEDS_LIMIT_MSG_TEMPLATE % (
                   'datastore_v3', request.method()))
-        response = grpc_proxy_util.make_grpc_call_from_remote_api(
+        response = self._grpc_stub_util.make_grpc_call_from_remote_api(
             self._datastore_emulator_stub, request)
       else:
         if request.has_request_id():
@@ -398,8 +388,15 @@ class APIServer(wsgi_server.WsgiServer):
       # While not strictly necessary for ApplicationError, do this to limit
       # differences with remote_api:handler.py.
       response.set_exception(pickle.dumps(e))
-      logging.log(level, 'Exception while handling %s\n%s', request,
-                  traceback.format_exc())
+
+
+
+
+
+
+      logging.log(level, 'Exception while handling %s.%s()\n%s',
+                  request.service_name(),
+                  request.method(), traceback.format_exc())
     encoded_response = response.Encode()
     logging.debug('Handled %s.%s in %0.4f',
                   request.service_name(),
@@ -441,8 +438,7 @@ class APIServer(wsgi_server.WsgiServer):
 
 
 def create_api_server(
-    request_info, storage_path, options, app_id, app_root,
-    datastore_emulator_host=None):
+    request_info, storage_path, options, app_id, app_root):
   """Creates an API server.
 
   Args:
@@ -455,8 +451,6 @@ def create_api_server(
     app_root: The path to the directory containing the user's
       application e.g. "/home/joe/myapp", used for locating application yaml
       files, eg index.yaml for the datastore stub.
-    datastore_emulator_host: String, the hostname:port on which cloud datastore
-      emualtor runs.
 
   Returns:
     An instance of APIServer.
@@ -531,7 +525,8 @@ def create_api_server(
       appidentity_oauth_url=options.appidentity_oauth_url)
 
   return APIServer(options.api_host, options.api_port, app_id,
-                   datastore_emulator_host)
+                   options.api_server_supports_grpc, options.grpc_api_port,
+                   options.support_datastore_emulator)
 
 
 def _clear_datastore_storage(datastore_path):
@@ -870,7 +865,7 @@ def _fetch_all_datastore_entities():
   return all_entities
 
 
-def test_setup_stubs(
+def setup_test_stubs(
     request_data=None,
     app_id='myapp',
     application_root='/tmp/root',
