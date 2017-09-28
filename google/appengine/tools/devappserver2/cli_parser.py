@@ -62,6 +62,25 @@ class PortParser(object):
     return port
 
 
+class ServicePortParser(PortParser):
+  """An argparse type parser exclusively for --specified_service_port flag."""
+
+  def __init__(self):
+    super(ServicePortParser, self).__init__()
+
+  def __call__(self, value):
+    res = {}
+    for service_port_str in value.split(','):
+      service_port = service_port_str.split(':')
+      if len(service_port) is not 2:
+        raise argparse.ArgumentTypeError(
+            ' %s is not in the format of service-name:port,service-name:port'
+            % value)
+      service, port = service_port
+      res[service] = super(ServicePortParser, self).__call__(port)
+    return res
+
+
 def parse_per_module_option(
     value, value_type, value_predicate,
     single_bad_type_error, single_bad_predicate_error,
@@ -368,6 +387,10 @@ def create_command_line_parser(configuration=None):
   common_group.add_argument(
       '--port', type=PortParser(), default=8080,
       help='lowest port to which application modules should bind')
+  common_group.add_argument(
+      '--specified_service_ports', type=ServicePortParser(), default=None,
+      help='A sequence of service-name:port-number to port number mapping. E.g:'
+      ' service-a:22222,service-b:33333')
   common_group.add_argument(
       '--admin_host', default=default_server_host,
       help='host name to which the admin server should bind')

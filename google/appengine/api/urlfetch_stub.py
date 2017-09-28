@@ -484,7 +484,7 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
 
         url = http_response.getheader('Location', None)
         if url is None:
-          error_msg = 'Redirecting response was missing "Location" header'
+          error_msg = 'Missing "Location" header for redirect.'
           logging.error(error_msg)
           raise apiproxy_errors.ApplicationError(
               urlfetch_service_pb.URLFetchServiceError.MALFORMED_REPLY,

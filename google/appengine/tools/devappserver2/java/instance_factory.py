@@ -95,9 +95,6 @@ class JavaRuntimeInstanceFactory(instance.InstanceFactory):
     assert os.path.isdir(java_lib_dir), java_lib_dir
     class_path = os.path.join(java_lib_dir, 'appengine-tools-api.jar')
     assert os.path.isfile(class_path), class_path
-    jdk_overrides_jar = os.path.join(java_lib_dir, 'override',
-                                     'appengine-dev-jdk-overrides.jar')
-    assert os.path.isfile(jdk_overrides_jar), jdk_overrides_jar
 
     if self._for_jetty9:
       jetty_home = os.environ.get('APP_ENGINE_JETTY_HOME', None)
@@ -124,7 +121,6 @@ class JavaRuntimeInstanceFactory(instance.InstanceFactory):
           '-cp', class_path,
           '-Dappengine.sdk.root=' + java_dir,
           '-Dappengine.runtime=' + self._module_configuration.runtime,
-          '-Xbootclasspath/p:' + jdk_overrides_jar,
       ]
       if self._module_configuration.runtime.startswith('java8'):
         args.append('-Duse_jetty9_runtime=true')

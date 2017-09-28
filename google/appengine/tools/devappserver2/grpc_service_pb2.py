@@ -36,7 +36,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='apphosting/tools/devappserver2/grpc_service.proto',
   package='apphosting.tools.devappserver2',
   syntax='proto3',
-  serialized_pb=_b('\n1apphosting/tools/devappserver2/grpc_service.proto\x12\x1e\x61pphosting.tools.devappserver2\"T\n\x07Request\x12\x14\n\x0cservice_name\x18\x02 \x01(\t\x12\x0e\n\x06method\x18\x03 \x01(\t\x12\x0f\n\x07request\x18\x04 \x01(\x0c\x12\x12\n\nrequest_id\x18\x05 \x01(\t\"\xd1\x01\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\x0c\x12\x11\n\texception\x18\x02 \x01(\x0c\x12K\n\x11\x61pplication_error\x18\x03 \x01(\x0b\x32\x30.apphosting.tools.devappserver2.ApplicationError\x12\x16\n\x0ejava_exception\x18\x04 \x01(\x0c\x12;\n\trpc_error\x18\x05 \x01(\x0b\x32(.apphosting.tools.devappserver2.RpcError\"0\n\x10\x41pplicationError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\xb7\x02\n\x08RpcError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\x8c\x02\n\tErrorCode\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x12\n\x0e\x43\x41LL_NOT_FOUND\x10\x01\x12\x0f\n\x0bPARSE_ERROR\x10\x02\x12\x16\n\x12SECURITY_VIOLATION\x10\x03\x12\x0e\n\nOVER_QUOTA\x10\x04\x12\x15\n\x11REQUEST_TOO_LARGE\x10\x05\x12\x17\n\x13\x43\x41PABILITY_DISABLED\x10\x06\x12\x14\n\x10\x46\x45\x41TURE_DISABLED\x10\x07\x12\x0f\n\x0b\x42\x41\x44_REQUEST\x10\x08\x12\x16\n\x12RESPONSE_TOO_LARGE\x10\t\x12\r\n\tCANCELLED\x10\n\x12\x10\n\x0cREPLAY_ERROR\x10\x0b\x12\x15\n\x11\x44\x45\x41\x44LINE_EXCEEDED\x10\x0c\x32p\n\x0b\x43\x61llHandler\x12\x61\n\nHandleCall\x12\'.apphosting.tools.devappserver2.Request\x1a(.apphosting.tools.devappserver2.Response\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n1apphosting/tools/devappserver2/grpc_service.proto\x12\x1e\x61pphosting.tools.devappserver2\"|\n\x07Request\x12\x14\n\x0cservice_name\x18\x02 \x01(\t\x12\x0e\n\x06method\x18\x03 \x01(\t\x12\x0f\n\x07request\x18\x04 \x01(\x0c\x12\x12\n\nrequest_id\x18\x05 \x01(\t\x12&\n\x1etxn_add_task_callback_hostport\x18\x06 \x01(\t\"\xd1\x01\n\x08Response\x12\x10\n\x08response\x18\x01 \x01(\x0c\x12\x11\n\texception\x18\x02 \x01(\x0c\x12K\n\x11\x61pplication_error\x18\x03 \x01(\x0b\x32\x30.apphosting.tools.devappserver2.ApplicationError\x12\x16\n\x0ejava_exception\x18\x04 \x01(\x0c\x12;\n\trpc_error\x18\x05 \x01(\x0b\x32(.apphosting.tools.devappserver2.RpcError\"0\n\x10\x41pplicationError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\xb7\x02\n\x08RpcError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\x8c\x02\n\tErrorCode\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x12\n\x0e\x43\x41LL_NOT_FOUND\x10\x01\x12\x0f\n\x0bPARSE_ERROR\x10\x02\x12\x16\n\x12SECURITY_VIOLATION\x10\x03\x12\x0e\n\nOVER_QUOTA\x10\x04\x12\x15\n\x11REQUEST_TOO_LARGE\x10\x05\x12\x17\n\x13\x43\x41PABILITY_DISABLED\x10\x06\x12\x14\n\x10\x46\x45\x41TURE_DISABLED\x10\x07\x12\x0f\n\x0b\x42\x41\x44_REQUEST\x10\x08\x12\x16\n\x12RESPONSE_TOO_LARGE\x10\t\x12\r\n\tCANCELLED\x10\n\x12\x10\n\x0cREPLAY_ERROR\x10\x0b\x12\x15\n\x11\x44\x45\x41\x44LINE_EXCEEDED\x10\x0c\x32p\n\x0b\x43\x61llHandler\x12\x61\n\nHandleCall\x12\'.apphosting.tools.devappserver2.Request\x1a(.apphosting.tools.devappserver2.Response\"\x00\x62\x06proto3')
 )
 
 
@@ -102,8 +102,8 @@ _RPCERROR_ERRORCODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=477,
-  serialized_end=745,
+  serialized_start=517,
+  serialized_end=785,
 )
 _sym_db.RegisterEnumDescriptor(_RPCERROR_ERRORCODE)
 
@@ -143,6 +143,13 @@ _REQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='txn_add_task_callback_hostport', full_name='apphosting.tools.devappserver2.Request.txn_add_task_callback_hostport', index=4,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -156,7 +163,7 @@ _REQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=85,
-  serialized_end=169,
+  serialized_end=209,
 )
 
 
@@ -214,8 +221,8 @@ _RESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=172,
-  serialized_end=381,
+  serialized_start=212,
+  serialized_end=421,
 )
 
 
@@ -252,8 +259,8 @@ _APPLICATIONERROR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=383,
-  serialized_end=431,
+  serialized_start=423,
+  serialized_end=471,
 )
 
 
@@ -291,8 +298,8 @@ _RPCERROR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=434,
-  serialized_end=745,
+  serialized_start=474,
+  serialized_end=785,
 )
 
 _RESPONSE.fields_by_name['application_error'].message_type = _APPLICATIONERROR
@@ -340,8 +347,8 @@ _CALLHANDLER = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   options=None,
-  serialized_start=747,
-  serialized_end=859,
+  serialized_start=787,
+  serialized_end=899,
   methods=[
   _descriptor.MethodDescriptor(
     name='HandleCall',

@@ -520,6 +520,7 @@ _SUPPORTED_LIBRARIES = [
         'A high performance general RPC framework',
         ['1.0.0'],
         latest_version='1.0.0',
+        experimental_versions=['1.0.0'],
         ),
     _VersionedLibrary(
         'itsdangerous',
@@ -594,8 +595,8 @@ _SUPPORTED_LIBRARIES = [
         'https://pypi.python.org/pypi/pytz?',
         'A library for cross-platform timezone calculations',
         ['2016.4', '2017.2'],
-        latest_version='2016.4',
-        default_version='2016.4',
+        latest_version='2017.2',
+        default_version='2017.2',
         ),
     _VersionedLibrary(
         'crcmod',
@@ -610,6 +611,7 @@ _SUPPORTED_LIBRARIES = [
         'A library for serializing structured data',
         ['3.0.0'],
         latest_version='3.0.0',
+        experimental_versions=['3.0.0'],
         ),
     _VersionedLibrary(
         'PyAMF',
@@ -701,7 +703,7 @@ _NAME_TO_SUPPORTED_LIBRARY = dict((library.name, library)
 
 
 REQUIRED_LIBRARIES = {
-    ('django', '1.11'): [('pytz', '2016.4')],
+    ('django', '1.11'): [('pytz', '2017.2')],
     ('flask', '0.12'): [('click', '6.6'), ('itsdangerous', '0.24'),
                         ('jinja2', '2.6'), ('werkzeug', '0.11.10')],
     ('jinja2', '2.6'): [('markupsafe', '0.15'), ('setuptools', '0.6c11')],

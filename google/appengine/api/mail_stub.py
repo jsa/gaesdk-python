@@ -200,6 +200,10 @@ class MailServiceStub(apiproxy_stub.APIProxyStub):
 
     return messages
 
+  @apiproxy_stub.Synchronized
+  def Clear(self):
+    self._cached_messages = []
+
   def _SendSMTP(self, mime_message, smtp_lib=smtplib.SMTP):
     """Send MIME message via SMTP.
 
@@ -339,6 +343,35 @@ class MailServiceStub(apiproxy_stub.APIProxyStub):
       log('Both SMTP and sendmail are enabled.  Ignoring sendmail.')
 
   _Dynamic_SendToAdmins = _SendToAdmins
+
+  def _Dynamic_GetSentMessages(self, request, response):
+    """Get a list of all mail messages sent via the Mail API.
+
+    Used by the Java LocalMailService to retrieve all sent messages.
+
+    Args:
+      request: An instance of
+        mail_local_helper_service_pb.GetSentMessagesRequest.
+      response: An instance of
+        mail_local_helper_service_pb.GetSentMessagesResponse.
+    """
+    messages = self.get_sent_messages()
+    for m in messages:
+      new_message = response.add_sent_message()
+      new_message.MergeFrom(m.ToProto())
+
+  def _Dynamic_ClearSentMessages(self, request, response):
+    """Clear the list of sent messages and return the number cleared.
+
+    Args:
+      request: An instance of
+        mail_local_helper_service_pb.ClearSentMessagesRequest.
+      response: An instance of
+        mail_local_helper_service_pb.ClearSentMessagesResponse.
+    """
+    original_messages_count = len(self._cached_messages)
+    self.Clear()
+    response.set_messages_cleared(original_messages_count)
 
   def _ValidateExtensions(self, request):
     """Implementation of MailServer::Send().

@@ -358,6 +358,11 @@ class Paths(object):
     return [path for path in paths
             if os.path.normcase(path) not in sys_paths_to_scrub]
 
+
+
+
+
+
   def add_grpc_path(self, script_name):
     """Adds grpcio-1.0.0 to sys.path and avoid hard-coding.
 

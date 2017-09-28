@@ -247,12 +247,18 @@ class DispatcherTest(unittest.TestCase):
                                              host='0.0.0.0')
 
     self.mox.StubOutWithMock(self.dispatcher, '_create_module')
+    self.mox.StubOutWithMock(self.dispatcher._port_registry, 'has')
+    self.dispatcher._port_registry.has(1).AndReturn(False)
     self.dispatcher._create_module(app_config.modules[0], 1).AndReturn(
-        (self.module1, 2))
+        self.module1)
+    self.dispatcher._port_registry.has(1).AndReturn(True)
+    self.dispatcher._port_registry.has(2).AndReturn(False)
     self.dispatcher._create_module(app_config.modules[1], 2).AndReturn(
-        (self.module2, 3))
+        self.module2)
+    self.dispatcher._port_registry.has(2).AndReturn(True)
+    self.dispatcher._port_registry.has(3).AndReturn(False)
     self.dispatcher._create_module(app_config.modules[2], 3).AndReturn(
-        (self.module3, 4))
+        self.module3)
     self.mox.ReplayAll()
     self.dispatcher.start('localhost', 12345, object())
     app_config.dispatch = self.dispatch_config

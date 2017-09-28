@@ -148,6 +148,7 @@ class GoApplication(object):
     gab_args = [
         gab_path,
         '-app_base', self._module_configuration.application_root,
+        '-api_version', self._module_configuration.api_version,
         '-arch', self._arch,
         '-dynamic',
         '-goroot', self._goroot,
@@ -163,9 +164,10 @@ class GoApplication(object):
                                                 env=env)
     gab_stdout, gab_stderr = gab_process.communicate()
     if gab_process.returncode:
-      raise go_errors.BuildError(
-          '(Executed command: %s)\n%s\n%s' % (' '.join(gab_args),
-                                              gab_stdout, gab_stderr))
+      msg = (u'(Executed command: %s)\n%s\n%s' %
+             (u' '.join(gab_args), gab_stdout.decode('utf-8'),
+              gab_stderr.decode('utf-8')))
+      raise go_errors.BuildError(msg.encode('utf-8'))
     return gab_stdout, gab_stderr
 
   def get_environment(self):

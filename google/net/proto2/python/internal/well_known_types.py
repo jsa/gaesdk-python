@@ -461,7 +461,7 @@ def _IsValidPath(message_descriptor, path):
   parts = path.split('.')
   last = parts.pop()
   for name in parts:
-    field = message_descriptor.fields_by_name[name]
+    field = message_descriptor.fields_by_name.get(name)
     if (field is None or
         field.label == FieldDescriptor.LABEL_REPEATED or
         field.type != FieldDescriptor.TYPE_MESSAGE):
@@ -686,6 +686,12 @@ def _SetStructValue(struct_value, value):
     struct_value.string_value = value
   elif isinstance(value, _INT_OR_FLOAT):
     struct_value.number_value = value
+  elif isinstance(value, dict):
+    struct_value.struct_value.Clear()
+    struct_value.struct_value.update(value)
+  elif isinstance(value, list):
+    struct_value.list_value.Clear()
+    struct_value.list_value.extend(value)
   else:
     raise ValueError('Unexpected type')
 
@@ -733,7 +739,9 @@ class Struct(object):
       self.fields[key].struct_value.Clear()
     return self.fields[key].struct_value
 
-
+  def update(self, dictionary):
+    for key, value in dictionary.items():
+      _SetStructValue(self.fields[key], value)
 
 
 class ListValue(object):
@@ -762,11 +770,17 @@ class ListValue(object):
 
   def add_struct(self):
     """Appends and returns a struct value as the next value in the list."""
-    return self.values.add().struct_value
+    struct_value = self.values.add().struct_value
+
+    struct_value.Clear()
+    return struct_value
 
   def add_list(self):
     """Appends and returns a list value as the next value in the list."""
-    return self.values.add().list_value
+    list_value = self.values.add().list_value
+
+    list_value.Clear()
+    return list_value
 
 
 WKTBASES = {

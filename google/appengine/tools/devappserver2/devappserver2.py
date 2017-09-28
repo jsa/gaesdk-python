@@ -33,6 +33,7 @@ from google.appengine.tools.devappserver2 import metrics
 from google.appengine.tools.devappserver2 import runtime_config_pb2
 from google.appengine.tools.devappserver2 import shutdown
 from google.appengine.tools.devappserver2 import update_checker
+from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2.admin import admin_server
 
@@ -48,22 +49,11 @@ PARSER = cli_parser.create_command_line_parser(
     cli_parser.DEV_APPSERVER_CONFIGURATION)
 
 
-def _setup_environ(app_id):
-  """Sets up the os.environ dictionary for the front-end server and API server.
-
-  This function should only be called once.
-
-  Args:
-    app_id: The id of the application.
-  """
-  os.environ['APPLICATION_ID'] = app_id
-
-
 class DevelopmentServer(object):
   """Encapsulates the logic for the development server.
 
   Only a single instance of the class may be created per process. See
-  _setup_environ.
+  util.setup_environ.
   """
 
   def __init__(self):
@@ -131,7 +121,7 @@ class DevelopmentServer(object):
       logging.warn('DEFAULT_VERSION_HOSTNAME will not be set correctly with '
                    '--port=0')
 
-    _setup_environ(configuration.app_id)
+    util.setup_environ(configuration.app_id)
 
     self._dispatcher = dispatcher.Dispatcher(
         configuration, options.host, options.port, options.auth_domain,
@@ -156,7 +146,8 @@ class DevelopmentServer(object):
             options.threadsafe_override,
             configuration,
             '--threadsafe_override'),
-        options.external_port)
+        options.external_port,
+        options.specified_service_ports)
 
     wsgi_request_info_ = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
     storage_path = api_server.get_storage_path(
