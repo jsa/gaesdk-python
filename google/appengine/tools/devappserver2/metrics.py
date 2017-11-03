@@ -52,6 +52,7 @@ import httplib
 import json
 import logging
 import os
+import platform
 import sys
 import urllib
 from google.pyglib import singleton
@@ -93,7 +94,9 @@ GOOGLE_ANALYTICS_DIMENSIONS = {
     'PythonVersion': 'cd4',
     'AppEngineEnvironment': 'cd5',
     'FileWatcherType': 'cd6',
-    'IsDevShell': 'cd7'
+    'IsDevShell': 'cd7',
+    'Platform': 'cd8',
+    'Is64Bits': 'cd9',
 }
 
 # Devappserver Google Analytics Custom Metrics.
@@ -120,6 +123,8 @@ class _MetricsLogger(object):
     self._sdk_version = (
         sdk_update_checker.GetVersionObject() or {}).get('release')
     self._is_dev_shell = constants.DEVSHELL_ENV in os.environ
+    self._is_64_bits = sys.maxsize > 2**32
+    self._platform = platform.platform()
 
     # Stores events for batch logging once Stop has been called.
     self._log_once_on_stop_events = {}
@@ -257,7 +262,8 @@ class _MetricsLogger(object):
         GOOGLE_ANALYTICS_DIMENSIONS['AppEngineEnvironment']:
             self._environment,
         GOOGLE_ANALYTICS_DIMENSIONS['IsDevShell']: self._is_dev_shell,
-
+        GOOGLE_ANALYTICS_DIMENSIONS['Platform']: self._platform,
+        GOOGLE_ANALYTICS_DIMENSIONS['Is64Bits']: self._is_64_bits,
         # Required event data
         'ec': category,
         'ea': action

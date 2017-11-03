@@ -1105,7 +1105,12 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
 
   def _DecodeCursor(self, encoded_cursor, query):
     """Decodes a cursor, expecting it to be valid for the given query."""
-    cursor = base64.urlsafe_b64decode(encoded_cursor)
+    try:
+      cursor = base64.urlsafe_b64decode(encoded_cursor)
+    except TypeError:
+      raise _InvalidCursorException(
+          'Failed to parse search request "%s"; Invalid cursor string: %s' %
+          (query, encoded_cursor))
     separator = cursor.find('|')
     if separator < 0:
       raise _InvalidCursorException('Invalid cursor string: ' + encoded_cursor)

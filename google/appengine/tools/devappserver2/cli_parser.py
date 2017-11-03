@@ -270,7 +270,7 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
       *args: Arguments passed on to the argument group.
       **kwargs: Keyword arguments passed on to the argument group, can
           optionally contain a 'restrict_configuration' kwarg that will be
-          popped. This should be the list of configurations the the argument is
+          popped. This should be the list of configurations the argument is
           applicable for. Omitting this kwarg, or providing an empty list,
           signifies that the added argument is valid for all configurations.
     """
@@ -324,7 +324,7 @@ class ConfigurableArgumentGroup(argparse._ArgumentGroup):  # pylint: disable=pro
       *args: Arguments passed on to the argument group.
       **kwargs: Keyword arguments passed on to the argument group, can
           optionally contain a 'restrict_configuration' kwarg that will be
-          popped. This should be the list of configurations the the argument is
+          popped. This should be the list of configurations the argument is
           applicable for. Omitting this kwarg, or providing an empty list,
           signifies that the added argument is valid for all configurations.
     """

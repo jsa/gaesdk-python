@@ -109,7 +109,13 @@ class GoApplication(object):
     self._go_file_to_mtime = {}
     self._extras_hash = None
     self._go_executable = None
-    self._work_dir = work_dir
+    self._work_dir = None
+    if work_dir:
+      # Multiple modules might be running within the same server.
+      # These must not share a single workdir, as otherwise the build fails
+      # unpredictably.
+      self._work_dir = os.path.join(
+          work_dir, self._module_configuration.module_name)
     self._goroot = os.path.join(
         ROOT_PATH, goroots.GOROOTS[self._module_configuration.api_version])
     self._arch = self._get_architecture(self._goroot)
@@ -212,7 +218,7 @@ class GoApplication(object):
 
   @staticmethod
   def _get_pkg_path(goroot):
-    """The the path to the go pkg dir for appengine.
+    """The path to the go pkg dir for appengine.
 
     Args:
       goroot: The path to goroot.

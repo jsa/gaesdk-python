@@ -477,6 +477,11 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
         raise apiproxy_errors.ApplicationError(
           urlfetch_service_pb.URLFetchServiceError.FETCH_ERROR, str(e))
 
+      if http_response.status >= 600:
+        raise apiproxy_errors.ApplicationError(
+            urlfetch_service_pb.URLFetchServiceError.FETCH_ERROR,
+            'Status %s unknown' % http_response.status)
+
 
 
 

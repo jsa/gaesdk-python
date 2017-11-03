@@ -2514,7 +2514,7 @@ def ValidateHandlers(handlers, is_include_file=False):
 def LoadSingleAppInfo(app_info):
   """Loads a single `AppInfo` object where one and only one is expected.
 
-  This method validates that the the values in the `AppInfo` match the
+  This method validates that the values in the `AppInfo` match the
   validators that are defined in this file, in particular,
   `AppInfoExternal.ATTRIBUTES`.
 
