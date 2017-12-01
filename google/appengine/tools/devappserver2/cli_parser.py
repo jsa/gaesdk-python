@@ -536,6 +536,13 @@ def create_command_line_parser(configuration=None):
       help='Enable watching $GOPATH for go app dependency changes. If file '
       'watcher complains about too many files to watch, you can set it to '
       'False.')
+  go_group.add_argument(
+      '--go_debugging',
+      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
+      help='Enable debugging. Connect to the running app with delve.')
 
   # Custom
   custom_group = parser.add_argument_group('Custom VM Runtime')

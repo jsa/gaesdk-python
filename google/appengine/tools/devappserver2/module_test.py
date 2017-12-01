@@ -449,8 +449,8 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
         url='/_ah/warmup',
         script='warmup_handler',
         login='admin')
-    # Built-in: login, blob_upload, blob_image, channel, gcs, endpoints
-    self.num_builtin_handlers = 5
+    # Built-in: login, logout, blob_upload, blob_image, channel, gcs, endpoints
+    self.num_builtin_handlers = 6
 
   def test_match_all(self):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'.*',
@@ -2834,7 +2834,8 @@ class InstanceFactoryTest(googletest.TestCase):
 
   def test_non_vm_go(self):
     self.mox.StubOutWithMock(go_application, 'GoApplication')
-    go_application.GoApplication(mox.IgnoreArg(), mox.IgnoreArg())
+    go_application.GoApplication(
+        mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg())
     self._run_test('go', go_factory.GoRuntimeInstanceFactory)
 
   def test_non_vm_java(self):

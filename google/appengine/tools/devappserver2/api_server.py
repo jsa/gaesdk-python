@@ -174,6 +174,7 @@ def _execute_request(request, use_proto3=False):
     if request.request_id:
       request_id = request.request_id
     else:
+      # This logging could be time consuming. Hence set as debug level.
       logging.debug('Received a request without request_id: %s', request)
       request_id = None
   else:
@@ -267,8 +268,8 @@ class APIServer(wsgi_server.WsgiServer):
           api_response = _execute_request(request, use_proto3=True)
           response.response = api_response.Encode()
         except apiproxy_errors.ApplicationError, e:
-          response.application_error = grpc_service_pb2.ApplicationError(
-              code=e.application_error, detail=e.error_detail)
+          response.application_error.code = e.application_error
+          response.application_error.detail = e.error_detail
         return response
 
     self._grpc_server = grpc_service_pb2.beta_create_CallHandler_server(
@@ -478,8 +479,8 @@ def create_api_server(
 
   user_login_url = '/%s?%s=%%s' % (
       login.LOGIN_URL_RELATIVE, login.CONTINUE_PARAM)
-  user_logout_url = '%s&%s=%s' % (
-      user_login_url, login.ACTION_PARAM, login.LOGOUT_ACTION)
+  user_logout_url = '/%s?%s=%%s' % (
+      login.LOGOUT_URL_RELATIVE, login.CONTINUE_PARAM)
 
   if options.datastore_consistency_policy == 'time':
     consistency = datastore_stub_util.TimeBasedHRConsistencyPolicy()
@@ -908,7 +909,7 @@ def setup_test_stubs(
     taskqueue_auto_run_tasks=False,
     taskqueue_default_http_server='http://localhost:8080',
     user_login_url='/_ah/login?continue=%s',
-    user_logout_url='/_ah/login?continue=%s',
+    user_logout_url='/_ah/logout?continue=%s',
     default_gcs_bucket_name=None,
     appidentity_oauth_url=None):
   """Similar to setup_stubs with reasonable test defaults and recallable."""

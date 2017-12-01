@@ -38,11 +38,13 @@ from google.appengine.api.images import images_service_pb
 from google.appengine.api.logservice import log_service_pb
 from google.appengine.api.logservice import log_stub_service_pb
 from google.appengine.api.memcache import memcache_service_pb
+from google.appengine.api.memcache import memcache_stub_service_pb
 from google.appengine.api.modules import modules_service_pb
 from google.appengine.api.remote_socket import remote_socket_service_pb
 from google.appengine.api.search import search_service_pb
 from google.appengine.api.system import system_service_pb
 from google.appengine.api.taskqueue import taskqueue_service_pb
+from google.appengine.api.taskqueue import taskqueue_stub_service_pb
 from google.appengine.api.xmpp import xmpp_service_pb
 from google.appengine.datastore import datastore_pb
 from google.appengine.datastore import datastore_v4_pb
@@ -335,13 +337,44 @@ def get_stub_exclusive_service_pb_map():
           'AddAppLogLine': (log_stub_service_pb.AddAppLogLineRequest,
                             api_base_pb.VoidProto),
           'AddRequestInfo': (log_stub_service_pb.AddRequestInfoRequest,
-                             api_base_pb.VoidProto)
+                             api_base_pb.VoidProto),
+          'EndRequestLog': (log_stub_service_pb.EndRequestLogRequest,
+                            api_base_pb.VoidProto),
+          'StartRequestLog': (log_stub_service_pb.StartRequestLogRequest,
+                              api_base_pb.VoidProto)
       },
       'mail': {
           'GetSentMessages': (mail_stub_service_pb.GetSentMessagesRequest,
                               mail_stub_service_pb.GetSentMessagesResponse),
           'ClearSentMessages': (mail_stub_service_pb.ClearSentMessagesRequest,
                                 mail_stub_service_pb.ClearSentMessagesResponse)
+      },
+      'memcache': {
+          'AdvanceClock': (memcache_stub_service_pb.AdvanceClockRequest,
+                           memcache_stub_service_pb.AdvanceClockResponse),
+          'SetClock': (memcache_stub_service_pb.SetClockRequest,
+                       api_base_pb.VoidProto),
+          'GetLruChainLength': (
+              api_base_pb.VoidProto,
+              memcache_stub_service_pb.GetLruChainLengthResponse),
+          'SetMaxSize': (memcache_stub_service_pb.SetMaxSizeRequest,
+                         api_base_pb.VoidProto),
+      },
+      'taskqueue': {
+          'SetUpStub': (taskqueue_stub_service_pb.SetUpStubRequest,
+                        api_base_pb.VoidProto),
+          'GetQueues': (api_base_pb.VoidProto,
+                        taskqueue_stub_service_pb.GetQueuesResponse),
+          'DeleteTask': (taskqueue_service_pb.TaskQueueDeleteRequest,
+                         api_base_pb.VoidProto),
+          'FlushQueue': (taskqueue_stub_service_pb.FlushQueueRequest,
+                         api_base_pb.VoidProto),
+          'GetFilteredTasks': (
+              taskqueue_stub_service_pb.GetFilteredTasksRequest,
+              taskqueue_stub_service_pb.GetFilteredTasksResponse),
+          'PatchQueueYamlParser': (
+              taskqueue_stub_service_pb.PatchQueueYamlParserRequest,
+              api_base_pb.VoidProto)
       }
   }
 

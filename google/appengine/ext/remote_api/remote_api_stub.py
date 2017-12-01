@@ -67,7 +67,9 @@ A few caveats:
 
 
 import Cookie
+import datetime
 import hashlib
+import inspect
 import os
 import pickle
 import random
@@ -76,6 +78,7 @@ import thread
 import threading
 import google
 import yaml
+
 
 
 if os.environ.get('APPENGINE_RUNTIME') == 'python27':
@@ -93,11 +96,16 @@ else:
   from google.appengine.ext.remote_api import remote_api_services
   from google.appengine.runtime import apiproxy_errors
 
+from google.appengine.api import api_base_pb
+from google.appengine.api.taskqueue import taskqueue_service_pb
+from google.appengine.api.taskqueue import taskqueue_stub
+from google.appengine.api.taskqueue import taskqueue_stub_service_pb
 from google.appengine.tools import appengine_rpc
 
 _REQUEST_ID_HEADER = 'HTTP_X_APPENGINE_REQUEST_ID'
 _DEVAPPSERVER_LOGIN_COOKIE = 'test@example.com:True:'
 TIMEOUT_SECONDS = 10
+FAKE_REQUEST_ID = 'fake-request-id'
 
 
 class Error(Exception):
@@ -243,21 +251,6 @@ class RemoteStub(object):
 
   def CreateRPC(self):
     return apiproxy_rpc.RPC(stub=self)
-
-  def SetConsistencyPolicy(self, policy):
-    """This is for passing ndb.metadata_test.MetadataTests.HRTest.
-
-    The scenario for this test is: running ndb unittest aginst apiserver + cloud
-    datastore emulator. The tests triggers stub.SetConsistencyPolicy, which is
-    implemented by datastore v3 stubs. See
-    //apphosting/datastore/datastore_stub_util.py for the original method
-    definition. We don't want to change the tests, just add this fake method to
-    pass them. For more details please refer to b/62039789.
-
-    Args:
-      policy: A obj inheriting from BaseConsistencyPolicy.
-    """
-    pass
 
 
 class RemoteDatastoreStub(RemoteStub):
@@ -562,6 +555,187 @@ class RemoteDatastoreStub(RemoteStub):
         'The remote datastore does not support index manipulation.')
 
 
+class DatastoreStubTestbedDelegate(RemoteStub):
+  """A stub for testbed calling datastore_v3 service in api_server."""
+
+  def __init__(self, server, path):
+    super(DatastoreStubTestbedDelegate, self).__init__(server, path)
+    self._local.request_id = FAKE_REQUEST_ID
+
+  def SetConsistencyPolicy(self, policy):
+    """A dummy method for backward compatibility with unittests.
+
+    The scenario for this test is: running ndb unittest aginst apiserver + cloud
+    datastore emulator. The tests triggers stub.SetConsistencyPolicy, which is
+    implemented by datastore v3 stubs. See
+    //apphosting/datastore/datastore_stub_util.py for the original method
+    definition. We don't want to change the tests, just add this fake method to
+    pass them. For more details please refer to b/62039789.
+
+    Args:
+      policy: A obj inheriting from BaseConsistencyPolicy.
+    """
+
+    pass
+
+  def SetTrusted(self, trusted):
+    """A dummy method for backward compatibility unittests.
+
+    Using emulator, the trusted bit is always True.
+
+    Args:
+      trusted: boolean. This bit indicates that the app calling the stub is
+        trusted. A trusted app can write to datastores of other apps.
+    """
+    pass
+
+
+class TaskqueueStubTestbedDelegate(RemoteStub):
+  """A stub for testbed calling taskqueue service in api_server.
+
+  Some tests directly call taskqueue_stub methods. When taskqueue service use
+  RemoteStub, we need to continue supporting these interfaces.
+  """
+
+  def __init__(self, server, path):
+    super(TaskqueueStubTestbedDelegate, self).__init__(server, path)
+    self.service = 'taskqueue'
+    self.get_filtered_tasks = self.GetFilteredTasks
+    self._local.request_id = FAKE_REQUEST_ID
+    self._queue_yaml_parser = None
+
+  def SetUpStub(self, **stub_kw_args):
+    self._root_path = None
+    self._RemoteSetUpStub(**stub_kw_args)
+
+  def GetQueues(self):
+    """Delegating TaskQueueServiceStub.GetQueues."""
+    request = api_base_pb.VoidProto()
+    response = taskqueue_stub_service_pb.GetQueuesResponse()
+    self.MakeSyncCall('taskqueue', 'GetQueues', request, response)
+    return taskqueue_stub.ConvertGetQueuesResponseToQueuesDicts(response)
+
+  def GetTasks(self, queue_name):
+    """Delegating TaskQueueServiceStub.GetTasks.
+
+    Args:
+      queue_name: String, the name of the queue to return tasks for.
+
+    Returns:
+      A list of dictionaries, where each dictionary contains one task's
+        attributes.
+    """
+    request = taskqueue_stub_service_pb.GetFilteredTasksRequest()
+    request.add_queue_names(queue_name)
+    response = taskqueue_stub_service_pb.GetFilteredTasksResponse()
+    self.MakeSyncCall('taskqueue', 'GetFilteredTasks', request, response)
+    res = []
+    for i, eta_delta in enumerate(response.eta_delta_list()):
+
+
+
+      task_dict = taskqueue_stub.QueryTasksResponseToDict(
+          queue_name, response.query_tasks_response().task(i),
+
+
+          datetime.datetime.now())
+      task_dict['eta_delta'] = eta_delta
+      res.append(task_dict)
+    return res
+
+  def DeleteTask(self, queue_name, task_name):
+    """Delegating TaskQueueServiceStub.DeleteTask.
+
+    Args:
+      queue_name: String, the name of the queue to delete the task from.
+      task_name: String, the name of the task to delete.
+    """
+    request = taskqueue_service_pb.TaskQueueDeleteRequest()
+    request.set_queue_name(queue_name)
+    request.add_task_name(task_name)
+    response = api_base_pb.VoidProto()
+    self.MakeSyncCall('taskqueue', 'DeleteTask', request, response)
+
+  def FlushQueue(self, queue_name):
+    """Delegating TaskQueueServiceStub.FlushQueue.
+
+    Args:
+      queue_name: String, the name of the queue to flush.
+    """
+    request = taskqueue_stub_service_pb.FlushQueueRequest()
+    request.set_queue_name(queue_name)
+    response = api_base_pb.VoidProto()
+    self.MakeSyncCall('taskqueue', 'FlushQueue', request, response)
+
+  def GetFilteredTasks(self, url='', name='', queue_names=()):
+    """Delegating TaskQueueServiceStub.get_filtered_tasks.
+
+    Args:
+      url: A String URL that represents the URL all returned tasks point at.
+      name: The string name of all returned tasks.
+      queue_names: An iterable of string queue names to retrieve tasks from. If
+        left blank this will get default to all queues available.
+
+    Returns:
+      A list of taskqueue.Task objects.
+    """
+    request = taskqueue_stub_service_pb.GetFilteredTasksRequest()
+    request.set_url(url)
+    request.set_name(name)
+
+    map(request.add_queue_names, queue_names)
+    response = taskqueue_stub_service_pb.GetFilteredTasksResponse()
+    self.MakeSyncCall('taskqueue', 'GetFilteredTasks', request, response)
+
+    res = []
+    for i, eta_delta in enumerate(response.eta_delta_list()):
+
+      task_dict = taskqueue_stub.QueryTasksResponseToDict(
+
+          '', response.query_tasks_response().task(i),
+          datetime.datetime.now())
+      task_dict['eta_delta'] = eta_delta
+      res.append(taskqueue_stub.ConvertTaskDictToTaskObject(task_dict))
+    return res
+
+  @property
+  def queue_yaml_parser(self):
+    """Returns the queue_yaml_parser property."""
+    return self._queue_yaml_parser
+
+  @queue_yaml_parser.setter
+  def queue_yaml_parser(self, queue_yaml_parser):
+    """Sets the queue_yaml_parser as a property."""
+    if not callable(queue_yaml_parser):
+      raise TypeError(
+          'queue_yaml_parser should be callable. Received type: %s' %
+          type(queue_yaml_parser))
+    request = taskqueue_stub_service_pb.PatchQueueYamlParserRequest()
+    request.set_patched_return_value(pickle.dumps(queue_yaml_parser(
+        self._root_path)))
+    response = api_base_pb.VoidProto()
+    self._queue_yaml_parser = queue_yaml_parser
+    self.MakeSyncCall('taskqueue', 'PatchQueueYamlParser', request, response)
+
+  def _RemoteSetUpStub(self, **kwargs):
+    """Set up the stub in api_server with the parameters needed by user test.
+
+    Args:
+      **kwargs: Key word arguments that are passed to the service stub
+        constructor.
+    """
+    request = taskqueue_stub_service_pb.SetUpStubRequest()
+    init_args = inspect.getargspec(taskqueue_stub.TaskQueueServiceStub.__init__)
+    for field in set(init_args.args[1:]) - set(['request_data']):
+      if field in kwargs:
+        prefix = 'set' if field.startswith('_') else 'set_'
+        getattr(request, prefix + field)(kwargs[field])
+    if 'request_data' in kwargs:
+      request.set_request_data(pickle.dumps(kwargs['request_data']))
+    response = api_base_pb.VoidProto()
+    self.MakeSyncCall('taskqueue', 'SetUpStub', request, response)
+
+
 ALL_SERVICES = set(remote_api_services.SERVICE_PB_MAP)
 
 
@@ -573,8 +747,10 @@ def GetRemoteAppIdFromServer(server, path, remote_token=None):
     path: The path to the remote_api handler for your app
       (for example, '/_ah/remote_api').
     remote_token: Token to validate that the response was to this request.
+
   Returns:
     App ID as reported by the remote server.
+
   Raises:
     ConfigurationError: The server returned an invalid response.
   """

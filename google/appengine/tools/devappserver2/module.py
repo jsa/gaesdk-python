@@ -236,9 +236,13 @@ class Module(object):
     """
     handlers = []
     # Add special URL handlers (taking precedence over user-defined handlers)
-    url_pattern = '/%s$' % login.LOGIN_URL_RELATIVE
-    handlers.append(wsgi_handler.WSGIHandler(login.application,
-                                             url_pattern))
+
+    # Login/logout handlers.
+    handlers.append(wsgi_handler.WSGIHandler(
+        login.application, '/%s$' % login.LOGIN_URL_RELATIVE))
+    handlers.append(wsgi_handler.WSGIHandler(
+        login.application, '/%s$' % login.LOGOUT_URL_RELATIVE))
+
     url_pattern = '/%s' % blob_upload.UPLOAD_URL_PATH
     # The blobstore upload handler forwards successful requests to the
     # dispatcher.

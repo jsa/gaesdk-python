@@ -259,6 +259,8 @@ class DevelopmentServer(object):
       go_config.work_dir = options.go_work_dir
     if options.enable_watching_go_path:
       go_config.enable_watching_go_path = True
+    if options.go_debugging:
+      go_config.enable_debugging = options.go_debugging
     return go_config
 
   @staticmethod

@@ -516,7 +516,7 @@ _SUPPORTED_LIBRARIES = [
         ),
     _VersionedLibrary(
         'grpcio',
-        'http://http://www.grpc.io/',
+        'http://www.grpc.io/',
         'A high performance general RPC framework',
         ['1.0.0'],
         latest_version='1.0.0',
@@ -615,7 +615,7 @@ _SUPPORTED_LIBRARIES = [
         ),
     _VersionedLibrary(
         'PyAMF',
-        'http://pyamf.appspot.com/index.html',
+        'https://pypi.python.org/pypi/PyAMF',
         'A library that provides (AMF) Action Message Format functionality.',
         ['0.6.1', '0.7.2'],
         latest_version='0.6.1',
