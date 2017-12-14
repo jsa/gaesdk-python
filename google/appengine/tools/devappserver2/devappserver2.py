@@ -147,7 +147,8 @@ class DevelopmentServer(object):
             configuration,
             '--threadsafe_override'),
         options.external_port,
-        options.specified_service_ports)
+        options.specified_service_ports,
+        options.enable_host_checking)
 
     wsgi_request_info_ = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
     storage_path = api_server.get_storage_path(
@@ -164,7 +165,8 @@ class DevelopmentServer(object):
 
     xsrf_path = os.path.join(storage_path, 'xsrf')
     admin = admin_server.AdminServer(options.admin_host, options.admin_port,
-                                     self._dispatcher, configuration, xsrf_path)
+                                     self._dispatcher, configuration, xsrf_path,
+                                     options.enable_host_checking)
     admin.start()
     self._running_modules.append(admin)
     try:

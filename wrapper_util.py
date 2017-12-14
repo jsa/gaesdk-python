@@ -224,6 +224,7 @@ class Paths(object):
         dir_path,
         os.path.join(dir_path, 'lib', 'concurrent'),
         os.path.join(dir_path, 'lib', 'cherrypy'),
+        os.path.join(dir_path, 'lib', 'ipaddr'),
         os.path.join(dir_path, 'lib', 'portpicker'),
         os.path.join(dir_path, 'lib', 'jinja2-2.6'),
         os.path.join(dir_path, 'lib', 'webob-1.2.3'),
@@ -249,6 +250,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'concurrent'),
         os.path.join(dir_path, 'lib', 'cherrypy'),
         os.path.join(dir_path, 'lib', 'fancy_urllib'),
+        os.path.join(dir_path, 'lib', 'ipaddr'),
         os.path.join(dir_path, 'lib', 'protorpc-1.0'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
     ]

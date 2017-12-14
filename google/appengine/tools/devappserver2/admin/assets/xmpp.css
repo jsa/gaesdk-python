@@ -13,3 +13,9 @@
 #xmpp-submit {
   margin-top: 2em;
 }
+#presence-fields {
+  display: none;
+}
+#subscribe-fields {
+  display: none;
+}

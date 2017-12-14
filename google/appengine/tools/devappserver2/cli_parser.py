@@ -445,6 +445,21 @@ def create_command_line_parser(configuration=None):
                             const=True,
                             default=False,
                             help=argparse.SUPPRESS)
+  enable_host_checking_help = ('determines whether to enforce HTTP Host '
+                               'checking for application modules, API server, '
+                               'and admin server. host checking protects '
+                               'against DNS rebinding attacks, so only disable '
+                               'after understanding the security implications.')
+
+
+
+
+
+  common_group.add_argument('--enable_host_checking',
+                            action=boolean_action.BooleanAction,
+                            const=True,
+                            default=True,
+                            help=enable_host_checking_help)
 
   # PHP
   php_group = parser.add_argument_group('PHP')

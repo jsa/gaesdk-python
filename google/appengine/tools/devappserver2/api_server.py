@@ -244,10 +244,17 @@ def _execute_request(request, use_proto3=False):
 class APIServer(wsgi_server.WsgiServer):
   """Serves API calls over HTTP and GRPC(optional)."""
 
-  def __init__(self, host, port, app_id, use_grpc=False, grpc_api_port=0):
+  def __init__(self, host, port, app_id, use_grpc=False, grpc_api_port=0,
+               enable_host_checking=True):
     self._app_id = app_id
     self._host = host
-    super(APIServer, self).__init__((host, port), self)
+
+    if enable_host_checking:
+      api_server_module = wsgi_server.WsgiHostCheck([host], self)
+    else:
+      api_server_module = self
+    super(APIServer, self).__init__((host, port), api_server_module)
+
     self.set_balanced_address('localhost:8080')
 
     self._use_grpc = use_grpc
@@ -531,7 +538,7 @@ def create_api_server(
   return APIServer(
       options.api_host, options.api_port, app_id,
       options.api_server_supports_grpc or options.support_datastore_emulator,
-      options.grpc_api_port)
+      options.grpc_api_port, options.enable_host_checking)
 
 
 def _clear_datastore_storage(datastore_path):
