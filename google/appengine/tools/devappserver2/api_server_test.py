@@ -30,15 +30,22 @@ import urllib
 import wsgiref.util
 
 import google
+import mock
 import mox
 
 from google.net.rpc.python.testing import rpc_test_harness
 
 from google.appengine.api import apiproxy_stub
 from google.appengine.api import apiproxy_stub_map
+from google.appengine.api import mail_stub
 from google.appengine.api import urlfetch_service_pb
 from google.appengine.api import user_service_pb
+from google.appengine.api.app_identity import app_identity_stub
+from google.appengine.api.capabilities import capability_stub
+from google.appengine.api.logservice import logservice_stub
+from google.appengine.api.memcache import memcache_stub
 from google.appengine.datastore import datastore_pb
+from google.appengine.datastore import datastore_sqlite_stub
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.datastore import datastore_v4_pb
 from google.appengine.ext.remote_api import remote_api_pb
@@ -377,6 +384,61 @@ class GenerateStoragePathsTest(unittest.TestCase):
          os.path.join('/tmp', 'appengine.myapp.2')],
         list(itertools.islice(api_server._generate_storage_paths('myapp'), 3)))
     self.mox.VerifyAll()
+
+
+class ClearApiServer(unittest.TestCase):
+  """Tests for api_server._handle_CLEAR."""
+
+  def setUp(self):
+    self.server = api_server.APIServer('localhost', 0, '')
+
+    self.app_identity_stub = mock.create_autospec(
+        app_identity_stub.AppIdentityServiceStub)
+    self.capability_stub = mock.create_autospec(
+        capability_stub.CapabilityServiceStub)
+    self.datastore_v3_stub = mock.create_autospec(
+        datastore_sqlite_stub.DatastoreSqliteStub)
+    self.logservice_stub = mock.create_autospec(logservice_stub.LogServiceStub)
+    self.mail_stub = mock.create_autospec(mail_stub.MailServiceStub)
+    self.memcache_stub = mock.create_autospec(memcache_stub.MemcacheServiceStub)
+    self.clearable_stubs = set([
+        self.app_identity_stub, self.capability_stub, self.datastore_v3_stub,
+        self.logservice_stub, self.mail_stub, self.memcache_stub])
+
+    apiproxy_stub_map.apiproxy.ReplaceStub('app_identity_service',
+                                           self.app_identity_stub)
+    apiproxy_stub_map.apiproxy.ReplaceStub('capability_service',
+                                           self.capability_stub)
+    apiproxy_stub_map.apiproxy.ReplaceStub(
+        'datastore_v3', self.datastore_v3_stub)
+    apiproxy_stub_map.apiproxy.ReplaceStub('logservice', self.logservice_stub)
+    apiproxy_stub_map.apiproxy.ReplaceStub('mail', self.mail_stub)
+    apiproxy_stub_map.apiproxy.ReplaceStub('memcache', self.memcache_stub)
+
+  def test_clear_all(self):
+    """Tests that all stubs are cleared."""
+    environ = {'QUERY_STRING': ''}
+    self.server._handle_CLEAR(environ, lambda *args: None)
+    for stub in self.clearable_stubs:
+      getattr(stub, 'Clear').assert_called_once()
+
+  def test_clear_datastore_only(self):
+    """Tests that only datastore stub is cleared."""
+    environ = {'QUERY_STRING': 'stub=datastore_v3'}
+    self.server._handle_CLEAR(environ, lambda *args: None)
+    self.datastore_v3_stub.Clear.assert_called_once()
+    for stub in self.clearable_stubs - set([self.datastore_v3_stub]):
+      getattr(stub, 'Clear').assert_not_called()
+
+  def test_clear_datastore_and_memcache(self):
+    """Tests that both datastore and memcache stubs are cleared."""
+    environ = {'QUERY_STRING': 'stub=datastore_v3&stub=memcache'}
+    self.server._handle_CLEAR(environ, lambda *args: None)
+    cleared_stubs = set([self.datastore_v3_stub, self.memcache_stub])
+    for stub in cleared_stubs:
+      getattr(stub, 'Clear').assert_called_once()
+    for stub in self.clearable_stubs - cleared_stubs:
+      getattr(stub, 'Clear').assert_not_called()
 
 
 if __name__ == '__main__':

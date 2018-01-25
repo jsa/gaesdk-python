@@ -175,7 +175,7 @@ def _execute_request(request, use_proto3=False):
       request_id = request.request_id
     else:
       # This logging could be time consuming. Hence set as debug level.
-      logging.debug('Received a request without request_id: %s', request)
+      logging.debug('Received a request without request_id.')
       request_id = None
   else:
     service = request.service_name()
@@ -183,7 +183,7 @@ def _execute_request(request, use_proto3=False):
     if request.has_request_id():
       request_id = request.request_id()
     else:
-      logging.error('Received a request without request_id: %s', request)
+      logging.debug('Received a request without request_id.')
       request_id = None
 
   service_methods = (
@@ -425,11 +425,18 @@ class APIServer(wsgi_server.WsgiServer):
     start_response('200 OK', [('Content-Type', 'text/plain')])
 
     # TODO: Add more services as needed.
-    stubs_to_clear = [
-        'capability_service', 'datastore_v3', 'logservice', 'mail', 'memcache']
-    for stub_name in stubs_to_clear:
-      stub = apiproxy_stub_map.apiproxy.GetStub(stub_name)
-      stub.Clear()
+    clearable_stubs = [
+        'app_identity_service', 'capability_service', 'datastore_v3',
+        'logservice', 'mail', 'memcache']
+    stubs_to_clear = urlparse.parse_qs(environ.get('QUERY_STRING')).get('stub')
+
+    if stubs_to_clear:
+      for stub_name in stubs_to_clear:
+        if stub_name in clearable_stubs:
+          apiproxy_stub_map.apiproxy.GetStub(stub_name).Clear()
+    else:
+      for stub_name in clearable_stubs:
+        apiproxy_stub_map.apiproxy.GetStub(stub_name).Clear()
 
     # No response is necessary, a 200 status code is enough.
     return []

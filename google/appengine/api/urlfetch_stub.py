@@ -18,8 +18,6 @@
 
 
 
-
-
 """Stub version of the urlfetch API, based on httplib."""
 
 
@@ -105,7 +103,10 @@ _UNTRUSTED_REQUEST_HEADERS = frozenset([
   'x-forwarded-for',
 ])
 
-_MAX_URL_LENGTH = 2048
+
+
+
+_MAX_URL_LENGTH = 10240
 
 
 def _CanValidateCerts():
@@ -184,9 +185,7 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
       request: the fetch to perform, a URLFetchRequest
       response: the fetch response, a URLFetchResponse
     """
-
-
-    if len(request.url()) >= _MAX_URL_LENGTH:
+    if len(request.url()) > _MAX_URL_LENGTH:
       logging.error('URL is too long: %s...' % request.url()[:50])
       raise apiproxy_errors.ApplicationError(
           urlfetch_service_pb.URLFetchServiceError.INVALID_URL)

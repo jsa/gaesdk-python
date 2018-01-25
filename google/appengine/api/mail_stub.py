@@ -165,7 +165,7 @@ class MailServiceStub(apiproxy_stub.APIProxyStub):
     Returns:
       A list of matching mail.EmailMessage or mail.AdminEmailMessage objects.
     """
-    messages = self._cached_messages
+    messages = self._cached_messages[:]
 
     def recipient_matches(recipient):
       return re.search(to, recipient)

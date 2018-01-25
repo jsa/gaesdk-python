@@ -288,12 +288,14 @@ class Module(object):
         handlers.append(
             static_files_handler.StaticFilesHandler(
                 self._module_configuration.application_root,
-                url_map))
+                url_map,
+                self._module_configuration.default_expiration))
       elif handler_type == appinfo.STATIC_DIR:
         handlers.append(
             static_files_handler.StaticDirHandler(
                 self._module_configuration.application_root,
-                url_map))
+                url_map,
+                self._module_configuration.default_expiration))
       else:
         assert 0, 'unexpected handler %r for %r' % (handler_type, url_map)
     # Add a handler for /_ah/start if no script handler matches.

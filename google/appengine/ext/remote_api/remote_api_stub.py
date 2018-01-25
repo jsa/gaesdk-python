@@ -97,6 +97,7 @@ else:
   from google.appengine.runtime import apiproxy_errors
 
 from google.appengine.api import api_base_pb
+from google.appengine.api import apiproxy_stub
 from google.appengine.api.taskqueue import taskqueue_service_pb
 from google.appengine.api.taskqueue import taskqueue_stub
 from google.appengine.api.taskqueue import taskqueue_stub_service_pb
@@ -105,7 +106,6 @@ from google.appengine.tools import appengine_rpc
 _REQUEST_ID_HEADER = 'HTTP_X_APPENGINE_REQUEST_ID'
 _DEVAPPSERVER_LOGIN_COOKIE = 'test@example.com:True:'
 TIMEOUT_SECONDS = 10
-FAKE_REQUEST_ID = 'fake-request-id'
 
 
 class Error(Exception):
@@ -195,12 +195,23 @@ class RemoteStub(object):
     self._test_stub_map = _test_stub_map
 
   def _PreHookHandler(self, service, call, request, response):
+    """Executed at the beginning of a MakeSyncCall method call."""
     pass
 
   def _PostHookHandler(self, service, call, request, response):
+    """Executed at the end of a MakeSyncCall method call."""
     pass
 
   def MakeSyncCall(self, service, call, request, response):
+    """The APIProxy entry point for a synchronous API call.
+
+    Args:
+      service: A string representing which service to call, e.g: 'datastore_v3'.
+      call: A string representing which function to call, e.g: 'put'.
+      request: A protocol message for the request, e.g: datastore_pb.PutRequest.
+      response: A protocol message for the response, e.g:
+        datastore_pb.PutResponse.
+    """
     self._PreHookHandler(service, call, request, response)
     try:
       test_stub = self._test_stub_map and self._test_stub_map.GetStub(service)
@@ -244,7 +255,7 @@ class RemoteStub(object):
     elif response_pb.has_exception():
       raise pickle.loads(response_pb.exception())
     elif response_pb.has_java_exception():
-      raise UnknownJavaServerError('An unknown error has occured in the '
+      raise UnknownJavaServerError('An unknown error has occurred in the '
                                    'Java remote_api handler for this call.')
     else:
       response.ParseFromString(response_pb.response())
@@ -558,9 +569,20 @@ class RemoteDatastoreStub(RemoteStub):
 class DatastoreStubTestbedDelegate(RemoteStub):
   """A stub for testbed calling datastore_v3 service in api_server."""
 
-  def __init__(self, server, path):
+  def __init__(self, server, path,
+               max_request_size=apiproxy_stub.MAX_REQUEST_SIZE):
     super(DatastoreStubTestbedDelegate, self).__init__(server, path)
-    self._local.request_id = FAKE_REQUEST_ID
+    self._error_dict = {}
+    self._error = None
+    self._error_rate = None
+    self._max_request_size = max_request_size
+
+  def _PreHookHandler(self, service, call, request, unused_response):
+    """Raises an error if request size is too large."""
+    if request.ByteSize() > self._max_request_size:
+      raise apiproxy_errors.RequestTooLargeError(
+          apiproxy_stub.REQ_SIZE_EXCEEDS_LIMIT_MSG_TEMPLATE % (
+              service, call))
 
   def SetConsistencyPolicy(self, policy):
     """A dummy method for backward compatibility with unittests.
@@ -589,6 +611,49 @@ class DatastoreStubTestbedDelegate(RemoteStub):
     """
     pass
 
+  def __CheckError(self, call):
+
+    exception_type, frequency = self._error_dict.get(call, (None, None))
+    if exception_type and frequency:
+      if random.random() <= frequency:
+        raise exception_type
+
+    if self._error:
+      if random.random() <= self._error_rate:
+        raise self._error
+
+  def SetError(self, error, method=None, error_rate=1):
+    """Set an error condition that may be raised when calls are made to stub.
+
+    If a method is specified, the error will only apply to that call.
+    The error rate is applied to the method specified or all calls if
+    method is not set.
+
+    Args:
+      error: An instance of apiproxy_errors.Error or None for no error.
+      method: A string representing the method that the error will affect. e.g:
+        'RunQuery'.
+      error_rate: a number from [0, 1] that sets the chance of the error,
+        defaults to 1.
+    """
+    if not (error is None or isinstance(error, apiproxy_errors.Error)):
+      raise TypeError(
+          'error should be None or an instance of apiproxy_errors.Error')
+    if method and error:
+      self._error_dict[method] = error, error_rate
+    else:
+      self._error_rate = error_rate
+      self._error = error
+
+  def Clear(self):
+    """Clears the datastore, deletes all entities and queries."""
+    self._server.Send('/clear?service=datastore_v3')
+
+  def MakeSyncCall(self, service, call, request, response):
+    self.__CheckError(call)
+    super(DatastoreStubTestbedDelegate, self).MakeSyncCall(
+        service, call, request, response)
+
 
 class TaskqueueStubTestbedDelegate(RemoteStub):
   """A stub for testbed calling taskqueue service in api_server.
@@ -601,7 +666,6 @@ class TaskqueueStubTestbedDelegate(RemoteStub):
     super(TaskqueueStubTestbedDelegate, self).__init__(server, path)
     self.service = 'taskqueue'
     self.get_filtered_tasks = self.GetFilteredTasks
-    self._local.request_id = FAKE_REQUEST_ID
     self._queue_yaml_parser = None
 
   def SetUpStub(self, **stub_kw_args):
@@ -673,8 +737,9 @@ class TaskqueueStubTestbedDelegate(RemoteStub):
     Args:
       url: A String URL that represents the URL all returned tasks point at.
       name: The string name of all returned tasks.
-      queue_names: An iterable of string queue names to retrieve tasks from. If
-        left blank this will get default to all queues available.
+      queue_names: A string queue_name, or a list of string queue names to
+        retrieve tasks from. If left blank this will get default to all
+        queues available.
 
     Returns:
       A list of taskqueue.Task objects.
@@ -683,6 +748,8 @@ class TaskqueueStubTestbedDelegate(RemoteStub):
     request.set_url(url)
     request.set_name(name)
 
+    if isinstance(queue_names, basestring):
+      queue_names = [queue_names]
     map(request.add_queue_names, queue_names)
     response = taskqueue_stub_service_pb.GetFilteredTasksResponse()
     self.MakeSyncCall('taskqueue', 'GetFilteredTasks', request, response)

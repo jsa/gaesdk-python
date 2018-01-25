@@ -28,7 +28,9 @@ from google.appengine.api import mail_service_pb
 from google.appengine.api import mail_stub_service_pb
 from google.appengine.api import urlfetch_service_pb
 from google.appengine.api import user_service_pb
+from google.appengine.api import user_stub_service_pb
 from google.appengine.api.app_identity import app_identity_service_pb
+from google.appengine.api.app_identity import app_identity_stub_service_pb
 from google.appengine.api.blobstore import blobstore_service_pb
 from google.appengine.api.capabilities import capability_service_pb
 from google.appengine.api.capabilities import capability_stub_service_pb
@@ -328,6 +330,11 @@ def get_service_pb_map():
 def get_stub_exclusive_service_pb_map():
   """Returns all API services exclusively for local use."""
   return {
+      'app_identity_service': {
+          'SetDefaultGcsBucketName': (
+              app_identity_stub_service_pb.SetDefaultGcsBucketNameRequest,
+              api_base_pb.VoidProto),
+      },
       'capability_service': {
           'SetCapabilityStatus': (
               capability_stub_service_pb.SetCapabilityStatusRequest,
@@ -375,6 +382,10 @@ def get_stub_exclusive_service_pb_map():
           'PatchQueueYamlParser': (
               taskqueue_stub_service_pb.PatchQueueYamlParserRequest,
               api_base_pb.VoidProto)
+      },
+      'user': {
+          'SetOAuthUser': (user_stub_service_pb.SetOAuthUserRequest,
+                           api_base_pb.VoidProto),
       }
   }
 

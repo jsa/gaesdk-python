@@ -1321,14 +1321,7 @@ class LogStubService(_server_stub_base_class):
 
   @staticmethod
   def NewStub(rpc_stub_parameters, service_name=None, rpc_factory=None):
-    """Creates a new LogStubService Stubby client stub.
-
-    Args:
-      rpc_stub_parameters: an RPC_StubParameters instance.
-      service_name: the service name used by the Stubby server.
-      rpc_factory: the rpc factory to use if no rpc argument is specified.
-    """
-
+    """USE NewRPC2Stub INSTEAD."""
     if _client_stub_base_class is object:
       raise RuntimeError('Add //net/rpc/python as a dependency to use Stubby')
     return _LogStubService_ClientStub(
@@ -1340,7 +1333,7 @@ class LogStubService(_server_stub_base_class):
     """Creates a new LogStubService Stubby2 client stub.
 
     Args:
-      server: host:port or bns address.
+      server: host:port or bns address (favor passing a channel instead).
       channel: directly use a channel to create a stub. Will ignore server
           argument if this is specified.
       service_name: the service name used by the Stubby server.
@@ -1360,7 +1353,7 @@ class LogStubService(_server_stub_base_class):
       request: a AddRequestInfoRequest that contains the client request
       response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
 
   def AddAppLogLine(self, rpc, request, response):
@@ -1371,7 +1364,7 @@ class LogStubService(_server_stub_base_class):
       request: a AddAppLogLineRequest that contains the client request
       response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
 
   def EndRequestLog(self, rpc, request, response):
@@ -1382,7 +1375,7 @@ class LogStubService(_server_stub_base_class):
       request: a EndRequestLogRequest that contains the client request
       response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
 
   def StartRequestLog(self, rpc, request, response):
@@ -1393,7 +1386,7 @@ class LogStubService(_server_stub_base_class):
       request: a StartRequestLogRequest that contains the client request
       response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
   def _AddMethodAttributes(self):
     """Sets attributes on Python RPC handlers.

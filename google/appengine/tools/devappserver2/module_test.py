@@ -73,7 +73,8 @@ class ModuleConfigurationStub(object):
                env_variables=None,
                manual_scaling=None,
                basic_scaling=None,
-               application_external_name='app'):
+               application_external_name='app',
+               default_expiration=None):
     self.application_root = application_root
     self.application = application
     self.module_name = module_name
@@ -93,6 +94,7 @@ class ModuleConfigurationStub(object):
     self.version_id = '%s:%s.%s' % (module_name, version, '12345')
     self.is_backend = False
     self.application_external_name = application_external_name
+    self.default_expiration = default_expiration
 
   def check_for_updates(self):
     return set()

@@ -753,7 +753,7 @@ def create_command_line_parser(configuration=None):
   # host name to which the server for API calls should bind.
   misc_group.add_argument(
       '--api_host', default=default_server_host,
-      help=argparse.SUPPRESS)
+      help='host name to which the api server should bind.')
   misc_group.add_argument(
       '--api_port', type=PortParser(), default=0,
       help='port to which the server for API calls should bind')

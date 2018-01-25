@@ -242,6 +242,7 @@ class Paths(object):
         dir_path,
         os.path.join(dir_path, 'lib', 'concurrent'),
         os.path.join(dir_path, 'lib', 'cherrypy'),
+        os.path.join(dir_path, 'lib', 'ipaddr'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
     ]
 

@@ -379,6 +379,7 @@ def _install_import_hooks(config, path_override_hook):
   if not config.vm:
     enabled_regexes = THIRD_PARTY_C_MODULES.get_enabled_regexes(config)
     sys.meta_path = [
+        SandboxAccessPreventionImportHook(),
         StubModuleImportHook(),
         ModuleOverrideImportHook(_MODULE_OVERRIDE_POLICIES),
         CModuleImportHook(enabled_regexes),
@@ -387,6 +388,7 @@ def _install_import_hooks(config, path_override_hook):
         PathRestrictingImportHook(enabled_regexes)]
   else:
     sys.meta_path = [
+        SandboxAccessPreventionImportHook(),
         # Picks up custom versions of certain libraries in the libraries section
         #     of app.yaml
         path_override_hook,
@@ -1089,6 +1091,19 @@ class CModuleImportHook(object):
 
   def load_module(self, fullname):
     raise ImportError('No module named %s' % fullname)
+
+
+class SandboxAccessPreventionImportHook(object):
+  """An import hook that prevents user code from accessing the sandbox."""
+
+  def find_module(self, fullname, unused_path=None):
+    return self if fullname == __name__ else None
+
+  def load_module(self, fullname):
+    raise ImportError(
+        'Importing the devappserver sandbox module ({}) from user '
+        'application code is not permitted. Please remove this '
+        'import.'.format(fullname))
 
 
 class PathRestrictingImportHook(object):
