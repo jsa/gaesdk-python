@@ -460,6 +460,11 @@ def create_command_line_parser(configuration=None):
                             const=True,
                             default=True,
                             help=enable_host_checking_help)
+  common_group.add_argument('--enable_console',
+                            action=boolean_action.BooleanAction,
+                            const=True,
+                            default=False,
+                            help='Enable interactive console in admin view.')
 
   # PHP
   php_group = parser.add_argument_group('PHP')

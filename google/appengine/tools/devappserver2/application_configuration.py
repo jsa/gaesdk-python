@@ -132,11 +132,6 @@ class ModuleConfiguration(object):
     self._app_info_external, files_to_check = self._parse_configuration(
         self._config_path)
 
-    # TODO: As in AppengineApiClient._CreateVersionResource,
-    # add deprecation warnings and remove this code
-    if self._app_info_external.service:
-      self._app_info_external.module = self._app_info_external.service
-
     # This if-statement is necessary because of following corner case
     # appinfo.EnvironmentVariables.Merge({}, None) returns None
     if env_variables:

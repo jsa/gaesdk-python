@@ -166,7 +166,8 @@ class DevelopmentServer(object):
     xsrf_path = os.path.join(storage_path, 'xsrf')
     admin = admin_server.AdminServer(options.admin_host, options.admin_port,
                                      self._dispatcher, configuration, xsrf_path,
-                                     options.enable_host_checking)
+                                     options.enable_host_checking,
+                                     options.enable_console)
     admin.start()
     self._running_modules.append(admin)
     try:

@@ -46,7 +46,7 @@ from google.appengine.tools.devappserver2.admin import xmpp_request_handler
 class AdminApplication(webapp2.WSGIApplication):
   """A WSGI application that serves an administrative UI for the application."""
 
-  def __init__(self, dispatch, configuration, host, port):
+  def __init__(self, dispatch, configuration, host, port, enable_console):
     """Initializer for AdminApplication.
 
     Args:
@@ -56,6 +56,8 @@ class AdminApplication(webapp2.WSGIApplication):
           instance containing the configuration for the application.
       host: The string hostname that the admin server is bound to.
       port: The integer port that the admin server is bound to.
+      enable_console: A boolean indicating whether interactive console should
+          be enabled.
     """
     super(AdminApplication, self).__init__(
         [('/datastore', datastore_viewer.DatastoreRequestHandler),
@@ -90,6 +92,7 @@ class AdminApplication(webapp2.WSGIApplication):
     self.configuration = configuration
     self.host = host
     self.port = port
+    self.enable_console = enable_console
 
   def __call__(self, environ, start_response):
     """Blocks all requests that have an invalid "Origin" header."""
@@ -111,7 +114,7 @@ class AdminServer(wsgi_server.WsgiServer):
   """Serves an administrative UI for the application over HTTP."""
 
   def __init__(self, host, port, dispatch, configuration, xsrf_token_path,
-               enable_host_checking=True):
+               enable_host_checking=True, enable_console=False):
     """Initializer for AdminServer.
 
     Args:
@@ -126,12 +129,15 @@ class AdminServer(wsgi_server.WsgiServer):
           XSRF configuration for the admin UI.
       enable_host_checking: A bool indicating that HTTP Host checking should
           be enforced for incoming requests.
+      enable_console: A bool indicating that the interactive console should
+          be enabled.
 
     """
     self._host = host
     self._xsrf_token_path = xsrf_token_path
 
-    admin_app = AdminApplication(dispatch, configuration, host, port)
+    admin_app = AdminApplication(dispatch, configuration, host, port,
+                                 enable_console)
     if enable_host_checking:
       admin_app_module = wsgi_server.WsgiHostCheck([host], admin_app)
     else:

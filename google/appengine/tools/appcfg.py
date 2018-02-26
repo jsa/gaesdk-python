@@ -78,8 +78,8 @@ from google.appengine.tools import appengine_rpc
 from google.appengine.tools import augment_mimetypes
 from google.appengine.tools import bulkloader
 from google.appengine.tools import context_util
-from google.appengine.tools import goroots
 from google.appengine.tools import sdk_update_checker
+from google.appengine.tools.devappserver2.go import goroots
 
 
 try:
@@ -3428,11 +3428,6 @@ class AppCfgApp(object):
         self.parser.error('Directory %r does not contain configuration file '
                           '%s.yaml' %
                           (os.path.abspath(basepath), basename))
-
-
-
-    appyaml.module = appyaml.module or appyaml.service
-    appyaml.service = None
 
     orig_application = appyaml.application
     orig_module = appyaml.module

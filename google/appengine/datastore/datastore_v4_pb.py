@@ -18,6 +18,7 @@
 
 
 from google.net.proto import ProtocolBuffer
+import abc
 import array
 import base64
 import dummy_thread as thread
@@ -27,11 +28,11 @@ except ImportError:
   _net_proto___parse__python = None
 import sys
 try:
-  __import__('google.net.rpc.python.rpc_internals_lite')
+  __import__('google.net.rpc.python.proto_python_api_1_stub')
   __import__('google.net.rpc.python.pywraprpc_lite')
-  rpc_internals = sys.modules.get('google.net.rpc.python.rpc_internals_lite')
+  proto_python_api_1_stub = sys.modules.get('google.net.rpc.python.proto_python_api_1_stub')
   pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc_lite')
-  _client_stub_base_class = rpc_internals.StubbyRPCBaseStub
+  _client_stub_base_class = proto_python_api_1_stub.Stub
 except ImportError:
   _client_stub_base_class = object
 try:
@@ -7090,7 +7091,135 @@ class AllocateIdsResponse(ProtocolBuffer.ProtocolMessage):
 
 
 
-class _DatastoreV4Service_ClientBaseStub(_client_stub_base_class):
+class DatastoreV4ServiceStub(object):
+  """Makes Stubby RPC calls to a DatastoreV4Service server."""
+
+  __metaclass__ = abc.ABCMeta
+
+  __slots__ = ()
+
+  @abc.abstractmethod
+  def BeginTransaction(self, request, rpc=None, callback=None, response=None):
+    """Make a BeginTransaction RPC call.
+
+    Args:
+      request: a BeginTransactionRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The BeginTransactionResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def Rollback(self, request, rpc=None, callback=None, response=None):
+    """Make a Rollback RPC call.
+
+    Args:
+      request: a RollbackRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The RollbackResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def Commit(self, request, rpc=None, callback=None, response=None):
+    """Make a Commit RPC call.
+
+    Args:
+      request: a CommitRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The CommitResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def RunQuery(self, request, rpc=None, callback=None, response=None):
+    """Make a RunQuery RPC call.
+
+    Args:
+      request: a RunQueryRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The RunQueryResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def ContinueQuery(self, request, rpc=None, callback=None, response=None):
+    """Make a ContinueQuery RPC call.
+
+    Args:
+      request: a ContinueQueryRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The ContinueQueryResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def Lookup(self, request, rpc=None, callback=None, response=None):
+    """Make a Lookup RPC call.
+
+    Args:
+      request: a LookupRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The LookupResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def AllocateIds(self, request, rpc=None, callback=None, response=None):
+    """Make a AllocateIds RPC call.
+
+    Args:
+      request: a AllocateIdsRequest instance.
+      rpc: Optional RPC instance to use for the call.
+      callback: Optional final callback. Will be called as
+          callback(rpc, result) when the rpc completes. If None, the
+          call is synchronous.
+      response: Optional ProtocolMessage to be filled in with response.
+
+    Returns:
+      The AllocateIdsResponse if callback is None. Otherwise, returns None.
+    """
+    raise NotImplementedError()
+
+
+class _DatastoreV4Service_ClientBaseStub(
+    DatastoreV4ServiceStub, _client_stub_base_class):
   """Makes Stubby RPC calls to a DatastoreV4Service server."""
 
   __slots__ = (
@@ -7399,10 +7528,13 @@ class DatastoreV4Service(_server_stub_base_class):
           argument if this is specified.
       service_name: the service name used by the Stubby server.
       rpc_factory: the rpc factory to use if no rpc argument is specified.
+
+    Returns:
+     A DatastoreV4ServiceStub to be used to invoke RPCs.
     """
 
     if _client_stub_base_class is object:
-      raise RuntimeError('Add //net/rpc/python as a dependency to use Stubby')
+      raise RuntimeError('Add //net/rpc/python:proto_python_api_2_stub (or maybe //net/rpc/python:proto_python_api_1_stub, but eww and b/67959631) as a dependency to create Stubby stubs')
     return _DatastoreV4Service_RPC2ClientStub(
         server, channel, service_name, rpc_factory=rpc_factory)
 

@@ -110,6 +110,7 @@ class AdminRequestHandler(webapp2.RequestHandler):
         'request': self.request,
         'sdk_version': self._SDK_VERSION,
         'xsrf_token': self.xsrf_token,
+        'enable_console': self.enable_console
     }
 
   def _construct_url(self, remove=None, add=None):
@@ -145,6 +146,10 @@ class AdminRequestHandler(webapp2.RequestHandler):
   @property
   def configuration(self):
     return self.request.app.configuration
+
+  @property
+  def enable_console(self):
+    return self.request.app.enable_console
 
   @metrics.LogHandlerRequest('admin-console')
   def get(self, *args, **kwargs):

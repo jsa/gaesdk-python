@@ -19,6 +19,7 @@
 
 
 
+import abc
 import BaseHTTPServer
 import os
 import socket
@@ -106,3 +107,18 @@ def setup_environ(app_id):
     app_id: The id of the application.
   """
   os.environ['APPLICATION_ID'] = app_id
+
+
+class GcdEmulatorManager(object):
+  """An abstract class defining the interfaces of Gcd Emulator Managing.
+
+  Api server is agnostic of the emulator. The implementation of this class
+  should be instantiated in a wrapper of api_server with direct access to the
+  emulator.
+  """
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def launch(self):
+    """Launch the emulator."""
+    raise NotImplementedError()

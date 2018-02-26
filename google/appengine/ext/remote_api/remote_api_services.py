@@ -32,6 +32,7 @@ from google.appengine.api import user_stub_service_pb
 from google.appengine.api.app_identity import app_identity_service_pb
 from google.appengine.api.app_identity import app_identity_stub_service_pb
 from google.appengine.api.blobstore import blobstore_service_pb
+from google.appengine.api.blobstore import blobstore_stub_service_pb
 from google.appengine.api.capabilities import capability_service_pb
 from google.appengine.api.capabilities import capability_stub_service_pb
 from google.appengine.api.channel import channel_service_pb
@@ -334,6 +335,10 @@ def get_stub_exclusive_service_pb_map():
           'SetDefaultGcsBucketName': (
               app_identity_stub_service_pb.SetDefaultGcsBucketNameRequest,
               api_base_pb.VoidProto),
+      },
+      'blobstore': {
+          'StoreBlob': (blobstore_stub_service_pb.StoreBlobRequest,
+                        api_base_pb.VoidProto),
       },
       'capability_service': {
           'SetCapabilityStatus': (

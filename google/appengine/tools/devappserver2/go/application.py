@@ -29,9 +29,9 @@ import sys
 import tempfile
 
 import google
-from google.appengine.tools import goroots
 from google.appengine.tools.devappserver2 import safe_subprocess
 from google.appengine.tools.devappserver2.go import errors as go_errors
+from google.appengine.tools.devappserver2.go import goroots
 
 # The location of devappserver2 changes infrequently enough we can be fairly
 # confident depending on the goroot and gopath being in the same place relative

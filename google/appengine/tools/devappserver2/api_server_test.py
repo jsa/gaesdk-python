@@ -52,6 +52,7 @@ from google.appengine.ext.remote_api import remote_api_pb
 from google.appengine.runtime import apiproxy_errors
 from google.appengine.tools.devappserver2 import api_server
 from google.appengine.tools.devappserver2 import datastore_grpc_stub
+from google.appengine.tools.devappserver2 import stub_util
 from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2 import wsgi_test_utils
 
@@ -98,7 +99,7 @@ class FakeDatastoreV4ServiceStub(apiproxy_stub.APIProxyStub):
 
 def setup_stubs():
   """Setup the API stubs. This can only be done once."""
-  api_server.setup_test_stubs(
+  stub_util.setup_test_stubs(
       request_data,
       app_id=APP_ID,
       application_root=APPLICATION_ROOT,
@@ -135,7 +136,7 @@ class APIServerTestBase(wsgi_test_utils.WSGITestCase):
                                        APP_ID)
 
   def tearDown(self):
-    api_server.cleanup_stubs()
+    stub_util.cleanup_stubs()
 
   def _assert_remote_call(
       self, expected_remote_response, stub_request, service, method):
@@ -208,7 +209,7 @@ class TestAPIServer(APIServerTestBase):
     deprecated = ['Get', 'Write']
     methods = set([k for k in harness.__dict__.keys()
                    if k not in deprecated and not k.startswith('_')])
-    self.assertEqual(methods, set(api_server._DATASTORE_V4_METHODS.keys()))
+    self.assertEqual(methods, set(stub_util.DATASTORE_V4_METHODS.keys()))
 
   def test_GET(self):
     environ = {'REQUEST_METHOD': 'GET',

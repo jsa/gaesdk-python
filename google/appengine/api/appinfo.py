@@ -242,6 +242,7 @@ MANUAL_SCALING = 'manual_scaling'
 BASIC_SCALING = 'basic_scaling'
 VM = 'vm'
 VM_SETTINGS = 'vm_settings'
+ZONES = 'zones'
 BETA_SETTINGS = 'beta_settings'
 VM_HEALTH_CHECK = 'vm_health_check'
 HEALTH_CHECK = 'health_check'
@@ -320,6 +321,14 @@ TARGET_DISK_READ_BYTES_PER_SEC = 'target_disk_read_bytes_per_sec'
 TARGET_DISK_READ_OPS_PER_SEC = 'target_disk_read_ops_per_sec'
 TARGET_REQUEST_COUNT_PER_SEC = 'target_request_count_per_sec'
 TARGET_CONCURRENT_REQUESTS = 'target_concurrent_requests'
+
+CUSTOM_METRICS = 'custom_metrics'
+METRIC_NAME = 'metric_name'
+TARGET_TYPE = 'target_type'
+TARGET_TYPE_REGEX = r'^(GAUGE|DELTA_PER_SECOND|DELTA_PER_MINUTE)$'
+CUSTOM_METRIC_UTILIZATION = 'target_utilization'
+SINGLE_INSTANCE_ASSIGNMENT = 'single_instance_assignment'
+FILTER = 'filter'
 
 
 
@@ -1612,6 +1621,38 @@ class CpuUtilization(validation.Validated):
   }
 
 
+class CustomMetric(validation.Validated):
+  """Class representing CustomMetrics in AppInfoExternal."""
+
+  ATTRIBUTES = {
+      METRIC_NAME: validation.Regex(_NON_WHITE_SPACE_REGEX),
+      TARGET_TYPE: validation.Regex(TARGET_TYPE_REGEX),
+      CUSTOM_METRIC_UTILIZATION: validation.Optional(validation.TYPE_FLOAT),
+      SINGLE_INSTANCE_ASSIGNMENT: validation.Optional(validation.TYPE_FLOAT),
+      FILTER: validation.Optional(validation.TYPE_STR),
+  }
+
+  def CheckInitialized(self):
+    """Determines if the CustomMetric is not valid.
+
+    Raises:
+      appinfo_errors.TooManyAutoscalingUtilizationTargetsError: If too many
+      scaling targets are set.
+      appinfo_errors.NotEnoughAutoscalingUtilizationTargetsError: If no scaling
+      targets are set.
+    """
+    super(CustomMetric, self).CheckInitialized()
+    if bool(self.target_utilization) and bool(self.single_instance_assignment):
+      raise appinfo_errors.TooManyAutoscalingUtilizationTargetsError(
+          ("There may be only one of '%s' or '%s'." % CUSTOM_METRIC_UTILIZATION,
+           SINGLE_INSTANCE_ASSIGNMENT))
+    elif not (bool(self.target_utilization) or
+              bool(self.single_instance_assignment)):
+      raise appinfo_errors.NotEnoughAutoscalingUtilizationTargetsError(
+          ("There must be one of '%s' or '%s'." % CUSTOM_METRIC_UTILIZATION,
+           SINGLE_INSTANCE_ASSIGNMENT))
+
+
 class EndpointsApiService(validation.Validated):
   """Class representing EndpointsApiService in AppInfoExternal."""
   ATTRIBUTES = {
@@ -1696,6 +1737,7 @@ class AutomaticScaling(validation.Validated):
           validation.Optional(validation.Range(1, sys.maxint)),
       TARGET_CONCURRENT_REQUESTS:
           validation.Optional(validation.Range(1, sys.maxint)),
+      CUSTOM_METRICS: validation.Optional(validation.Repeated(CustomMetric)),
   }
 
 
@@ -2186,9 +2228,10 @@ class AppInfoExternal(validation.Validated):
       APPLICATION: validation.Optional(APPLICATION_RE_STRING),
 
       PROJECT: validation.Optional(APPLICATION_RE_STRING),
-      MODULE: validation.Optional(MODULE_ID_RE_STRING),
-
-      SERVICE: validation.Optional(MODULE_ID_RE_STRING),
+      SERVICE: validation.Preferred(MODULE,
+                                    validation.Optional(MODULE_ID_RE_STRING)),
+      MODULE: validation.Deprecated(SERVICE,
+                                    validation.Optional(MODULE_ID_RE_STRING)),
       VERSION: validation.Optional(MODULE_VERSION_ID_RE_STRING),
       RUNTIME: validation.Optional(RUNTIME_RE_STRING),
 
@@ -2218,6 +2261,7 @@ class AppInfoExternal(validation.Validated):
       LIVENESS_CHECK: validation.Optional(LivenessCheck),
       READINESS_CHECK: validation.Optional(ReadinessCheck),
       NETWORK: validation.Optional(Network),
+      ZONES: validation.Optional(validation.Repeated(validation.TYPE_STR)),
       BUILTINS: validation.Optional(validation.Repeated(BuiltinHandler)),
       INCLUDES: validation.Optional(validation.Type(list)),
       HANDLERS: validation.Optional(validation.Repeated(URLMap), default=[]),
@@ -2273,8 +2317,6 @@ class AppInfoExternal(validation.Validated):
           present.
       RuntimeDoesNotSupportLibraries: If the libraries clause is used for a
           runtime that does not support it, such as `python25`.
-      ModuleAndServiceDefined: If both `module` and `service` keywords are used.
-          Services were formerly known as modules.
     """
     super(AppInfoExternal, self).CheckInitialized()
     if self.runtime is None and not self.IsVm():
@@ -2590,17 +2632,6 @@ def LoadSingleAppInfo(app_info):
   elif appyaml.project:
     appyaml.application = appyaml.project
     appyaml.project = None
-
-
-
-
-
-  if appyaml.service and appyaml.module:
-    raise appinfo_errors.ModuleAndServiceDefined(
-        'Cannot define both "module" and "service" in configuration')
-  elif appyaml.service:
-    appyaml.module = appyaml.service
-    appyaml.service = None
 
   appyaml.NormalizeVmSettings()
   return appyaml
