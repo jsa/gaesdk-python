@@ -668,6 +668,31 @@ def create_command_line_parser(configuration=None):
       'release. Please do not rely on sequential IDs in your '
       'tests.')
 
+
+
+
+  datastore_group.add_argument(
+      '--support_datastore_emulator',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
+      help=argparse.SUPPRESS)
+  # Port number on which dev_appserver should launch Cloud Datastore emulator.
+  datastore_group.add_argument(
+      '--gcd_emulator_port', type=PortParser(), default=0,
+      help=argparse.SUPPRESS)
+  # The path to an executable shell script that invokes Cloud Datastore
+  # emulator.
+  datastore_group.add_argument(
+      '--gcd_emulator_cmd', type=parse_path, default=None,
+      help=argparse.SUPPRESS)
+  datastore_group.add_argument(
+      '--gcd_emulator_is_test_mode',
+      action=boolean_action.BooleanAction,
+      const=True,
+      default=False,
+      help=argparse.SUPPRESS)
+
   # Logs
   logs_group = parser.add_argument_group('Logs API')
   logs_group.add_argument(
@@ -764,16 +789,6 @@ def create_command_line_parser(configuration=None):
       help='port to which the server for API calls should bind')
   misc_group.add_argument(
       '--api_server_supports_grpc',
-      action=boolean_action.BooleanAction,
-      const=True,
-      default=False,
-      help=argparse.SUPPRESS)
-
-
-
-
-  misc_group.add_argument(
-      '--support_datastore_emulator',
       action=boolean_action.BooleanAction,
       const=True,
       default=False,

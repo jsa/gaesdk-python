@@ -229,6 +229,12 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'jinja2-2.6'),
         os.path.join(dir_path, 'lib', 'webob-1.2.3'),
         os.path.join(dir_path, 'lib', 'webapp2-2.5.1'),
+
+
+
+
+
+        os.path.join(dir_path, 'lib', 'grpcio-1.9.1'),
     ]
 
 
@@ -360,18 +366,3 @@ class Paths(object):
 
     return [path for path in paths
             if os.path.normcase(path) not in sys_paths_to_scrub]
-
-
-
-
-
-
-  def add_grpc_path(self, script_name):
-    """Adds grpcio-1.0.0 to sys.path and avoid hard-coding.
-
-    Args:
-      script_name: the basename of the script, for example 'appcfg.py'.
-    """
-
-    grpc_lib_path = os.path.join(self.dir_path, 'lib', 'grpcio-1.0.0')
-    self._script_to_paths[script_name].append(grpc_lib_path)

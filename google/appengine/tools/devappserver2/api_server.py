@@ -44,6 +44,7 @@ import json
 import logging
 import os
 import pickle
+import shutil
 import sys
 import tempfile
 import threading
@@ -75,6 +76,7 @@ from google.appengine.tools.devappserver2 import stub_util
 from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2 import wsgi_server
+from google.appengine.tools.devappserver2.cloud_emulators import cloud_emulator_manager
 
 
 # The API lock is applied when calling API stubs that are not threadsafe.
@@ -88,6 +90,10 @@ DEFAULT_API_SERVER_APP_ID = 'dev~app-id'
 # TODO: Remove after the Files API is really gone.
 _FILESAPI_USE_TRACKER = None
 _FILESAPI_ENABLED = True
+
+
+class DatastoreFileError(Exception):
+  """A datastore data file is not supported."""
 
 
 def enable_filesapi_tracking(request_data):
@@ -202,7 +208,7 @@ class APIServer(wsgi_server.WsgiServer):
   """Serves API calls over HTTP and GRPC(optional)."""
 
   def __init__(self, host, port, app_id, use_grpc=False, grpc_api_port=0,
-               enable_host_checking=True):
+               enable_host_checking=True, gcd_emulator_launching_thread=None):
     self._app_id = app_id
     self._host = host
 
@@ -216,6 +222,7 @@ class APIServer(wsgi_server.WsgiServer):
 
     self._use_grpc = use_grpc
     self._grpc_api_port = grpc_api_port
+    self._gcd_emulator_launching_thread = gcd_emulator_launching_thread
 
   def _start_grpc_server(self):
     """Starts gRPC API server."""
@@ -261,6 +268,9 @@ class APIServer(wsgi_server.WsgiServer):
 
   def start(self):
     """Start the API Server."""
+    # If ApiServer uses gcd emulator, emulator must get ready here.
+    if self._gcd_emulator_launching_thread:
+      self._gcd_emulator_launching_thread.join()
     super(APIServer, self).start()
     logging.info('Starting API server at: http://%s:%d', self._host, self.port)
     if self._use_grpc:
@@ -431,12 +441,68 @@ class APIServer(wsgi_server.WsgiServer):
       return []
 
 
-# An object which is subclass of devappserver2.util.GcdEmulatorManager. If
-# api_server is launched as an individual binary, this should be instantiated by
-# a wrapper that calls api_server.main(). If api_server is launched as part of
-# dev_appserver process, this should be instantiated by a wrapper that calles
-# dev_appserver2.main.
-GCD_EMULATOR_MANAGER = None
+def _launch_gcd_emulator(
+    app_id=None, emulator_port=0, silent=True, index_file='',
+    require_indexes=False, datastore_path='', stub_type=None, cmd=None,
+    is_test=False):
+  """Launch Cloud Datastore emulator asynchronously.
+
+  If datastore_path is sqlite stub data, rename it and convert into emulator
+  data.
+
+  Args:
+    app_id: A string representing application ID.
+    emulator_port: An integer representing the port number for emulator to
+      launch on.
+    silent: A bool indicating if emulator runs in silent mode.
+    index_file: A string indicating the fullpath to index.yaml.
+    require_indexes: A bool. If True, queries that require index generation will
+      fail.
+    datastore_path: A string indicating the path to local datastore data.
+    stub_type: An integer, which is one of
+      datastore_converter.StubTypes.PYTHON_SQLITE_STUB or
+      datastore_converter.StubTypes.JAVA_EMULATOR.
+    cmd: A string representing the path to a executable shell script that
+      invokes the emulator.
+    is_test: A boolean. If True, run emulator in --testing mode for unittests.
+      Otherwise override some emulator flags for dev_appserver use cases.
+
+  Returns:
+    A threading.Thread object that asynchronously launch the emulator.
+  """
+  emulator_host = 'localhost:%d' % emulator_port
+  launching_thread = None
+  emulator_manager = cloud_emulator_manager.DatastoreEmulatorManager(
+      cmd=cmd, is_test=is_test)
+  emulator_manager.CheckOptions(index_file=index_file,
+                                storage_file=datastore_path)
+  def _launch(need_conversion):
+    """Launch the emulator and convert SQLite data if needed.
+
+    Args:
+      need_conversion: A bool. If True convert sqlite data to emulator data.
+    """
+    emulator_manager.Launch(
+        emulator_port, silent, index_file, require_indexes, datastore_path)
+    if need_conversion:
+      logging.info(
+          'Converting datastore_sqlite_stub data in %s to Cloud Datastore '
+          'emulator data in %s.', sqlite_data_renamed, datastore_path)
+      datastore_converter.convert_sqlite_data_to_emulator(
+          app_id, sqlite_data_renamed, emulator_host)
+    # Shutdown datastore emulator before dev_appserver quits.
+    shutdown.extra_shutdown_callback.append(emulator_manager.Shutdown)
+
+  if stub_type == datastore_converter.StubTypes.PYTHON_SQLITE_STUB:
+    sqlite_data_renamed = datastore_path + '.sqlitestub'
+    shutil.move(datastore_path, sqlite_data_renamed)
+    logging.info('SQLite stub data has been renamed to %s', sqlite_data_renamed)
+    launching_thread = threading.Thread(target=_launch, args=[True])
+  else:
+    launching_thread = threading.Thread(target=_launch, args=[False])
+  launching_thread.start()
+  os.environ['DATASTORE_EMULATOR_HOST'] = emulator_host
+  return launching_thread
 
 
 def create_api_server(
@@ -456,22 +522,13 @@ def create_api_server(
 
   Returns:
     An instance of APIServer.
-  """
-  emulator_launching_thread = None
-  if options.support_datastore_emulator and not os.environ.get(
-      'DATASTORE_EMULATOR_HOST'):
-    gcd_emulator_port = portpicker.PickUnusedPort()
-    emulator_launching_thread = threading.Thread(
-        target=GCD_EMULATOR_MANAGER.launch,
-        args=[
-            gcd_emulator_port,
-            options.dev_appserver_log_level != 'debug',
-            os.path.join(app_root, 'index.yaml'), options.require_indexes])
-    emulator_launching_thread.start()
-    os.environ['DATASTORE_EMULATOR_HOST'] = 'localhost:%d' % gcd_emulator_port
 
-  datastore_path = options.datastore_path or os.path.join(
-      storage_path, 'datastore.db')
+  Raises:
+    DatastoreFileError: Cloud Datastore emulator is used while stub_type is
+      datastore_converter.StubTypes.PYTHON_FILE_STUB.
+  """
+  datastore_path = get_datastore_path(storage_path, options.datastore_path)
+
   logs_path = options.logs_path or os.path.join(storage_path, 'logs.db')
   search_index_path = options.search_indexes_path or os.path.join(
       storage_path, 'search_indexes')
@@ -505,24 +562,46 @@ def create_api_server(
     assert 0, ('unknown consistency policy: %r' %
                options.datastore_consistency_policy)
 
-  # Check if local datastore data should be converted.
-  # Using GCD Emulator this could convert python file stub or sqlite stub data
-  # to Emulator data format; Without GCD Emulator this converts python file stub
-  # to sqlite stub data.
-  if os.path.exists(datastore_path):
-    data_type = datastore_converter.get_data_type(datastore_path)
-    if options.support_datastore_emulator:
-      if data_type in [datastore_converter.StubTypes.PYTHON_FILE_STUB,
-                       datastore_converter.StubTypes.PYTHON_SQLITE_STUB]:
-        if emulator_launching_thread:
-          emulator_launching_thread.join()
-        gcd_emulator_host = os.environ.get('DATASTORE_EMULATOR_HOST')
-        datastore_converter.convert_python_data_to_emulator(
-            app_id, data_type, datastore_path, gcd_emulator_host)
+  stub_type = (datastore_converter.get_stub_type(datastore_path)
+               if os.path.exists(datastore_path) else None)
+  gcd_emulator_launching_thread = None
+  if options.support_datastore_emulator:
+    if stub_type == datastore_converter.StubTypes.PYTHON_FILE_STUB:
+      raise DatastoreFileError(
+          'The datastore file %s cannot be recognized by dev_appserver. Please '
+          'restart dev_appserver with --clear_datastore=1' % datastore_path)
+    env_emulator_host = os.environ.get('DATASTORE_EMULATOR_HOST')
+    if env_emulator_host:  # emulator already running, reuse it.
+      logging.warning(
+          'Detected environment variable DATASTORE_EMULATOR_HOST=%s, '
+          'dev_appserver will speak to the Cloud Datastore emulator running on '
+          'this address. The datastore_path %s will be neglected.\nIf you '
+          'want datastore to store on %s, remove DATASTORE_EMULATOR_HOST '
+          'from environment variables and restart dev_appserver',
+          env_emulator_host, datastore_path, datastore_path)
     else:
-      if data_type != datastore_converter.StubTypes.PYTHON_SQLITE_STUB:
-        datastore_converter.convert_datastore_file_stub_data_to_sqlite(
-            app_id, datastore_path)
+      gcd_emulator_launching_thread = _launch_gcd_emulator(
+          app_id=app_id,
+          emulator_port=(
+              options.gcd_emulator_port if options.gcd_emulator_port else
+              portpicker.PickUnusedPort()),
+          silent=options.dev_appserver_log_level != 'debug',
+          index_file=os.path.join(app_root, 'index.yaml'),
+          require_indexes=options.require_indexes,
+          datastore_path=datastore_path,
+          stub_type=stub_type,
+          cmd=options.gcd_emulator_cmd,
+          is_test=options.gcd_emulator_is_test_mode)
+  else:
+    # Use SQLite stub.
+    # For historic reason we are still supporting conversion from file stub to
+    # SQLite stub data. But this conversion will go away.
+
+
+
+    if stub_type == datastore_converter.StubTypes.PYTHON_FILE_STUB:
+      datastore_converter.convert_datastore_file_stub_data_to_sqlite(
+          app_id, datastore_path)
 
   stub_util.setup_stubs(
       request_data=request_info,
@@ -560,13 +639,11 @@ def create_api_server(
           datastore_grpc_stub.DatastoreGrpcStub
           if options.support_datastore_emulator else None)
   )
-
-  if emulator_launching_thread:
-    emulator_launching_thread.join()
   return APIServer(
       options.api_host, options.api_port, app_id,
       options.api_server_supports_grpc or options.support_datastore_emulator,
-      options.grpc_api_port, options.enable_host_checking)
+      options.grpc_api_port, options.enable_host_checking,
+      gcd_emulator_launching_thread)
 
 
 def _clear_datastore_storage(datastore_path):
@@ -623,6 +700,19 @@ def get_storage_path(path, app_id):
     return path
 
 
+def get_datastore_path(storage_path, datastore_path):
+  """Gets the path to datastore data file.
+
+  Args:
+    storage_path: A string directory for storing API stub data.
+    datastore_path: A string representing the path to local datastore file.
+
+  Returns:
+    A string representing the path to datastore data file.
+  """
+  return datastore_path or os.path.join(storage_path, 'datastore.db')
+
+
 def _generate_storage_paths(app_id):
   """Yield an infinite sequence of possible storage paths."""
   if sys.platform == 'win32':
@@ -644,12 +734,15 @@ def _generate_storage_paths(app_id):
     yield os.path.join(tempdir, 'appengine.%s%s.%d' % (app_id, user_format, i))
 
 
+PARSER = cli_parser.create_command_line_parser(
+    cli_parser.API_SERVER_CONFIGURATION)
+
+
 def main():
   """Parses command line options and launches the API server."""
   shutdown.install_signal_handlers()
 
-  options = cli_parser.create_command_line_parser(
-      cli_parser.API_SERVER_CONFIGURATION).parse_args()
+  options = PARSER.parse_args()
   logging.getLogger().setLevel(
       constants.LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
 

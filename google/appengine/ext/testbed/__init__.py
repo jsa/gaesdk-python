@@ -295,7 +295,13 @@ class EmulatorSupportChecker(object):
 
   @classmethod
   def get_api_port(cls):
+    """Returns the integer port number that api_server listens on."""
     return cls._api_port
+
+  @classmethod
+  def get_emulator_port(cls):
+    """Returns the integer port number that datastore emulator listens on."""
+    return cls._emulator_port
 
   @classmethod
   def check(cls):
@@ -315,6 +321,7 @@ class EmulatorSupportChecker(object):
 
         cls._use_datastore_emulator = True
         cls._api_port = int(os.environ['API_SERVER_PORT'])
+        cls._emulator_port = int(os.environ['DATASTORE_EMULATOR_PORT'])
 
 
 
@@ -382,6 +389,7 @@ class Testbed(object):
           services=[],
           apiproxy=self._test_stub_map,
           use_remote_datastore=False)
+      self._emulator_port = EmulatorSupportChecker.get_emulator_port()
 
   def deactivate(self):
     """Deactivates the testbed.
@@ -606,10 +614,20 @@ class Testbed(object):
       delegate_stub = (
           remote_api_stub.DatastoreStubTestbedDelegate(
               self.rpc_server, '/', stub_kw_args.get(
-                  'max_request_size', apiproxy_stub.MAX_REQUEST_SIZE)))
+                  'max_request_size', apiproxy_stub.MAX_REQUEST_SIZE),
+              emulator_port=self._emulator_port))
       delegate_stub.Clear()
       self._test_stub_map.RegisterStub(
           DATASTORE_SERVICE_NAME, delegate_stub)
+      consistency_policy = stub_kw_args.get(
+          'consistency_policy',
+          datastore_stub_util.PseudoRandomHRConsistencyPolicy(probability=1.0))
+      datastore_stub_util.UpdateEmulatorConfig(
+          self._emulator_port, auto_id_policy, consistency_policy)
+      if isinstance(consistency_policy,
+                    datastore_stub_util.PseudoRandomHRConsistencyPolicy):
+        consistency_policy.is_using_cloud_datastore_emulator = True
+        consistency_policy.emulator_port = self._emulator_port
 
 
       self._enabled_stubs[DATASTORE_SERVICE_NAME] = None
