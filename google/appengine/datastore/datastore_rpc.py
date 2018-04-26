@@ -64,8 +64,6 @@ from google.appengine.api import apiproxy_stub_map
 
 from google.appengine.api import datastore_errors
 from google.appengine.api import datastore_types
-
-from google.appengine.api.app_identity import app_identity
 from google.appengine.datastore import datastore_pb
 from google.appengine.datastore import datastore_pbs
 from google.appengine.runtime import apiproxy_errors
@@ -115,14 +113,7 @@ def _GetDatastoreType(app=None):
   current_app = datastore_types.ResolveAppId(None)
   if app not in (current_app, None):
     return BaseConnection.UNKNOWN_DATASTORE
-
-
-
-
-  partition, _, _ = app_identity._ParseFullAppId(current_app)
-  if partition:
-    return BaseConnection.HIGH_REPLICATION_DATASTORE
-  return BaseConnection.MASTER_SLAVE_DATASTORE
+  return BaseConnection.HIGH_REPLICATION_DATASTORE
 
 
 class AbstractAdapter(object):
@@ -2927,6 +2918,7 @@ _DATASTORE_EXCEPTION_CLASSES = {
     datastore_pb.Error.BIGTABLE_ERROR: datastore_errors.Timeout,
     datastore_pb.Error.COMMITTED_BUT_STILL_APPLYING: datastore_errors.CommittedButStillApplying,
     datastore_pb.Error.CAPABILITY_DISABLED: apiproxy_errors.CapabilityDisabledError,
+    datastore_pb.Error.RESOURCE_EXHAUSTED: apiproxy_errors.OverQuotaError,
 }
 
 _CLOUD_DATASTORE_EXCEPTION_CLASSES = {}

@@ -22,6 +22,7 @@
 import BaseHTTPServer
 import os
 import socket
+import urllib
 import wsgiref.headers
 from google.appengine.tools import sdk_update_checker
 
@@ -53,6 +54,36 @@ def get_headers_from_environ(environ):
   if 'CONTENT_TYPE' in environ:
     headers['CONTENT-TYPE'] = environ['CONTENT_TYPE']
   return headers
+
+
+def construct_url_from_environ(environ, secure, include_query_params, port):
+  """Construct a URL from the environ and other parameters.
+
+  Implementation adapted from
+  https://www.python.org/dev/peps/pep-0333/#url-reconstruction.
+
+  Args:
+    environ: An environ dict as defined in PEP-333.
+    secure: boolean, if True the url will be https, otherwise http
+    include_query_params: boolean, if True will include query params from
+      environ
+    port: int, the port for the new url
+
+  Returns:
+    str, the constructed URL.
+  """
+  url_result = 'https' if secure else 'http'
+  url_result += '://'
+  if environ.get('HTTP_HOST'):
+    url_result += environ['HTTP_HOST'].split(':')[0]
+  else:
+    url_result += environ['SERVER_NAME']
+  url_result += ':' + str(port)
+  url_result += urllib.quote(environ.get('SCRIPT_NAME', ''))
+  url_result += urllib.quote(environ.get('PATH_INFO', ''))
+  if include_query_params and environ.get('QUERY_STRING'):
+    url_result += '?' + environ['QUERY_STRING']
+  return url_result
 
 
 def put_headers_in_environ(headers, environ):

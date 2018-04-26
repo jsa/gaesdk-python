@@ -246,7 +246,7 @@ AUTO_ID_POLICY_SCATTERED = datastore_stub_util.SCATTERED
 
 def urlfetch_to_gcs_stub(url, payload, method, headers, request, response,
                          follow_redirects=False, deadline=None,
-                         validate_certificate=None):
+                         validate_certificate=None, http_proxy=None):
 
   """Forwards Google Cloud Storage `urlfetch` requests to gcs_dispatcher."""
   headers_map = dict(

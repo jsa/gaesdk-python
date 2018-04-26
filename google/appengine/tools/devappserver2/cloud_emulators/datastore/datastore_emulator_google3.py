@@ -18,6 +18,7 @@
 
 import glob
 import os
+import shutil
 import tempfile
 import zipfile
 from google.pyglib import resources
@@ -62,9 +63,11 @@ def prepare_google_command():
   working_directory = (
       os.getenv('TEST_TMPDIR') if os.environ.get('TEST_TMPDIR')
       else tempfile.mkdtemp())
+  emulator_path = os.path.join(working_directory, 'cloud-datastore-emulator')
+  if os.path.exists(emulator_path):
+    shutil.rmtree(emulator_path)
   zipped_file = zipfile.ZipFile(emulator_zip_path)
   zipped_file.extractall(working_directory)
-  emulator_cmd = os.path.join(
-      working_directory, 'cloud-datastore-emulator', 'cloud_datastore_emulator')
+  emulator_cmd = os.path.join(emulator_path, 'cloud_datastore_emulator')
   os.chmod(emulator_cmd, 0700)  # executable
   return emulator_cmd

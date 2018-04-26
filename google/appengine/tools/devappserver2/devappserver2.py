@@ -33,6 +33,7 @@ from google.appengine.tools.devappserver2 import dispatcher
 from google.appengine.tools.devappserver2 import metrics
 from google.appengine.tools.devappserver2 import runtime_config_pb2
 from google.appengine.tools.devappserver2 import shutdown
+from google.appengine.tools.devappserver2 import ssl_utils
 from google.appengine.tools.devappserver2 import update_checker
 from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_request_info
@@ -114,14 +115,6 @@ class DevelopmentServer(object):
         storage_path, options.datastore_path)
     datastore_data_type = (datastore_converter.get_stub_type(datastore_path)
                            if os.path.isfile(datastore_path) else None)
-    if options.google_analytics_client_id:
-      metrics_logger = metrics.GetMetricsLogger()
-      metrics_logger.Start(
-          options.google_analytics_client_id,
-          options.google_analytics_user_agent,
-          {module.runtime for module in configuration.modules},
-          {module.env or 'standard' for module in configuration.modules},
-          options.support_datastore_emulator, datastore_data_type)
 
     if options.skip_sdk_update_check:
       logging.info('Skipping SDK update check.')
@@ -149,6 +142,26 @@ class DevelopmentServer(object):
     if not options.php_executable_path and php_version == 'php72':
       raise PhpPathError('For php72, --php_executable_path must be specified.')
 
+    if options.ssl_certificate_path and options.ssl_certificate_key_path:
+      ssl_certificate_paths = self._create_ssl_certificate_paths_if_valid(
+          options.ssl_certificate_path, options.ssl_certificate_key_path)
+    else:
+      if options.ssl_certificate_path or options.ssl_certificate_key_path:
+        logging.warn('Must provide both --ssl_certificate_path and '
+                     '--ssl_certificate_key_path to enable SSL. Since '
+                     'only one flag was provided, not using SSL.')
+      ssl_certificate_paths = None
+
+    if options.google_analytics_client_id:
+      metrics_logger = metrics.GetMetricsLogger()
+      metrics_logger.Start(
+          options.google_analytics_client_id,
+          options.google_analytics_user_agent,
+          {module.runtime for module in configuration.modules},
+          {module.env or 'standard' for module in configuration.modules},
+          options.support_datastore_emulator, datastore_data_type,
+          bool(ssl_certificate_paths))
+
     self._dispatcher = dispatcher.Dispatcher(
         configuration, options.host, options.port, options.auth_domain,
         constants.LOG_LEVEL_TO_RUNTIME_CONSTANT[options.log_level],
@@ -174,7 +187,8 @@ class DevelopmentServer(object):
             '--threadsafe_override'),
         options.external_port,
         options.specified_service_ports,
-        options.enable_host_checking)
+        options.enable_host_checking,
+        ssl_certificate_paths)
 
     wsgi_request_info_ = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
 
@@ -385,6 +399,32 @@ class DevelopmentServer(object):
 
     # Create a dict with an entry for every module.
     return {module_name: setting for module_name in module_names}
+
+  @staticmethod
+  def _create_ssl_certificate_paths_if_valid(certificate_path,
+                                             certificate_key_path):
+    """Returns an ssl_utils.SSLCertificatePaths instance iff valid cert/key.
+
+    Args:
+      certificate_path: str, path to the SSL certificate.
+      certificate_key_path: str, path to the SSL certificate's private key.
+
+    Returns:
+      An ssl_utils.SSLCertificatePaths with the provided paths, or None if the
+        cert/key pair is invalid.
+    """
+    ssl_certificate_paths = ssl_utils.SSLCertificatePaths(
+        ssl_certificate_path=certificate_path,
+        ssl_certificate_key_path=certificate_key_path)
+    try:
+      ssl_utils.validate_ssl_certificate_paths_or_raise(ssl_certificate_paths)
+    except ssl_utils.SSLCertificatePathsValidationError as e:
+      ssl_failure_reason = (
+          e.error_message if e.error_message else e.original_exception)
+      logging.warn('Tried to enable SSL, but failed: %s', ssl_failure_reason)
+      return None
+    else:
+      return ssl_certificate_paths
 
 
 def main():

@@ -465,6 +465,25 @@ def create_command_line_parser(configuration=None):
                             const=True,
                             default=False,
                             help='Enable interactive console in admin view.')
+  common_group.add_argument(
+      '--java_app_base_url',
+      default=None,
+      restrict_configuration=[API_SERVER_CONFIGURATION],
+      help='Base URL of the java app in the form '
+      'http://host[:port], e.g. http://localhost:8080. '
+      'Should only be used to specify the url of a java '
+      'app running with the classic Java SDK tooling, '
+      'and not Java apps running on devappserver2.')
+  common_group.add_argument(
+      '--ssl_certificate_path',
+      default=None,
+      help='Path to SSL certificate. Must also provide '
+      '--ssl_certificate_key_path if using this option.')
+  common_group.add_argument(
+      '--ssl_certificate_key_path',
+      default=None,
+      help='Path to corresponding SSL private key. Must also provide '
+      '--ssl_certificate_path if using this option.')
 
   # PHP
   php_group = parser.add_argument_group('PHP')
@@ -676,18 +695,19 @@ def create_command_line_parser(configuration=None):
       action=boolean_action.BooleanAction,
       const=True,
       default=False,
-      help=argparse.SUPPRESS)
+      help='Support datastore local emulation with Cloud Datastore emulator.')
   # Port number on which dev_appserver should launch Cloud Datastore emulator.
   datastore_group.add_argument(
-      '--gcd_emulator_port', type=PortParser(), default=0,
-      help=argparse.SUPPRESS)
+      '--datastore_emulator_port', type=PortParser(), default=0,
+      help='The port number that dev_appserver should launch Cloud Datastore '
+      'emulator on.')
   # The path to an executable shell script that invokes Cloud Datastore
   # emulator.
   datastore_group.add_argument(
-      '--gcd_emulator_cmd', type=parse_path, default=None,
+      '--datastore_emulator_cmd', type=parse_path, default=None,
       help=argparse.SUPPRESS)
   datastore_group.add_argument(
-      '--gcd_emulator_is_test_mode',
+      '--datastore_emulator_is_test_mode',
       action=boolean_action.BooleanAction,
       const=True,
       default=False,
@@ -835,13 +855,11 @@ def create_command_line_parser(configuration=None):
   # the Cloud SDK dev_appserver.py wrapper.
   misc_group.add_argument(
       '--google_analytics_client_id', default=None,
-      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
       help=argparse.SUPPRESS)
   # The user agent to use for Google Analytics usage reporting. This should only
   # be set by the Cloud SDK dev_appserver.py wrapper.
   misc_group.add_argument(
       '--google_analytics_user_agent', default=None,
-      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
       help=argparse.SUPPRESS)
 
   return parser

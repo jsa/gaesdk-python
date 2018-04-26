@@ -196,11 +196,15 @@ class DatastoreGrpcStub(apiproxy_stub.APIProxyStub):
 
     response.set_response(response_pb.response)
     if response_pb.HasField('rpc_error'):
-      response.mutable_rpc_error().ParseFromString(
-          response_pb.rpc_error.SerializeToString())
+      rpc_error = response_pb.rpc_error
+      response_rpc_error = response.mutable_rpc_error()
+      response_rpc_error.set_code(rpc_error.code)
+      response_rpc_error.set_detail(rpc_error.detail)
     if response_pb.HasField('application_error'):
-      response.mutable_application_error().ParseFromString(
-          response_pb.application_error.SerializeToString())
+      app_err = response_pb.application_error
+      response_app_err = response.mutable_application_error()
+      response_app_err.set_code(app_err.code)
+      response_app_err.set_detail(app_err.detail)
     return response
 
   def _StripPrefix(self, host_str):

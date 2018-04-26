@@ -27,7 +27,6 @@ from google.appengine.api.blobstore import blobstore_stub
 from google.appengine.api.blobstore import file_blob_storage
 from google.appengine.api.capabilities import capability_stub
 from google.appengine.api.channel import channel_service_stub
-from google.appengine.api.files import file_service_stub
 from google.appengine.api.logservice import logservice_stub
 from google.appengine.api.memcache import memcache_stub
 from google.appengine.api.modules import modules_stub
@@ -173,7 +172,9 @@ def setup_stubs(
   apiproxy_stub_map.apiproxy.RegisterStub(
       'blobstore',
       blobstore_stub.BlobstoreServiceStub(blob_storage,
-                                          request_data=request_data))
+                                          request_data=request_data,
+                                          storage_dir=blobstore_path,
+                                          app_id=app_id))
 
   apiproxy_stub_map.apiproxy.RegisterStub(
       'capability_service',
@@ -202,10 +203,6 @@ def setup_stubs(
   apiproxy_stub_map.apiproxy.RegisterStub(
       'datastore_v4',
       datastore_v4_stub.DatastoreV4Stub(app_id))
-
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'file',
-      file_service_stub.FileServiceStub(blob_storage))
 
   # pylint: disable=import-not-at-top
   try:

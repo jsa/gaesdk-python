@@ -56,7 +56,7 @@ goog.isNumber = function(val) {
 };
 goog.exportPath_ = function(name, opt_object, opt_objectToExportTo) {
   var parts = name.split("."), cur = opt_objectToExportTo || goog.global;
-  parts[0] in cur || !cur.execScript || cur.execScript("var " + parts[0]);
+  parts[0] in cur || "undefined" == typeof cur.execScript || cur.execScript("var " + parts[0]);
   for (var part; parts.length && (part = parts.shift());) {
     !parts.length && goog.isDef(opt_object) ? cur[part] = opt_object : cur = cur[part] && cur[part] !== Object.prototype[part] ? cur[part] : cur[part] = {};
   }
@@ -73,7 +73,7 @@ goog.DISALLOW_TEST_ONLY_CODE = !goog.DEBUG;
 goog.ENABLE_CHROME_APP_SAFE_SCRIPT_LOADING = !1;
 goog.provide = function(name) {
   if (goog.isInModuleLoader_()) {
-    throw Error("goog.provide can not be used within a goog.module.");
+    throw Error("goog.provide can not be used within a module.");
   }
   goog.constructNamespace_(name);
 };
@@ -85,7 +85,7 @@ goog.module = function(name) {
   if (!goog.isString(name) || !name || -1 == name.search(goog.VALID_MODULE_RE_)) {
     throw Error("Invalid module identifier");
   }
-  if (!goog.isInModuleLoader_()) {
+  if (!goog.isInGoogModuleLoader_()) {
     throw Error("Module " + name + " has been loaded incorrectly. Note, modules cannot be loaded as normal scripts. They require some kind of pre-processing step. You're likely trying to load a module via a script tag or as a part of a concatenated bundle without rewriting the module. For more info see: https://github.com/google/closure-library/wiki/goog.module:-an-ES6-module-like-alternative-to-goog.provide.");
   }
   if (goog.moduleLoaderState_.moduleName) {
@@ -99,9 +99,19 @@ goog.module.get = function(name) {
 goog.module.getInternal_ = function() {
   return null;
 };
+goog.ModuleType = {ES6:"es6", GOOG:"goog"};
 goog.moduleLoaderState_ = null;
 goog.isInModuleLoader_ = function() {
-  return null != goog.moduleLoaderState_;
+  return goog.isInGoogModuleLoader_() || goog.isInEs6ModuleLoader_();
+};
+goog.isInGoogModuleLoader_ = function() {
+  return !!goog.moduleLoaderState_ && goog.moduleLoaderState_.type == goog.ModuleType.GOOG;
+};
+goog.isInEs6ModuleLoader_ = function() {
+  return !!goog.moduleLoaderState_ && goog.moduleLoaderState_.type == goog.ModuleType.ES6;
+};
+goog.getModulePath_ = function() {
+  return goog.moduleLoaderState_ && goog.moduleLoaderState_.path;
 };
 goog.module.declareLegacyNamespace = function() {
   goog.moduleLoaderState_.declareLegacyNamespace = !0;
@@ -127,19 +137,27 @@ goog.globalize = function(obj, opt_global) {
     global[x] = obj[x];
   }
 };
-goog.addDependency = function(relPath, provides, requires, opt_loadFlags) {
-  if (goog.DEPENDENCIES_ENABLED) {
-    var loader = goog.getLoader_();
-    loader && loader.addDependency(relPath, provides, requires, opt_loadFlags);
-  }
+goog.addDependency = function() {
 };
 goog.useStrictRequires = !1;
 goog.ENABLE_DEBUG_LOADER = !0;
 goog.logToConsole_ = function(msg) {
   goog.global.console && goog.global.console.error(msg);
 };
+goog.isPath_ = function(requireOrPath) {
+  return 0 == requireOrPath.indexOf("./") || 0 == requireOrPath.indexOf("../");
+};
 goog.require = function(name) {
-  goog.ENABLE_DEBUG_LOADER && goog.debugLoader_ && goog.getLoader_().earlyProcessLoad(name);
+  if (goog.isPath_(name)) {
+    if (goog.isInGoogModuleLoader_()) {
+      if (!goog.getModulePath_()) {
+        throw Error("Current module has no path information. Was it loaded via goog.loadModule without a path argument?");
+      }
+      goog.normalizePath_(goog.getModulePath_() + "/../" + name);
+    } else {
+      throw Error("Cannot require by path outside of goog.modules.");
+    }
+  }
 };
 goog.basePath = "";
 goog.nullFunction = function() {
@@ -164,7 +182,6 @@ goog.loadedModules_ = {};
 goog.DEPENDENCIES_ENABLED = !1;
 goog.TRANSPILE = "detect";
 goog.TRANSPILER = "transpile.js";
-goog.DEBUG_LOADER = "";
 goog.hasBadLetScoping = null;
 goog.useSafari10Workaround = function() {
   if (null == goog.hasBadLetScoping) {
@@ -180,10 +197,10 @@ goog.useSafari10Workaround = function() {
 goog.workaroundSafari10EvalBug = function(moduleDef) {
   return "(function(){" + moduleDef + "\n;})();\n";
 };
-goog.loadModule = function(moduleDef) {
+goog.loadModule = function(moduleDef, opt_path) {
   var previousState = goog.moduleLoaderState_;
   try {
-    goog.moduleLoaderState_ = {moduleName:"", declareLegacyNamespace:!1};
+    goog.moduleLoaderState_ = {moduleName:"", declareLegacyNamespace:!1, type:goog.ModuleType.GOOG, path:opt_path};
     if (goog.isFunction(moduleDef)) {
       var exports = moduleDef.call(void 0, {});
     } else {
@@ -195,7 +212,10 @@ goog.loadModule = function(moduleDef) {
     }
     var moduleName = goog.moduleLoaderState_.moduleName;
     if (goog.isString(moduleName) && moduleName) {
-      goog.moduleLoaderState_.declareLegacyNamespace ? goog.constructNamespace_(moduleName, exports) : goog.SEAL_MODULE_EXPORTS && Object.seal && "object" == typeof exports && null != exports && Object.seal(exports), goog.loadedModules_[moduleName] = exports;
+      goog.moduleLoaderState_.declareLegacyNamespace ? goog.constructNamespace_(moduleName, exports) : goog.SEAL_MODULE_EXPORTS && Object.seal && "object" == typeof exports && null != exports && Object.seal(exports);
+      var data = {exports:exports, type:goog.ModuleType.GOOG, moduleId:goog.moduleLoaderState_.moduleName};
+      goog.loadedModules_[moduleName] = data;
+      opt_path && (goog.loadedModules_[opt_path] = data);
     } else {
       throw Error('Invalid module name "' + moduleName + '"');
     }
@@ -328,7 +348,7 @@ goog.removeHashCode = goog.removeUid;
 goog.cloneObject = function(obj) {
   var type = goog.typeOf(obj);
   if ("object" == type || "array" == type) {
-    if (obj.clone) {
+    if ("function" === typeof obj.clone) {
       return obj.clone();
     }
     var clone = "array" == type ? [] : {}, key;
@@ -470,11 +490,14 @@ goog.base = function(me, opt_methodName, var_args) {
   if (goog.STRICT_MODE_COMPATIBLE || goog.DEBUG && !caller) {
     throw Error("arguments.caller not defined.  goog.base() cannot be used with strict mode code. See http://www.ecma-international.org/ecma-262/5.1/#sec-C");
   }
-  if (caller.superClass_) {
+  if ("undefined" !== typeof caller.superClass_) {
     for (var ctorArgs = Array(arguments.length - 1), i = 1; i < arguments.length; i++) {
       ctorArgs[i - 1] = arguments[i];
     }
     return caller.superClass_.constructor.apply(me, ctorArgs);
+  }
+  if ("string" != typeof opt_methodName && "symbol" != typeof opt_methodName) {
+    throw Error("method names provided to goog.base must be a string or a symbol");
   }
   var args = Array(arguments.length - 2);
   for (i = 2; i < arguments.length; i++) {
@@ -496,7 +519,7 @@ goog.base = function(me, opt_methodName, var_args) {
 };
 goog.scope = function(fn) {
   if (goog.isInModuleLoader_()) {
-    throw Error("goog.scope is not supported within a goog.module.");
+    throw Error("goog.scope is not supported within a module.");
   }
   fn.call(goog.global);
 };
@@ -541,251 +564,7 @@ goog.defineClass.applyProperties_ = function(target, source) {
 goog.tagUnsealableClass = function() {
 };
 goog.UNSEALABLE_CONSTRUCTOR_PROPERTY_ = "goog_defineClass_legacy_unsealable";
-if (goog.DEPENDENCIES_ENABLED) {
-  goog.inHtmlDocument_ = function() {
-    var doc = goog.global.document;
-    return null != doc && "write" in doc;
-  };
-  goog.findBasePath_ = function() {
-    if (goog.isDef(goog.global.CLOSURE_BASE_PATH) && goog.isString(goog.global.CLOSURE_BASE_PATH)) {
-      goog.basePath = goog.global.CLOSURE_BASE_PATH;
-    } else {
-      if (goog.inHtmlDocument_()) {
-        for (var doc = goog.global.document, currentScript = doc.currentScript, scripts = currentScript ? [currentScript] : doc.getElementsByTagName("SCRIPT"), i = scripts.length - 1; 0 <= i; --i) {
-          var script = scripts[i], src = script.src, qmark = src.lastIndexOf("?"), l = -1 == qmark ? src.length : qmark;
-          if ("base.js" == src.substr(l - 7, 7)) {
-            goog.basePath = src.substr(0, l - 7);
-            break;
-          }
-        }
-      }
-    }
-  };
-  goog.findBasePath_();
-  goog.Transpiler = function() {
-    this.requiresTranspilation_ = null;
-  };
-  goog.Transpiler.prototype.createRequiresTranspilation_ = function() {
-    function addNewerLanguageTranspilationCheck(modeName, isSupported) {
-      transpilationRequiredForAllLaterModes ? requiresTranspilation[modeName] = !0 : isSupported() ? requiresTranspilation[modeName] = !1 : transpilationRequiredForAllLaterModes = requiresTranspilation[modeName] = !0;
-    }
-    function evalCheck(code) {
-      try {
-        return !!eval(code);
-      } catch (ignored) {
-        return !1;
-      }
-    }
-    var requiresTranspilation = {es3:!1}, transpilationRequiredForAllLaterModes = !1, userAgent = goog.global.navigator && goog.global.navigator.userAgent ? goog.global.navigator.userAgent : "";
-    addNewerLanguageTranspilationCheck("es5", function() {
-      return evalCheck("[1,].length==1");
-    });
-    addNewerLanguageTranspilationCheck("es6", function() {
-      var re = /Edge\/(\d+)(\.\d)*/i, edgeUserAgent = userAgent.match(re);
-      return edgeUserAgent && 15 > Number(edgeUserAgent[1]) ? !1 : evalCheck('(()=>{"use strict";class X{constructor(){if(new.target!=String)throw 1;this.x=42}}let q=Reflect.construct(X,[],String);if(q.x!=42||!(q instanceof String))throw 1;for(const a of[2,3]){if(a==2)continue;function f(z={a}){let a=0;return z.a}{function f(){return 0;}}return f()==3}})()');
-    });
-    addNewerLanguageTranspilationCheck("es6-impl", function() {
-      return !0;
-    });
-    addNewerLanguageTranspilationCheck("es7", function() {
-      return evalCheck("2 ** 2 == 4");
-    });
-    addNewerLanguageTranspilationCheck("es8", function() {
-      return evalCheck("async () => 1, true");
-    });
-    return requiresTranspilation;
-  };
-  goog.Transpiler.prototype.needsTranspile = function(lang) {
-    if ("always" == goog.TRANSPILE) {
-      return !0;
-    }
-    if ("never" == goog.TRANSPILE) {
-      return !1;
-    }
-    this.requiresTranspilation_ || (this.requiresTranspilation_ = this.createRequiresTranspilation_());
-    if (lang in this.requiresTranspilation_) {
-      return this.requiresTranspilation_[lang];
-    }
-    throw Error("Unknown language mode: " + lang);
-  };
-  goog.Transpiler.prototype.transpile = function(code, path) {
-    return goog.transpile_(code, path);
-  };
-  goog.transpiler_ = new goog.Transpiler;
-  goog.DebugLoader = function() {
-    this.dependencies_ = {loadFlags:{}, nameToPath:{}, requires:{}, visited:{}, written:{}, deferred:{}};
-    this.lastNonModuleScriptIndex_ = 0;
-  };
-  goog.DebugLoader.IS_OLD_IE_ = !(goog.global.atob || !goog.global.document || !goog.global.document.all);
-  goog.DebugLoader.prototype.earlyProcessLoad = function(name) {
-    goog.DebugLoader.IS_OLD_IE_ && this.maybeProcessDeferredDep_(name);
-  };
-  goog.DebugLoader.prototype.load = function(name) {
-    var pathToLoad = this.getPathFromDeps_(name);
-    if (pathToLoad) {
-      var scripts = [], seenScript = {}, deps = this.dependencies_, loader = this, visitNode = function(path) {
-        if (!(path in deps.written || path in deps.visited)) {
-          deps.visited[path] = !0;
-          if (path in deps.requires) {
-            for (var requireName in deps.requires[path]) {
-              if (!loader.isProvided(requireName)) {
-                if (requireName in deps.nameToPath) {
-                  visitNode(deps.nameToPath[requireName]);
-                } else {
-                  throw Error("Undefined nameToPath for " + requireName);
-                }
-              }
-            }
-          }
-          path in seenScript || (seenScript[path] = !0, scripts.push(path));
-        }
-      };
-      visitNode(pathToLoad);
-      for (var i = 0; i < scripts.length; i++) {
-        var path$jscomp$0 = scripts[i];
-        this.dependencies_.written[path$jscomp$0] = !0;
-      }
-      for (i = 0; i < scripts.length; i++) {
-        if (path$jscomp$0 = scripts[i]) {
-          var loadFlags = deps.loadFlags[path$jscomp$0] || {}, languageLevel = loadFlags.lang || "es3", needsTranspile = this.getTranspiler().needsTranspile(languageLevel);
-          "goog" == loadFlags.module || needsTranspile ? this.importProcessedScript_(goog.basePath + path$jscomp$0, "goog" == loadFlags.module, needsTranspile) : this.importScript_(goog.basePath + path$jscomp$0);
-        } else {
-          throw Error("Undefined script input");
-        }
-      }
-    } else {
-      var errorMessage = "goog.require could not find: " + name;
-      this.logToConsole(errorMessage);
-      if (goog.useStrictRequires) {
-        throw Error(errorMessage);
-      }
-    }
-  };
-  goog.DebugLoader.prototype.addDependency = function(relPath, provides, requires, opt_loadFlags) {
-    var provide, require, path = relPath.replace(/\\/g, "/"), deps = this.dependencies_;
-    opt_loadFlags && "boolean" !== typeof opt_loadFlags || (opt_loadFlags = opt_loadFlags ? {module:"goog"} : {});
-    for (var i = 0; provide = provides[i]; i++) {
-      deps.nameToPath[provide] = path, deps.loadFlags[path] = opt_loadFlags;
-    }
-    for (var j = 0; require = requires[j]; j++) {
-      path in deps.requires || (deps.requires[path] = {}), deps.requires[path][require] = !0;
-    }
-  };
-  goog.DebugLoader.prototype.importScript_ = function(src, opt_sourceText) {
-    var importScript = goog.global.CLOSURE_IMPORT_SCRIPT || goog.bind(this.writeScriptTag_, this);
-    importScript(src, opt_sourceText) && (this.dependencies_.written[src] = !0);
-  };
-  goog.DebugLoader.prototype.importProcessedScript_ = function(src, isModule, needsTranspile) {
-    var bootstrap = 'goog.debugLoader_.retrieveAndExec_("' + src + '", ' + isModule + ", " + needsTranspile + ");";
-    this.importScript_("", bootstrap);
-  };
-  goog.DebugLoader.prototype.maybeProcessDeferredDep_ = function(name) {
-    if (this.isDeferredModule_(name) && this.allDepsAreAvailable_(name)) {
-      var path = this.getPathFromDeps_(name);
-      this.maybeProcessDeferredPath_(goog.basePath + path);
-    }
-  };
-  goog.DebugLoader.prototype.isDeferredModule_ = function(name) {
-    var path = this.getPathFromDeps_(name), loadFlags = path && this.dependencies_.loadFlags[path] || {}, languageLevel = loadFlags.lang || "es3";
-    if (path && ("goog" == loadFlags.module || this.getTranspiler().needsTranspile(languageLevel))) {
-      var abspath = goog.basePath + path;
-      return abspath in this.dependencies_.deferred;
-    }
-    return !1;
-  };
-  goog.DebugLoader.prototype.allDepsAreAvailable_ = function(name) {
-    var path = this.getPathFromDeps_(name);
-    if (path && path in this.dependencies_.requires) {
-      for (var requireName in this.dependencies_.requires[path]) {
-        if (!this.isProvided(requireName) && !this.isDeferredModule_(requireName)) {
-          return !1;
-        }
-      }
-    }
-    return !0;
-  };
-  goog.DebugLoader.prototype.maybeProcessDeferredPath_ = function(abspath) {
-    if (abspath in this.dependencies_.deferred) {
-      var src = this.dependencies_.deferred[abspath];
-      delete this.dependencies_.deferred[abspath];
-      goog.globalEval(src);
-    }
-  };
-  goog.DebugLoader.prototype.writeScriptSrcNode_ = function(src) {
-    goog.global.document.write('<script type="text/javascript" src="' + src + '">\x3c/script>');
-  };
-  goog.DebugLoader.prototype.appendScriptSrcNode_ = function(src) {
-    var doc = goog.global.document, scriptEl = doc.createElement("script");
-    scriptEl.type = "text/javascript";
-    scriptEl.src = src;
-    scriptEl.defer = !1;
-    scriptEl.async = !1;
-    doc.head.appendChild(scriptEl);
-  };
-  goog.DebugLoader.prototype.writeScriptTag_ = function(src, opt_sourceText) {
-    if (this.inHtmlDocument()) {
-      var doc = goog.global.document;
-      if (!goog.ENABLE_CHROME_APP_SAFE_SCRIPT_LOADING && "complete" == doc.readyState) {
-        var isDeps = /\bdeps.js$/.test(src);
-        if (isDeps) {
-          return !1;
-        }
-        throw Error('Cannot write "' + src + '" after document load');
-      }
-      if (void 0 === opt_sourceText) {
-        if (goog.DebugLoader.IS_OLD_IE_) {
-          var state = " onreadystatechange='goog.debugLoader_.onScriptLoad_(this, " + ++this.lastNonModuleScriptIndex_ + ")' ";
-          doc.write('<script type="text/javascript" src="' + src + '"' + state + ">\x3c/script>");
-        } else {
-          goog.ENABLE_CHROME_APP_SAFE_SCRIPT_LOADING ? this.appendScriptSrcNode_(src) : this.writeScriptSrcNode_(src);
-        }
-      } else {
-        doc.write('<script type="text/javascript">' + this.protectScriptTag_(opt_sourceText) + "\x3c/script>");
-      }
-      return !0;
-    }
-    return !1;
-  };
-  goog.DebugLoader.prototype.protectScriptTag_ = function(str) {
-    return str.replace(/<\/(SCRIPT)/ig, "\\x3c/$1");
-  };
-  goog.DebugLoader.prototype.getPathFromDeps_ = function(rule) {
-    return rule in this.dependencies_.nameToPath ? this.dependencies_.nameToPath[rule] : null;
-  };
-  goog.DebugLoader.prototype.getTranspiler = function() {
-    return goog.transpiler_;
-  };
-  goog.DebugLoader.prototype.isProvided = function(namespaceOrPath) {
-    return goog.isProvided_(namespaceOrPath);
-  };
-  goog.DebugLoader.prototype.inHtmlDocument = function() {
-    return goog.inHtmlDocument_();
-  };
-  goog.DebugLoader.prototype.logToConsole = function(message) {
-    goog.logToConsole_(message);
-  };
-  goog.debugLoader_ = null;
-  goog.registerDebugLoader = function(loader) {
-    if (goog.debugLoader_) {
-      throw Error("Debug loader already registered!");
-    }
-    if (!(loader instanceof goog.DebugLoader)) {
-      throw Error("Not a goog.DebugLoader.");
-    }
-    goog.debugLoader_ = loader;
-  };
-  goog.getLoader_ = function() {
-    if (!goog.debugLoader_ && goog.DEBUG_LOADER) {
-      throw Error("Loaded debug loader file but no loader was registered!");
-    }
-    goog.debugLoader_ || (goog.debugLoader_ = new goog.DebugLoader);
-    return goog.debugLoader_;
-  };
-  var tempLoader$jscomp$inline_6;
-  goog.DEBUG_LOADER && (tempLoader$jscomp$inline_6 = new goog.DebugLoader, tempLoader$jscomp$inline_6.importScript_(goog.basePath + goog.DEBUG_LOADER));
-  goog.global.CLOSURE_NO_DEPS || (tempLoader$jscomp$inline_6 = tempLoader$jscomp$inline_6 || new goog.DebugLoader, goog.DEBUG_LOADER || goog.registerDebugLoader(tempLoader$jscomp$inline_6), tempLoader$jscomp$inline_6.importScript_(goog.basePath + "deps.js"));
-}
-;goog.debug = {};
+goog.debug = {};
 goog.debug.Error = function(opt_msg) {
   if (Error.captureStackTrace) {
     Error.captureStackTrace(this, goog.debug.Error);
@@ -2315,8 +2094,11 @@ goog.userAgent.BROWSER_KNOWN_ = goog.userAgent.ASSUME_IE || goog.userAgent.ASSUM
 goog.userAgent.getUserAgentString = function() {
   return goog.labs.userAgent.util.getUserAgent();
 };
-goog.userAgent.getNavigator = function() {
+goog.userAgent.getNavigatorTyped = function() {
   return goog.global.navigator || null;
+};
+goog.userAgent.getNavigator = function() {
+  return goog.userAgent.getNavigatorTyped();
 };
 goog.userAgent.OPERA = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_OPERA : goog.labs.userAgent.browser.isOpera();
 goog.userAgent.IE = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_IE : goog.labs.userAgent.browser.isIE();
@@ -2330,7 +2112,7 @@ goog.userAgent.isMobile_ = function() {
 goog.userAgent.MOBILE = goog.userAgent.ASSUME_MOBILE_WEBKIT || goog.userAgent.isMobile_();
 goog.userAgent.SAFARI = goog.userAgent.WEBKIT;
 goog.userAgent.determinePlatform_ = function() {
-  var navigator = goog.userAgent.getNavigator();
+  var navigator = goog.userAgent.getNavigatorTyped();
   return navigator && navigator.platform || "";
 };
 goog.userAgent.PLATFORM = goog.userAgent.determinePlatform_();
@@ -2350,7 +2132,7 @@ goog.userAgent.isLegacyLinux_ = function() {
 };
 goog.userAgent.LINUX = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_LINUX : goog.userAgent.isLegacyLinux_();
 goog.userAgent.isX11_ = function() {
-  var navigator = goog.userAgent.getNavigator();
+  var navigator = goog.userAgent.getNavigatorTyped();
   return !!navigator && goog.string.contains(navigator.appVersion || "", "X11");
 };
 goog.userAgent.X11 = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_X11 : goog.userAgent.isX11_();
@@ -2408,8 +2190,8 @@ goog.userAgent.isDocumentModeOrHigher = function(documentMode) {
 };
 goog.userAgent.isDocumentMode = goog.userAgent.isDocumentModeOrHigher;
 var JSCompiler_inline_result$jscomp$5;
-var doc$jscomp$inline_8 = goog.global.document, mode$jscomp$inline_9 = goog.userAgent.getDocumentMode_();
-JSCompiler_inline_result$jscomp$5 = doc$jscomp$inline_8 && goog.userAgent.IE ? mode$jscomp$inline_9 || ("CSS1Compat" == doc$jscomp$inline_8.compatMode ? parseInt(goog.userAgent.VERSION, 10) : 5) : void 0;
+var doc$jscomp$inline_6 = goog.global.document, mode$jscomp$inline_7 = goog.userAgent.getDocumentMode_();
+JSCompiler_inline_result$jscomp$5 = doc$jscomp$inline_6 && goog.userAgent.IE ? mode$jscomp$inline_7 || ("CSS1Compat" == doc$jscomp$inline_6.compatMode ? parseInt(goog.userAgent.VERSION, 10) : 5) : void 0;
 goog.userAgent.DOCUMENT_MODE = JSCompiler_inline_result$jscomp$5;
 goog.dom.BrowserFeature = {CAN_ADD_NAME_OR_TYPE_ATTRIBUTES:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), CAN_USE_CHILDREN_ATTRIBUTE:!goog.userAgent.GECKO && !goog.userAgent.IE || goog.userAgent.IE && goog.userAgent.isDocumentModeOrHigher(9) || goog.userAgent.GECKO && goog.userAgent.isVersionOrHigher("1.9.1"), CAN_USE_INNER_TEXT:goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), CAN_USE_PARENT_ELEMENT_PROPERTY:goog.userAgent.IE || goog.userAgent.OPERA || goog.userAgent.WEBKIT, 
 INNER_HTML_NEEDS_SCOPED_ELEMENT:goog.userAgent.IE, LEGACY_IE_RANGES:goog.userAgent.IE && !goog.userAgent.isDocumentModeOrHigher(9)};
@@ -2761,18 +2543,24 @@ goog.i18n.bidi.detectRtlDirectionality = function(str, opt_isHtml) {
   return goog.i18n.bidi.estimateDirection(str, opt_isHtml) == goog.i18n.bidi.Dir.RTL;
 };
 goog.i18n.bidi.setElementDirAndAlign = function(element, dir) {
-  element && (dir = goog.i18n.bidi.toDir(dir)) && (element.style.textAlign = dir == goog.i18n.bidi.Dir.RTL ? goog.i18n.bidi.RIGHT : goog.i18n.bidi.LEFT, element.dir = dir == goog.i18n.bidi.Dir.RTL ? "rtl" : "ltr");
+  if (element) {
+    var htmlElement = element;
+    if (dir = goog.i18n.bidi.toDir(dir)) {
+      htmlElement.style.textAlign = dir == goog.i18n.bidi.Dir.RTL ? goog.i18n.bidi.RIGHT : goog.i18n.bidi.LEFT, htmlElement.dir = dir == goog.i18n.bidi.Dir.RTL ? "rtl" : "ltr";
+    }
+  }
 };
 goog.i18n.bidi.setElementDirByTextDirectionality = function(element, text) {
+  var htmlElement = element;
   switch(goog.i18n.bidi.estimateDirection(text)) {
     case goog.i18n.bidi.Dir.LTR:
-      element.dir = "ltr";
+      htmlElement.dir = "ltr";
       break;
     case goog.i18n.bidi.Dir.RTL:
-      element.dir = "rtl";
+      htmlElement.dir = "rtl";
       break;
     default:
-      element.removeAttribute("dir");
+      htmlElement.removeAttribute("dir");
   }
 };
 goog.i18n.bidi.DirectionalString = function() {
@@ -2869,7 +2657,7 @@ goog.html.SafeUrl.unwrap = function(safeUrl) {
 goog.html.SafeUrl.fromConstant = function(url) {
   return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.string.Const.unwrap(url));
 };
-goog.html.SAFE_MIME_TYPE_PATTERN_ = /^(?:audio\/(?:3gpp|3gpp2|aac|midi|mp4|mpeg|ogg|x-m4a|x-wav|webm)|image\/(?:bmp|gif|jpeg|jpg|png|tiff|webp)|text\/csv|video\/(?:mpeg|mp4|ogg|webm))$/i;
+goog.html.SAFE_MIME_TYPE_PATTERN_ = /^(?:audio\/(?:3gpp|3gpp2|aac|midi|mp4|mpeg|ogg|x-m4a|x-wav|webm)|image\/(?:bmp|gif|jpeg|jpg|png|tiff|webp)|text\/csv|video\/(?:mpeg|mp4|ogg|webm|quicktime))$/i;
 goog.html.SafeUrl.fromBlob = function(blob) {
   var url = goog.html.SAFE_MIME_TYPE_PATTERN_.test(blob.type) ? goog.fs.url.createObjectUrl(blob) : goog.html.SafeUrl.INNOCUOUS_STRING;
   return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
@@ -3342,11 +3130,11 @@ goog.dom.safe.setFormElementAction = function(form, url) {
 };
 goog.dom.safe.setButtonFormAction = function(button, url) {
   var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  goog.dom.asserts.assertIsHTMLButtonElement(button).formaction = goog.html.SafeUrl.unwrap(safeUrl);
+  goog.dom.asserts.assertIsHTMLButtonElement(button).formAction = goog.html.SafeUrl.unwrap(safeUrl);
 };
 goog.dom.safe.setInputFormAction = function(input, url) {
   var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  goog.dom.asserts.assertIsHTMLInputElement(input).formaction = goog.html.SafeUrl.unwrap(safeUrl);
+  goog.dom.asserts.assertIsHTMLInputElement(input).formAction = goog.html.SafeUrl.unwrap(safeUrl);
 };
 goog.dom.safe.setStyle = function(elem, style) {
   elem.style.cssText = goog.html.SafeStyle.unwrap(style);
@@ -4329,10 +4117,11 @@ goog.dom.getAncestor = function(element, matcher, opt_includeNode, opt_maxSearch
 };
 goog.dom.getActiveElement = function(doc) {
   try {
-    return doc && doc.activeElement;
+    var activeElement = doc && doc.activeElement;
+    return activeElement && activeElement.nodeName ? activeElement : null;
   } catch (e) {
+    return null;
   }
-  return null;
 };
 goog.dom.getPixelRatio = function() {
   var win = goog.dom.getWindow();
@@ -4786,7 +4575,7 @@ goog.async.run = function(callback, opt_context) {
   goog.async.run.workQueue_.add(callback, opt_context);
 };
 goog.async.run.initializeRunner_ = function() {
-  if (-1 != String(goog.global.Promise).indexOf("[native code]")) {
+  if (goog.global.Promise && goog.global.Promise.resolve) {
     var promise = goog.global.Promise.resolve(void 0);
     goog.async.run.schedule_ = function() {
       promise.then(goog.async.run.processWorkQueue);
@@ -5351,6 +5140,9 @@ goog.Disposable.prototype.dispose = function() {
     if (goog.Disposable.MONITORING_MODE == goog.Disposable.MonitoringMode.PERMANENT && !goog.Disposable.instances_.hasOwnProperty(uid)) {
       throw Error(this + " did not call the goog.Disposable base constructor or was disposed of after a clearUndisposedObjects call");
     }
+    if (goog.Disposable.MONITORING_MODE != goog.Disposable.MonitoringMode.OFF && this.onDisposeCallbacks_ && 0 < this.onDisposeCallbacks_.length) {
+      throw Error(this + " did not empty its onDisposeCallbacks queue. This probably means it overrode dispose() or disposeInternal() without calling the superclass' method.");
+    }
     delete goog.Disposable.instances_[uid];
   }
 };
@@ -5419,7 +5211,7 @@ goog.events.getVendorPrefixedName_ = function(eventName) {
   return goog.userAgent.WEBKIT ? "webkit" + eventName : goog.userAgent.OPERA ? "o" + eventName.toLowerCase() : eventName.toLowerCase();
 };
 goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", SELECTIONCHANGE:"selectionchange", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:"focusin", FOCUSOUT:"focusout", CHANGE:"change", RESET:"reset", 
-SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", DOMCONTENTLOADED:"DOMContentLoaded", 
+SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICECHANGE:"devicechange", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", DOMCONTENTLOADED:"DOMContentLoaded", 
 ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", CANPLAY:"canplay", CANPLAYTHROUGH:"canplaythrough", DURATIONCHANGE:"durationchange", EMPTIED:"emptied", ENDED:"ended", LOADEDDATA:"loadeddata", LOADEDMETADATA:"loadedmetadata", PAUSE:"pause", PLAY:"play", PLAYING:"playing", RATECHANGE:"ratechange", SEEKED:"seeked", SEEKING:"seeking", STALLED:"stalled", SUSPEND:"suspend", 
 TIMEUPDATE:"timeupdate", VOLUMECHANGE:"volumechange", WAITING:"waiting", SOURCEOPEN:"sourceopen", SOURCEENDED:"sourceended", SOURCECLOSED:"sourceclosed", ABORT:"abort", UPDATE:"update", UPDATESTART:"updatestart", UPDATEEND:"updateend", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", 
 INSTALL:"install", ACTIVATE:"activate", FETCH:"fetch", FOREIGNFETCH:"foreignfetch", MESSAGEERROR:"messageerror", STATECHANGE:"statechange", UPDATEFOUND:"updatefound", CONTROLLERCHANGE:"controllerchange", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), ANIMATIONITERATION:goog.events.getVendorPrefixedName_("AnimationIteration"), TRANSITIONEND:goog.events.getVendorPrefixedName_("TransitionEnd"), POINTERDOWN:"pointerdown", 
@@ -6038,14 +5830,14 @@ goog.iter.toIterator = function(iterable) {
     return iterable.__iterator__(!1);
   }
   if (goog.isArrayLike(iterable)) {
-    var i = 0, newIter = new goog.iter.Iterator;
+    var like = iterable, i = 0, newIter = new goog.iter.Iterator;
     newIter.next = function() {
       for (;;) {
-        if (i >= iterable.length) {
+        if (i >= like.length) {
           throw goog.iter.StopIteration;
         }
-        if (i in iterable) {
-          return iterable[i++];
+        if (i in like) {
+          return like[i++];
         }
         i++;
       }
@@ -6093,7 +5885,7 @@ goog.iter.filterFalse = function(iterable, f, opt_obj) {
 };
 goog.iter.range = function(startOrStop, opt_stop, opt_step) {
   var start = 0, stop = startOrStop, step = opt_step || 1;
-  1 < arguments.length && (start = startOrStop, stop = opt_stop);
+  1 < arguments.length && (start = startOrStop, stop = +opt_stop);
   if (0 == step) {
     throw Error("Range step argument must not be zero");
   }
@@ -7934,7 +7726,7 @@ goog.net.XhrIo.prototype.getResponseHeader = function(key) {
   }
 };
 goog.net.XhrIo.prototype.getAllResponseHeaders = function() {
-  return this.xhr_ && this.isComplete() ? this.xhr_.getAllResponseHeaders() : "";
+  return this.xhr_ && this.isComplete() ? this.xhr_.getAllResponseHeaders() || "" : "";
 };
 goog.net.XhrIo.prototype.formatMsg_ = function(msg) {
   return msg + " [" + this.lastMethod_ + " " + this.lastUri_ + " " + this.getStatus() + "]";

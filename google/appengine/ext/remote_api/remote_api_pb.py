@@ -44,6 +44,8 @@ class Request(ProtocolBuffer.ProtocolMessage):
   request_ = ""
   has_request_id_ = 0
   request_id_ = ""
+  has_trace_context_ = 0
+  trace_context_ = ""
 
   def __init__(self, contents=None):
     if contents is not None: self.MergeFromString(contents)
@@ -100,6 +102,19 @@ class Request(ProtocolBuffer.ProtocolMessage):
 
   def has_request_id(self): return self.has_request_id_
 
+  def trace_context(self): return self.trace_context_
+
+  def set_trace_context(self, x):
+    self.has_trace_context_ = 1
+    self.trace_context_ = x
+
+  def clear_trace_context(self):
+    if self.has_trace_context_:
+      self.has_trace_context_ = 0
+      self.trace_context_ = ""
+
+  def has_trace_context(self): return self.has_trace_context_
+
 
   def MergeFrom(self, x):
     assert x is not self
@@ -107,6 +122,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
     if (x.has_method()): self.set_method(x.method())
     if (x.has_request()): self.set_request(x.request())
     if (x.has_request_id()): self.set_request_id(x.request_id())
+    if (x.has_trace_context()): self.set_trace_context(x.trace_context())
 
   def Equals(self, x):
     if x is self: return 1
@@ -118,6 +134,8 @@ class Request(ProtocolBuffer.ProtocolMessage):
     if self.has_request_ and self.request_ != x.request_: return 0
     if self.has_request_id_ != x.has_request_id_: return 0
     if self.has_request_id_ and self.request_id_ != x.request_id_: return 0
+    if self.has_trace_context_ != x.has_trace_context_: return 0
+    if self.has_trace_context_ and self.trace_context_ != x.trace_context_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -142,6 +160,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
     n += self.lengthString(len(self.method_))
     n += self.lengthString(len(self.request_))
     if (self.has_request_id_): n += 1 + self.lengthString(len(self.request_id_))
+    if (self.has_trace_context_): n += 1 + self.lengthString(len(self.trace_context_))
     return n + 3
 
   def ByteSizePartial(self):
@@ -156,6 +175,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
       n += 1
       n += self.lengthString(len(self.request_))
     if (self.has_request_id_): n += 1 + self.lengthString(len(self.request_id_))
+    if (self.has_trace_context_): n += 1 + self.lengthString(len(self.trace_context_))
     return n
 
   def Clear(self):
@@ -163,6 +183,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
     self.clear_method()
     self.clear_request()
     self.clear_request_id()
+    self.clear_trace_context()
 
   def OutputUnchecked(self, out):
     out.putVarInt32(18)
@@ -174,6 +195,9 @@ class Request(ProtocolBuffer.ProtocolMessage):
     if (self.has_request_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.request_id_)
+    if (self.has_trace_context_):
+      out.putVarInt32(50)
+      out.putPrefixedString(self.trace_context_)
 
   def OutputPartial(self, out):
     if (self.has_service_name_):
@@ -188,6 +212,9 @@ class Request(ProtocolBuffer.ProtocolMessage):
     if (self.has_request_id_):
       out.putVarInt32(42)
       out.putPrefixedString(self.request_id_)
+    if (self.has_trace_context_):
+      out.putVarInt32(50)
+      out.putPrefixedString(self.trace_context_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -204,6 +231,9 @@ class Request(ProtocolBuffer.ProtocolMessage):
       if tt == 42:
         self.set_request_id(d.getPrefixedString())
         continue
+      if tt == 50:
+        self.set_trace_context(d.getPrefixedString())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
@@ -216,6 +246,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
     if self.has_method_: res+=prefix+("method: %s\n" % self.DebugFormatString(self.method_))
     if self.has_request_: res+=prefix+("request: %s\n" % self.DebugFormatString(self.request_))
     if self.has_request_id_: res+=prefix+("request_id: %s\n" % self.DebugFormatString(self.request_id_))
+    if self.has_trace_context_: res+=prefix+("trace_context: %s\n" % self.DebugFormatString(self.trace_context_))
     return res
 
 
@@ -226,6 +257,7 @@ class Request(ProtocolBuffer.ProtocolMessage):
   kmethod = 3
   krequest = 4
   krequest_id = 5
+  ktrace_context = 6
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
@@ -233,7 +265,8 @@ class Request(ProtocolBuffer.ProtocolMessage):
     3: "method",
     4: "request",
     5: "request_id",
-  }, 5)
+    6: "trace_context",
+  }, 6)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -241,7 +274,8 @@ class Request(ProtocolBuffer.ProtocolMessage):
     3: ProtocolBuffer.Encoder.STRING,
     4: ProtocolBuffer.Encoder.STRING,
     5: ProtocolBuffer.Encoder.STRING,
-  }, 5, ProtocolBuffer.Encoder.MAX_TYPE)
+    6: ProtocolBuffer.Encoder.STRING,
+  }, 6, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

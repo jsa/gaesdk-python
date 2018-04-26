@@ -122,9 +122,10 @@ _WHITE_LIST_C_MODULES = [
     'zlib',
 ]
 
-WIN_ONLY_WHITELISTS = ['_winreg', '_ctypes']
+WIN_ONLY_WHITELISTS = ['_winreg', '_ctypes', 'msvcrt']
 if sys.platform.startswith('win'):
   # platform.system() dependes on _winreg and _ctypes on windows.
+  # Click (a Flask dependency) depends on msvcrt on windows.
 
 
 

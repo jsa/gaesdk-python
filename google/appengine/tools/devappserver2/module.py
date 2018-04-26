@@ -429,37 +429,40 @@ class Module(object):
         config_changed=bool(config_changes & _RESTART_INSTANCES_CONFIG_CHANGES),
         file_changed=bool(file_changes))
 
-  def __init__(self,
-               module_configuration,
-               host,
-               balanced_port,
-               api_host,
-               api_port,
-               auth_domain,
-               runtime_stderr_loglevel,
+  def __init__(
+      self,
+      module_configuration,
+      host,
+      balanced_port,
+      api_host,
+      api_port,
+      auth_domain,
+      runtime_stderr_loglevel,
 
 
 
 
 
-               php_config,
-               python_config,
-               java_config,
-               go_config,
-               custom_config,
-               cloud_sql_config,
-               vm_config,
-               default_version_port,
-               port_registry,
-               request_data,
-               dispatcher,
-               max_instances,
-               use_mtime_file_watcher,
-               watcher_ignore_re,
-               automatic_restarts,
-               allow_skipped_files,
-               threadsafe_override,
-               enable_host_checking=True):
+      php_config,
+      python_config,
+      java_config,
+      go_config,
+      custom_config,
+      cloud_sql_config,
+      vm_config,
+      default_version_port,
+      port_registry,
+      request_data,
+      dispatcher,
+      max_instances,
+      use_mtime_file_watcher,
+      watcher_ignore_re,
+      automatic_restarts,
+      allow_skipped_files,
+      threadsafe_override,
+      enable_host_checking=True,
+      ssl_certificate_paths=None,
+      ssl_port=None):
     """Initializer for Module.
     Args:
       module_configuration: An application_configuration.ModuleConfiguration
@@ -520,6 +523,11 @@ class Module(object):
           and use this value instead.
       enable_host_checking: A bool indicating that HTTP Host checking should
           be enforced for incoming requests.
+      ssl_certificate_paths: A ssl_utils.SSLCertificatePaths instance. If
+          not None, the module's wsgi server will be launched with SSL. Must
+          also specify ssl_port.
+      ssl_port: An additional port to bind to for SSL connections. Must be
+          specified if ssl_certificate_paths is specified.
     Raises:
       errors.InvalidAppConfigError: For runtime: custom, either mistakenly set
         both --custom_entrypoint and --runtime or neither.
@@ -555,6 +563,7 @@ class Module(object):
     self._watcher_ignore_re = watcher_ignore_re
     self._default_version_port = default_version_port
     self._port_registry = port_registry
+    self._ssl_port = ssl_port
 
     if self.effective_runtime == 'custom':
       if self._custom_config.runtime and self._custom_config.custom_entrypoint:
@@ -590,8 +599,10 @@ class Module(object):
       wsgi_module = wsgi_server.WsgiHostCheck([self._host], self)
     else:
       wsgi_module = self
+
     self._balanced_module = wsgi_server.WsgiServer(
-        (self._host, self._balanced_port), wsgi_module)
+        (self._host, self._balanced_port), wsgi_module,
+        ssl_certificate_paths, self._ssl_port)
 
     self._quit_event = threading.Event()  # Set when quit() has been called.
 
@@ -894,6 +905,31 @@ class Module(object):
         for handler in handlers:
           match = handler.match(path_info)
           if match:
+            # Only check secure: if module was configured to run with SSL
+            if self._ssl_port:
+              if (handler.url_map.secure == 'always' and
+                  environ['wsgi.url_scheme'] != 'https'):
+                # Since secure: was set to 'always', redirect to the https
+                # version of the url
+                start_response('302 Found', [('Location',
+                                              util.construct_url_from_environ(
+                                                  environ,
+                                                  secure=True,
+                                                  include_query_params=True,
+                                                  port=self._ssl_port))])
+                return []
+              elif (handler.url_map.secure == 'never' and
+                    environ['wsgi.url_scheme'] != 'http'):
+                # Since secure: was set to 'never', redirect to the http version
+                # of the url, but without the query params
+                start_response('302 Found', [('Location',
+                                              util.construct_url_from_environ(
+                                                  environ,
+                                                  secure=False,
+                                                  include_query_params=False,
+                                                  port=self._balanced_port))])
+                return []
+
             auth_failure = handler.handle_authorization(environ,
                                                         wrapped_start_response)
             if auth_failure is not None:
@@ -1283,6 +1319,8 @@ class AutoScalingModule(Module):
     """Start background management of the Module."""
     self._balanced_module.start()
     self._port_registry.add(self.balanced_port, self, None)
+    if self._ssl_port:
+      self._port_registry.add(self._ssl_port, self, None)
     if self._watcher:
       self._watcher.start()
     self.report_start_metrics()
@@ -1659,6 +1697,8 @@ class ManualScalingModule(Module):
     """Start background management of the Module."""
     self._balanced_module.start()
     self._port_registry.add(self.balanced_port, self, None)
+    if self._ssl_port:
+      self._port_registry.add(self._ssl_port, self, None)
     if self._watcher:
       self._watcher.start()
     self._change_watcher_thread.start()
@@ -2096,6 +2136,8 @@ class ExternalModule(Module):
     """Start background management of the Module."""
     self._balanced_module.start()
     self._port_registry.add(self.balanced_port, self, None)
+    if self._ssl_port:
+      self._port_registry.add(self._ssl_port, self, None)
     if self._watcher:
       self._watcher.start()
     self._change_watcher_thread.start()
@@ -2469,6 +2511,8 @@ class BasicScalingModule(Module):
     """Start background management of the Module."""
     self._balanced_module.start()
     self._port_registry.add(self.balanced_port, self, None)
+    if self._ssl_port:
+      self._port_registry.add(self._ssl_port, self, None)
     if self._watcher:
       self._watcher.start()
     self._change_watcher_thread.start()

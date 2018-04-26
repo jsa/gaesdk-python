@@ -110,6 +110,13 @@ class Paths(object):
     self.dir_path = dir_path
 
 
+
+
+
+
+    self.grpc_path = os.path.join(dir_path, 'lib', 'grpcio-1.9.1')
+
+
     self.v1_extra_paths = [
         dir_path,
         os.path.join(dir_path, 'lib', 'antlr3'),
@@ -120,7 +127,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'protorpc-1.0'),
         os.path.join(dir_path, 'lib', 'webob_0_9'),
         os.path.join(dir_path, 'lib', 'webapp2-2.5.2'),
-        os.path.join(dir_path, 'lib', 'yaml', 'lib'),
+        os.path.join(dir_path, 'lib', 'yaml-3.10'),
         os.path.join(dir_path, 'lib', 'simplejson'),
 
         os.path.join(dir_path, 'lib', 'rsa'),
@@ -136,7 +143,12 @@ class Paths(object):
       ])
 
     self.api_server_extra_paths = [
-        os.path.join(dir_path, 'lib', 'argparse'),
+
+        os.path.join(dir_path, 'lib', 'cherrypy'),
+        os.path.join(dir_path, 'lib', 'concurrent'),
+        os.path.join(dir_path, 'lib', 'ipaddr'),
+        os.path.join(dir_path, 'lib', 'portpicker'),
+        self.grpc_path,
     ]
 
 
@@ -229,12 +241,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'jinja2-2.6'),
         os.path.join(dir_path, 'lib', 'webob-1.2.3'),
         os.path.join(dir_path, 'lib', 'webapp2-2.5.1'),
-
-
-
-
-
-        os.path.join(dir_path, 'lib', 'grpcio-1.9.1'),
+        self.grpc_path,
     ]
 
 
@@ -285,6 +292,7 @@ class Paths(object):
     }
 
     self._wrapper_name_to_real_name = {
+        'api_server.py': 'api_server.py',
         'dev_appserver.py': 'devappserver2.py',
 
 
@@ -302,6 +310,7 @@ class Paths(object):
         dir_path, 'google', 'storage', 'speckle', 'python', 'tool')
 
     self._script_to_dir = {
+        'api_server.py': devappserver2_dir,
         'dev_appserver.py': devappserver2_dir,
 
 

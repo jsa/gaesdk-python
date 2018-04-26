@@ -178,7 +178,7 @@ SERVICE_ACCOUNT_BASE = (
 
 APP_YAML_FILENAME = 'app.yaml'
 
-GCLOUD_ONLY_RUNTIMES = set(['custom', 'nodejs'])
+GCLOUD_ONLY_RUNTIMES = set(['custom', 'nodejs', 'nodejs8', 'php72'])
 
 
 
@@ -3362,10 +3362,6 @@ class AppCfgApp(object):
       best_context = context_util.BestSourceContext(source_contexts)
       context_file_map[context_util.CONTEXT_FILENAME] = json.dumps(
           best_context)
-    if not os.path.exists(
-        os.path.join(basepath, context_util.EXT_CONTEXT_FILENAME)):
-      context_file_map[context_util.EXT_CONTEXT_FILENAME] = json.dumps(
-          source_contexts)
     base_openfunc = openfunc
     def OpenWithContext(name):
       if name in context_file_map:

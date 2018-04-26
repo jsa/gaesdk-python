@@ -50,6 +50,7 @@ import tempfile
 import threading
 import time
 import traceback
+import urllib2
 import urlparse
 
 import google
@@ -87,30 +88,8 @@ GLOBAL_API_LOCK = threading.RLock()
 DEFAULT_API_SERVER_APP_ID = 'dev~app-id'
 
 
-# TODO: Remove after the Files API is really gone.
-_FILESAPI_USE_TRACKER = None
-_FILESAPI_ENABLED = True
-
-
 class DatastoreFileError(Exception):
   """A datastore data file is not supported."""
-
-
-def enable_filesapi_tracking(request_data):
-  """Turns on per-request tracking of Files API use.
-
-  Args:
-    request_data: An object with a set_filesapi_used(request_id) method to
-        track Files API use.
-  """
-  global _FILESAPI_USE_TRACKER
-  _FILESAPI_USE_TRACKER = request_data
-
-
-def set_filesapi_enabled(enabled):
-  """Enables or disables the Files API."""
-  global _FILESAPI_ENABLED
-  _FILESAPI_ENABLED = enabled
 
 
 def _execute_request(request, use_proto3=False):
@@ -162,13 +141,6 @@ def _execute_request(request, use_proto3=False):
     raise apiproxy_errors.CallNotFoundError('%s.%s does not exist' % (service,
                                                                       method))
 
-  # TODO: Remove after the Files API is really gone.
-  if not _FILESAPI_ENABLED and service == 'file':
-    raise apiproxy_errors.CallNotFoundError(
-        'Files API method %s.%s is disabled. Further information: '
-        'https://cloud.google.com/appengine/docs/deprecations/files_api'
-        % (service, method))
-
   request_data = request_class()
   if use_proto3:
     request_data.ParseFromString(request.request)
@@ -178,10 +150,6 @@ def _execute_request(request, use_proto3=False):
   service_stub = apiproxy_stub_map.apiproxy.GetStub(service)
 
   def make_request():
-    # TODO: Remove after the Files API is really gone.
-    if (_FILESAPI_USE_TRACKER is not None
-        and service == 'file' and request_id is not None):
-      _FILESAPI_USE_TRACKER.set_filesapi_used(request_id)
     service_stub.MakeSyncCall(service,
                               method,
                               request_data,
@@ -202,6 +170,37 @@ def _execute_request(request, use_proto3=False):
   logging.debug('API server responding with remote_api_pb.Response: \n%s',
                 response_data)
   return response_data
+
+
+class _LocalJavaAppDispatcher(request_info_lib._LocalFakeDispatcher):  # pylint: disable=protected-access
+  """Dispatcher that sends HTTP requests to a Java app engine app."""
+
+  def __init__(self,
+               module_names=None,
+               module_name_to_versions=None,
+               module_name_to_default_versions=None,
+               module_name_to_version_to_hostname=None,
+               java_app_base_url=None):
+    super(_LocalJavaAppDispatcher, self).__init__(
+        module_names, module_name_to_versions, module_name_to_default_versions,
+        module_name_to_version_to_hostname)
+    self.java_app_base_url = java_app_base_url
+
+  def add_request(self,
+                  method,
+                  relative_url,
+                  headers,
+                  body,
+                  source_ip,
+                  module_name=None,
+                  version=None,
+                  instance_id=None):
+    request = urllib2.Request(
+        url=self.java_app_base_url + relative_url,
+        data=body,
+        headers=dict(headers))
+    response = urllib2.urlopen(request)
+    return request_info_lib.ResponseTuple(str(response.getcode()), [], '')
 
 
 class APIServer(wsgi_server.WsgiServer):
@@ -394,7 +393,8 @@ class APIServer(wsgi_server.WsgiServer):
     # TODO: Add more services as needed.
     clearable_stubs = [
         'app_identity_service', 'capability_service', 'datastore_v3',
-        'logservice', 'mail', 'memcache']
+        'logservice', 'mail', 'memcache', 'taskqueue'
+    ]
     stubs_to_clear = urlparse.parse_qs(environ.get('QUERY_STRING')).get('stub')
 
     if stubs_to_clear:
@@ -582,16 +582,16 @@ def create_api_server(
     else:
       gcd_emulator_launching_thread = _launch_gcd_emulator(
           app_id=app_id,
-          emulator_port=(
-              options.gcd_emulator_port if options.gcd_emulator_port else
-              portpicker.PickUnusedPort()),
+          emulator_port=(options.datastore_emulator_port
+                         if options.datastore_emulator_port else
+                         portpicker.PickUnusedPort()),
           silent=options.dev_appserver_log_level != 'debug',
           index_file=os.path.join(app_root, 'index.yaml'),
           require_indexes=options.require_indexes,
           datastore_path=datastore_path,
           stub_type=stub_type,
-          cmd=options.gcd_emulator_cmd,
-          is_test=options.gcd_emulator_is_test_mode)
+          cmd=options.datastore_emulator_cmd,
+          is_test=options.datastore_emulator_is_test_mode)
   else:
     # Use SQLite stub.
     # For historic reason we are still supporting conversion from file stub to
@@ -760,9 +760,18 @@ def main():
   util.setup_environ(app_id)
 
   # pylint: disable=protected-access
-  # TODO: Rename LocalFakeDispatcher or re-implement for api_server.py.
-  request_info = wsgi_request_info.WSGIRequestInfo(
-      request_info_lib._LocalFakeDispatcher())
+  if options.java_app_base_url:
+    # If the user specified a java_app_base_url, then the actual app is running
+    # via the classic Java SDK, so we use the appropriate dispatcher that will
+    # send requests to the Java app rather than forward them internally to a
+    # devappserver2 module.
+    dispatcher = _LocalJavaAppDispatcher(
+        java_app_base_url=options.java_app_base_url)
+  else:
+    # TODO: Rename LocalFakeDispatcher or re-implement for
+    # api_server.py.
+    dispatcher = request_info_lib._LocalFakeDispatcher()
+  request_info = wsgi_request_info.WSGIRequestInfo(dispatcher)
   # pylint: enable=protected-access
 
   server = create_api_server(

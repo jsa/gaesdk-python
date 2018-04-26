@@ -171,7 +171,10 @@ ALTERNATE_HOSTNAME_SEPARATOR = '-dot-'
 
 BUILTIN_NAME_PREFIX = 'ah-builtin'
 
-RUNTIME_RE_STRING = r'[a-z][a-z0-9\-]{0,29}'
+
+
+
+RUNTIME_RE_STRING = r'((gs://[a-z0-9\-\._/]+)|([a-z][a-z0-9\-\.]{0,29}))'
 
 API_VERSION_RE_STRING = r'[\w.]{1,32}'
 ENV_RE_STRING = r'(1|2|standard|flex|flexible)'
@@ -254,6 +257,7 @@ VERSION = 'version'
 MAJOR_VERSION = 'major_version'
 MINOR_VERSION = 'minor_version'
 RUNTIME = 'runtime'
+RUNTIME_CHANNEL = 'runtime_channel'
 API_VERSION = 'api_version'
 ENDPOINTS_API_SERVICE = 'endpoints_api_service'
 ENV = 'env'
@@ -605,9 +609,10 @@ _SUPPORTED_LIBRARIES = [
         'pytz',
         'https://pypi.python.org/pypi/pytz?',
         'A library for cross-platform timezone calculations',
-        ['2016.4', '2017.2'],
+        ['2016.4', '2017.2', '2017.3'],
         latest_version='2017.2',
         default_version='2017.2',
+        hidden_versions=['2017.3'],
         ),
     _VersionedLibrary(
         'crcmod',
@@ -2234,6 +2239,7 @@ class AppInfoExternal(validation.Validated):
                                     validation.Optional(MODULE_ID_RE_STRING)),
       VERSION: validation.Optional(MODULE_VERSION_ID_RE_STRING),
       RUNTIME: validation.Optional(RUNTIME_RE_STRING),
+      RUNTIME_CHANNEL: validation.Optional(validation.Type(str)),
 
 
       API_VERSION: validation.Optional(API_VERSION_RE_STRING),
@@ -2326,10 +2332,6 @@ class AppInfoExternal(validation.Validated):
 
 
       self.runtime = 'custom'
-    if (not self.handlers and not self.builtins and not self.includes
-        and not self.IsVm()):
-      raise appinfo_errors.MissingURLMapping(
-          'No URLMap entries found in application configuration')
     if self.handlers and len(self.handlers) > MAX_URL_MAPS:
       raise appinfo_errors.TooManyURLMappings(
           'Found more than %d URLMap entries in application configuration' %
@@ -2725,7 +2727,7 @@ _file_path_negative_2_re = re.compile(r'//|/$')
 
 
 
-_file_path_negative_3_re = re.compile(r'^ | $|/ | /|\n')
+_file_path_negative_3_re = re.compile(r'^ | $|/ | /|\r|\n')
 
 
 
