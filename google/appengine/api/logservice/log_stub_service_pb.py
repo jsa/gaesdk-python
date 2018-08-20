@@ -21,7 +21,10 @@ from google.net.proto import ProtocolBuffer
 import abc
 import array
 import base64
-import dummy_thread as thread
+try:
+  from thread import allocate_lock as _Lock
+except ImportError:
+  from threading import Lock as _Lock
 try:
   from google3.net.proto import _net_proto___parse__python
 except ImportError:
@@ -42,6 +45,8 @@ try:
 except ImportError:
   _server_stub_base_class = object
 
+if hasattr(__builtins__, 'xrange'): range = xrange
+
 if hasattr(ProtocolBuffer, 'ExtendableProtocolMessage'):
   _extension_runtime = True
   _ExtendableProtocolMessage = ProtocolBuffer.ExtendableProtocolMessage
@@ -60,7 +65,7 @@ class AddRequestInfoRequest(ProtocolBuffer.ProtocolMessage):
   request_log_ = None
 
   def __init__(self, contents=None):
-    self.lazy_init_lock_ = thread.allocate_lock()
+    self.lazy_init_lock_ = _Lock()
     if contents is not None: self.MergeFromString(contents)
 
   def request_log(self):
@@ -161,7 +166,7 @@ class AddRequestInfoRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -175,7 +180,7 @@ class AddRequestInfoRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   krequest_log = 1
 
@@ -206,7 +211,7 @@ class AddAppLogLineRequest(ProtocolBuffer.ProtocolMessage):
   request_id_ = ""
 
   def __init__(self, contents=None):
-    self.lazy_init_lock_ = thread.allocate_lock()
+    self.lazy_init_lock_ = _Lock()
     if contents is not None: self.MergeFromString(contents)
 
   def log_line(self):
@@ -335,7 +340,7 @@ class AddAppLogLineRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -350,7 +355,7 @@ class AddAppLogLineRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   klog_line = 1
   krequest_id = 2
@@ -835,7 +840,7 @@ class StartRequestLogRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -858,7 +863,7 @@ class StartRequestLogRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   krequest_id = 1
   kuser_request_id = 2
@@ -1081,7 +1086,7 @@ class EndRequestLogRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -1094,7 +1099,7 @@ class EndRequestLogRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   krequest_id = 1
   kstatus = 2

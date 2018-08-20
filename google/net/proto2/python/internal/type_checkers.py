@@ -66,7 +66,7 @@ def GetTypeChecker(field):
 
 
     if field.full_name == "storage_graph_bfg.Triple.obj":
-      return TypeChecker(unicode, bytes)
+      return TypeChecker(six.text_type, six.binary_type)
 
     return UnicodeValueChecker()
   if field.cpp_type == _FieldDescriptor.CPPTYPE_ENUM:

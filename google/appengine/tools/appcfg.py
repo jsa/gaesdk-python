@@ -2129,9 +2129,8 @@ class AppVersionUpload(object):
     success, unused_contents = RetryWithBackoff(
         lambda: (self.IsReady(), None), PrintRetryMessage, 1, 2, 60, 20)
     if not success:
-
       logging.warning('Version still not ready to serve, aborting.')
-      raise RuntimeError('Version not ready.')
+      raise RuntimeError('Version is not ready to serve.')
 
     result = self.StartServing()
     if not result:
@@ -2144,9 +2143,8 @@ class AppVersionUpload(object):
             'Another operation on this version is in progress.')
       success, response = RetryNoBackoff(self.IsServing, PrintRetryMessage)
       if not success:
-
         logging.warning('Version still not serving, aborting.')
-        raise RuntimeError('Version not ready.')
+        raise RuntimeError('Version failed to start serving.')
 
 
 

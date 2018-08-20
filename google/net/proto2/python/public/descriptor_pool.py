@@ -584,6 +584,23 @@ class DescriptorPool(object):
       self._FindFileContainingSymbolInDb(full_name)
     return self._service_descriptors[full_name]
 
+  def FindMethodByName(self, full_name):
+    """Loads the named service method descriptor from the pool.
+
+    Args:
+      full_name: The full name of the method descriptor to load.
+
+    Returns:
+      The method descriptor for the service method.
+
+    Raises:
+      KeyError: if the method cannot be found in the pool.
+    """
+    full_name = _NormalizeFullyQualifiedName(full_name)
+    service_name, _, method_name = full_name.rpartition('.')
+    service_descriptor = self.FindServiceByName(service_name)
+    return service_descriptor.methods_by_name[method_name]
+
   def _FindFileContainingSymbolInDb(self, symbol):
     """Finds the file in descriptor DB containing the specified symbol.
 

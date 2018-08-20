@@ -129,6 +129,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'webapp2-2.5.2'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
         os.path.join(dir_path, 'lib', 'simplejson'),
+        os.path.join(dir_path, 'lib', 'six_subset'),
 
         os.path.join(dir_path, 'lib', 'rsa'),
         os.path.join(dir_path, 'lib', 'pyasn1'),
@@ -201,6 +202,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'antlr3'),
         os.path.join(dir_path, 'lib', 'fancy_urllib'),
         os.path.join(dir_path, 'lib', 'ipaddr'),
+        os.path.join(dir_path, 'lib', 'six_subset'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
 
         os.path.join(dir_path, 'lib', 'rsa'),
@@ -256,6 +258,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'concurrent'),
         os.path.join(dir_path, 'lib', 'cherrypy'),
         os.path.join(dir_path, 'lib', 'ipaddr'),
+        os.path.join(dir_path, 'lib', 'six_subset'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
     ]
 
@@ -266,6 +269,7 @@ class Paths(object):
         os.path.join(dir_path, 'lib', 'fancy_urllib'),
         os.path.join(dir_path, 'lib', 'ipaddr'),
         os.path.join(dir_path, 'lib', 'protorpc-1.0'),
+        os.path.join(dir_path, 'lib', 'six_subset'),
         os.path.join(dir_path, 'lib', 'yaml-3.10'),
     ]
 

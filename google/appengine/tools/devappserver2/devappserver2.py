@@ -62,6 +62,10 @@ class PhpPathError(Exception):
   """
 
 
+class MissingDatastoreEmulatorError(Exception):
+  """Raised when Datastore Emulator cannot be found."""
+
+
 class DevelopmentServer(object):
   """Encapsulates the logic for the development server.
 
@@ -88,6 +92,52 @@ class DevelopmentServer(object):
         self._dispatcher.get_default_version(module_name),
         instance)
 
+  @property
+  def _can_find_datastore_emulator(self):
+    return (self._options.datastore_emulator_cmd is not None
+            and os.path.exists(self._options.datastore_emulator_cmd))
+
+  def _correct_datastore_emulator_cmd(self, value):
+    """Returns the path to cloud datastore emulator invocation script."""
+    if value:
+      return value
+    # __file__ returns <cloud-sdk>/platform/google_appengine/dev_appserver.py
+    res = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    emulator_script = (
+        'cloud_datastore_emulator.cmd' if sys.platform.startswith('win')
+        else 'cloud_datastore_emulator')
+
+    return os.path.join(res, 'cloud-datastore-emulator', emulator_script)
+
+  def _check_datastore_emulator_support(self):
+    """Flag checks for migrating to the Cloud Datastore Emulator."""
+    if (self._options.support_datastore_emulator
+        and not self._can_find_datastore_emulator):
+      raise MissingDatastoreEmulatorError(
+          'Cannot find Cloud Datastore Emulator. Please make sure that you are '
+          'using the Google Cloud SDK and have installed the Cloud Datastore '
+          'Emulator.')
+    # TODO: Once switched to opt-out, remove following message.
+    if (not self._options.support_datastore_emulator
+        and self._can_find_datastore_emulator):
+      logging.warning(
+          '*** Notice ***\nIn a few weeks dev_appserver will default to using '
+          'the Cloud Datastore Emulator. We strongly recommend you to enable '
+          'this change earlier.\n'
+          'To opt-in, run dev_appserver with the flag '
+          '--support_datastore_emulator=True\n'
+          'Read the documentation: '
+          'https://cloud.google.com/appengine/docs/standard/python/tools/migrate-cloud-datastore-emulator\n'  # pylint: disable=line-too-long
+          'Help us validate that the feature is ready by taking this survey: https://goo.gl/forms/UArIcs8K9CUSCm733\n'  # pylint: disable=line-too-long
+          'Report issues at: '
+          'https://issuetracker.google.com/issues/new?component=187272\n')
+
+  @classmethod
+  def _check_platform_support(cls, all_module_runtimes):
+    if (any(runtime.startswith('python3') for runtime in all_module_runtimes)
+        and util.is_windows()):
+      raise OSError('Dev_appserver does not support python3 apps on Windows.')
+
   def start(self, options):
     """Start devappserver2 servers based on the provided command line arguments.
 
@@ -96,8 +146,14 @@ class DevelopmentServer(object):
 
     Raises:
       PhpPathError: php executable path is not specified for php72.
+      MissingDatastoreEmulatorError: dev_appserver.py is not invoked from the right
+        directory.
     """
     self._options = options
+
+    self._options.datastore_emulator_cmd = self._correct_datastore_emulator_cmd(
+        self._options.datastore_emulator_cmd)
+    self._check_datastore_emulator_support()
 
     logging.getLogger().setLevel(
         constants.LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
@@ -108,6 +164,8 @@ class DevelopmentServer(object):
         app_id=options.app_id,
         runtime=options.runtime,
         env_variables=parsed_env_variables)
+    all_module_runtimes = {module.runtime for module in configuration.modules}
+    self._check_platform_support(all_module_runtimes)
 
     storage_path = api_server.get_storage_path(
         options.storage_path, configuration.app_id)
@@ -157,10 +215,13 @@ class DevelopmentServer(object):
       metrics_logger.Start(
           options.google_analytics_client_id,
           options.google_analytics_user_agent,
-          {module.runtime for module in configuration.modules},
+          all_module_runtimes,
           {module.env or 'standard' for module in configuration.modules},
           options.support_datastore_emulator, datastore_data_type,
-          bool(ssl_certificate_paths))
+          bool(ssl_certificate_paths), options,
+          multi_module=len(configuration.modules) > 1,
+          dispatch_config=configuration.dispatch is not None,
+      )
 
     self._dispatcher = dispatcher.Dispatcher(
         configuration, options.host, options.port, options.auth_domain,

@@ -304,7 +304,6 @@ MAXIMUM_CONCURRENT_REQUEST = 'max_concurrent_requests'
 
 
 
-
 MIN_NUM_INSTANCES = 'min_num_instances'
 MAX_NUM_INSTANCES = 'max_num_instances'
 COOL_DOWN_PERIOD_SEC = 'cool_down_period_sec'
@@ -352,6 +351,7 @@ CONFIG_ID = 'config_id'
 ROLLOUT_STRATEGY = 'rollout_strategy'
 ROLLOUT_STRATEGY_FIXED = 'fixed'
 ROLLOUT_STRATEGY_MANAGED = 'managed'
+TRACE_SAMPLING = 'trace_sampling'
 
 
 ERROR_CODE = 'error_code'
@@ -499,6 +499,8 @@ _SUPPORTED_LIBRARIES = [
         'A full-featured web application framework for Python.',
         ['1.2', '1.3', '1.4', '1.5', '1.9', '1.11'],
         latest_version='1.4',
+        deprecated_versions=['1.2', '1.3', '1.5', '1.9'],
+
         ),
     _VersionedLibrary(
         'enum',
@@ -558,7 +560,7 @@ _SUPPORTED_LIBRARIES = [
         'A Pythonic binding for the C libraries libxml2 and libxslt.',
         ['2.3', '2.3.5', '3.7.3'],
         latest_version='3.7.3',
-        experimental_versions=['2.3.5'],
+        deprecated_versions=['2.3', '2.3.5'],
         ),
     _VersionedLibrary(
         'markupsafe',
@@ -580,7 +582,7 @@ _SUPPORTED_LIBRARIES = [
         'A Python DB API v2.0 compatible interface to MySQL.',
         ['1.2.4b4', '1.2.4', '1.2.5'],
         latest_version='1.2.5',
-        experimental_versions=['1.2.4b4', '1.2.4', '1.2.5']
+        deprecated_versions=['1.2.4b4', '1.2.4'],
         ),
     _VersionedLibrary(
         'numpy',
@@ -610,9 +612,9 @@ _SUPPORTED_LIBRARIES = [
         'https://pypi.python.org/pypi/pytz?',
         'A library for cross-platform timezone calculations',
         ['2016.4', '2017.2', '2017.3'],
-        latest_version='2017.2',
-        default_version='2017.2',
-        hidden_versions=['2017.3'],
+        latest_version='2017.3',
+        default_version='2017.3',
+        deprecated_versions=['2016.4', '2017.2'],
         ),
     _VersionedLibrary(
         'crcmod',
@@ -643,6 +645,8 @@ _SUPPORTED_LIBRARIES = [
         'A library of cryptogoogle.appengine._internal.graphy functions such as random number generation.',
         ['2.3', '2.6', '2.6.1'],
         latest_version='2.6',
+        deprecated_versions=['2.3'],
+
         ),
     _VersionedLibrary(
         'setuptools',
@@ -650,6 +654,7 @@ _SUPPORTED_LIBRARIES = [
         'A library that provides package and module discovery capabilities.',
         ['0.6c11', '36.6.0'],
         latest_version='36.6.0',
+        deprecated_versions=['0.6c11'],
         ),
     _VersionedLibrary(
         'six',
@@ -679,8 +684,9 @@ _SUPPORTED_LIBRARIES = [
         'A lightweight Python web framework.',
         ['2.3', '2.5.1', '2.5.2'],
         latest_version='2.5.2',
+
         default_version='2.3',
-        deprecated_versions=['2.3']
+        deprecated_versions=['2.5.1']
         ),
     _VersionedLibrary(
         'webob',
@@ -688,6 +694,7 @@ _SUPPORTED_LIBRARIES = [
         'A library that provides wrappers around the WSGI request environment.',
         ['1.1.1', '1.2.3'],
         latest_version='1.2.3',
+
         default_version='1.1.1',
         ),
     _VersionedLibrary(
@@ -784,9 +791,9 @@ _MAX_URL_LENGTH = 2047
 
 _MAX_HEADER_SIZE_FOR_EXEMPTED_HEADERS = 10240
 
-_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'php7',
+_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'php72',
                     'python', 'python27', 'python-compat', 'java', 'java7',
-                    'vm', 'custom', 'nodejs', 'ruby')
+                    'java8', 'vm', 'custom', 'nodejs', 'ruby')
 _all_runtimes = _CANNED_RUNTIMES
 
 
@@ -1669,6 +1676,8 @@ class EndpointsApiService(validation.Validated):
                                  ROLLOUT_STRATEGY_MANAGED)),
       CONFIG_ID:
           validation.Optional(_NON_WHITE_SPACE_REGEX),
+      TRACE_SAMPLING:
+          validation.Optional(validation.TYPE_BOOL),
   }
 
   def CheckInitialized(self):
@@ -2764,3 +2773,5 @@ def ValidFilename(filename):
   if _file_path_negative_3_re.search(filename) is not None:
     return 'Any spaces must be in the middle of a filename: %s' % filename
   return ''
+
+

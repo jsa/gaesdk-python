@@ -21,6 +21,7 @@
 
 import BaseHTTPServer
 import os
+import platform
 import socket
 import urllib
 import wsgiref.headers
@@ -29,6 +30,10 @@ from google.appengine.tools import sdk_update_checker
 
 # The SDK version returned when there is no available VERSION file.
 _DEFAULT_SDK_VERSION = '(Internal)'
+
+# This environment variable is intended for making ndb to work with the
+# Cloud Datastore instead of the App Engine Datastore.
+_DATASTORE_PROJECT_ID_ENV = 'DATASTORE_PROJECT_ID'
 
 
 def get_headers_from_environ(environ):
@@ -137,3 +142,14 @@ def setup_environ(app_id):
     app_id: The id of the application.
   """
   os.environ['APPLICATION_ID'] = app_id
+  # Purge _DATASTORE_PROJECT_ID_ENV from dev_appserver process. Otherwise the
+  # logics for datastore rpc would be tricked to use Cloud Datastore mode.
+  # If necessary, users can still pass this environment variable to local
+  # runtime processes via app.yaml or the --env_var flag.
+  if _DATASTORE_PROJECT_ID_ENV in os.environ:
+    del os.environ[_DATASTORE_PROJECT_ID_ENV]
+
+
+def is_windows():
+  """Returns a boolean indicating whether dev_appserver is on windows."""
+  return platform.system().lower() == 'windows'

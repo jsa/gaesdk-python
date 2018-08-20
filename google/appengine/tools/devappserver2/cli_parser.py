@@ -72,7 +72,7 @@ class ServicePortParser(PortParser):
     res = {}
     for service_port_str in value.split(','):
       service_port = service_port_str.split(':')
-      if len(service_port) is not 2:
+      if len(service_port) != 2:
         raise argparse.ArgumentTypeError(
             ' %s is not in the format of service-name:port,service-name:port'
             % value)
@@ -698,14 +698,23 @@ def create_command_line_parser(configuration=None):
       help='Support datastore local emulation with Cloud Datastore emulator.')
   # Port number on which dev_appserver should launch Cloud Datastore emulator.
   datastore_group.add_argument(
+      '--running_datastore_emulator_host', default=None,
+      help='Overrides the environment variable DATASTORE_EMULATOR_HOST, which'
+      ' means the hostname:port of a running Cloud Datastore emulator that'
+      ' dev_appserver can connect to.')
+  # Port number on which dev_appserver should launch Cloud Datastore emulator.
+  datastore_group.add_argument(
       '--datastore_emulator_port', type=PortParser(), default=0,
       help='The port number that dev_appserver should launch Cloud Datastore '
       'emulator on.')
   # The path to an executable shell script that invokes Cloud Datastore
   # emulator.
   datastore_group.add_argument(
-      '--datastore_emulator_cmd', type=parse_path, default=None,
-      help=argparse.SUPPRESS)
+      '--datastore_emulator_cmd', type=parse_path,
+      default=None,
+      help='The path to a script that invokes cloud datastore emulator. If '
+      'left empty, dev_appserver will try to find datastore emulator in the '
+      'Google Cloud SDK.')
   datastore_group.add_argument(
       '--datastore_emulator_is_test_mode',
       action=boolean_action.BooleanAction,

@@ -55,7 +55,7 @@ import urlparse
 
 import google
 import portpicker
-import yaml
+from google.appengine._internal.ruamel import yaml
 
 from google.appengine.api import apiproxy_stub
 from google.appengine.api import apiproxy_stub_map
@@ -261,8 +261,8 @@ class APIServer(wsgi_server.WsgiServer):
     # We set this GRPC_PORT in environment variable as it is only accessed by
     # the devappserver process.
     os.environ['GRPC_PORT'] = str(self._grpc_api_port)
-    logging.info('Starting GRPC_API_server at: http://localhost:%d',
-                 self._grpc_api_port)
+    logging.info('%s: http://localhost:%d',
+                 constants.GRPC_API_SERVER_STARTING_MSG, self._grpc_api_port)
     self._grpc_server.start()
 
   def start(self):
@@ -271,7 +271,8 @@ class APIServer(wsgi_server.WsgiServer):
     if self._gcd_emulator_launching_thread:
       self._gcd_emulator_launching_thread.join()
     super(APIServer, self).start()
-    logging.info('Starting API server at: http://%s:%d', self._host, self.port)
+    logging.info('%s: http://%s:%d',
+                 constants.API_SERVER_STARTING_MSG, self._host, self.port)
     if self._use_grpc:
       self._start_grpc_server()
 
@@ -331,6 +332,10 @@ class APIServer(wsgi_server.WsgiServer):
               apiproxy_stub.REQ_SIZE_EXCEEDS_LIMIT_MSG_TEMPLATE % (
                   service, request.method()))
         response = service_stub.MakeSyncCallForRemoteApi(request)
+        metrics.GetMetricsLogger().LogOnceOnStop(
+            metrics.API_STUB_USAGE_CATEGORY,
+            metrics.API_STUB_USAGE_ACTION_TEMPLATE
+            % 'datastore_v3_with_cloud_datastore_emulator')
       else:
         if request.has_request_id():
           request_id = request.request_id()
@@ -570,6 +575,10 @@ def create_api_server(
       raise DatastoreFileError(
           'The datastore file %s cannot be recognized by dev_appserver. Please '
           'restart dev_appserver with --clear_datastore=1' % datastore_path)
+    # The flag should override environment variable regarding emulator host.
+    if options.running_datastore_emulator_host:
+      os.environ['DATASTORE_EMULATOR_HOST'] = (
+          options.running_datastore_emulator_host)
     env_emulator_host = os.environ.get('DATASTORE_EMULATOR_HOST')
     if env_emulator_host:  # emulator already running, reuse it.
       logging.warning(
@@ -774,6 +783,16 @@ def main():
   request_info = wsgi_request_info.WSGIRequestInfo(dispatcher)
   # pylint: enable=protected-access
 
+  metrics_logger = metrics.GetMetricsLogger()
+  metrics_logger.Start(
+      options.google_analytics_client_id,
+      user_agent=options.google_analytics_user_agent,
+      support_datastore_emulator=options.support_datastore_emulator,
+      category=metrics.API_SERVER_CATEGORY)
+
+  # When Cloud Datastore Emulator is invoked from api_server, it should be in
+  # test mode, which stores in memory.
+  options.datastore_emulator_is_test_mode = True
   server = create_api_server(
       request_info=request_info,
       storage_path=get_storage_path(options.storage_path, app_id),
@@ -783,6 +802,7 @@ def main():
     server.start()
     shutdown.wait_until_shutdown()
   finally:
+    metrics.GetMetricsLogger().Stop()
     server.quit()
 
 

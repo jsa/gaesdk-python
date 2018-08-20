@@ -44,6 +44,7 @@ import sys
 import weakref
 
 from google.appengine._internal import six
+from google.appengine._internal.six.moves import range
 
 
 from google.net.proto2.python.internal import api_implementation
@@ -112,6 +113,21 @@ class GeneratedProtocolMessageType(type):
       Newly-allocated class.
     """
     descriptor = dictionary[GeneratedProtocolMessageType._DESCRIPTOR_KEY]
+
+
+
+
+
+
+
+
+
+
+
+    new_class = getattr(descriptor, '_concrete_class', None)
+    if new_class:
+      return new_class
+
     if descriptor.full_name in well_known_types.WKTBASES:
       bases += (well_known_types.WKTBASES[descriptor.full_name],)
     _AddClassAttributesForNestedExtensions(descriptor, dictionary)
@@ -139,6 +155,16 @@ class GeneratedProtocolMessageType(type):
         type.
     """
     descriptor = dictionary[GeneratedProtocolMessageType._DESCRIPTOR_KEY]
+
+
+
+    existing_class = getattr(descriptor, '_concrete_class', None)
+    if existing_class:
+      assert existing_class is cls, (
+          'Duplicate `GeneratedProtocolMessageType` created for descriptor %r'
+          % (descriptor.full_name))
+      return
+
     cls._decoders_by_tag = {}
     if (descriptor.has_options and
         descriptor.GetOptions().message_set_wire_format):
@@ -259,6 +285,16 @@ def _IsMessageMapField(field):
   return value_type.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE
 
 
+def _IsStrictUtf8Check(field):
+  if field.containing_type.syntax != 'proto3':
+    return False
+  enforce_utf8 = True
+
+  enforce_utf8 = field.GetOptions().enforce_utf8
+
+  return enforce_utf8
+
+
 def _AttachFieldHelpers(cls, field_descriptor):
   is_repeated = (field_descriptor.label == _FieldDescriptor.LABEL_REPEATED)
   is_packable = (is_repeated and
@@ -310,10 +346,16 @@ def _AttachFieldHelpers(cls, field_descriptor):
       field_decoder = decoder.MapDecoder(
           field_descriptor, _GetInitializeDefaultForMap(field_descriptor),
           is_message_map)
+    elif decode_type == _FieldDescriptor.TYPE_STRING:
+      is_strict_utf8_check = _IsStrictUtf8Check(field_descriptor)
+      field_decoder = decoder.StringDecoder(
+          field_descriptor.number, is_repeated, is_packed,
+          field_descriptor, field_descriptor._default_constructor,
+          is_strict_utf8_check)
     else:
       field_decoder = type_checkers.TYPE_TO_DECODER[decode_type](
-              field_descriptor.number, is_repeated, is_packed,
-              field_descriptor, field_descriptor._default_constructor)
+          field_descriptor.number, is_repeated, is_packed,
+          field_descriptor, field_descriptor._default_constructor)
 
     cls._decoders_by_tag[tag_bytes] = (field_decoder, oneof_descriptor)
 
@@ -410,6 +452,9 @@ def _DefaultValueConstructorForField(field):
 
     message_type = field.message_type
     def MakeSubMessageDefault(message):
+      assert getattr(message_type, '_concrete_class', None), (
+          'Uninitialized concrete class found for field %r (message type %r)'
+          % (field.full_name, message_type.full_name))
       result = message_type._concrete_class()
       result._SetListener(
           _OneofListener(message, field)
@@ -572,6 +617,14 @@ def _AddPropertiesForField(field, cls):
     _AddPropertiesForNonRepeatedScalarField(field, cls)
 
 
+class _FieldProperty(property):
+  __slots__ = ('DESCRIPTOR',)
+
+  def __init__(self, descriptor, getter, setter, doc):
+    property.__init__(self, getter, setter, doc=doc)
+    self.DESCRIPTOR = descriptor
+
+
 def _AddPropertiesForRepeatedField(field, cls):
   """Adds a public property for a "repeated" protocol message field.  Clients
   can use this property to get the value of the field, which will be either a
@@ -613,7 +666,7 @@ def _AddPropertiesForRepeatedField(field, cls):
                          '"%s" in protocol message object.' % proto_field_name)
 
   doc = 'Magic attribute generated for "%s" proto field.' % proto_field_name
-  setattr(cls, property_name, property(getter, setter, doc=doc))
+  setattr(cls, property_name, _FieldProperty(field, getter, setter, doc=doc))
 
 
 def _AddPropertiesForNonRepeatedScalarField(field, cls):
@@ -669,7 +722,7 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
 
 
   doc = 'Magic attribute generated for "%s" proto field.' % proto_field_name
-  setattr(cls, property_name, property(getter, setter, doc=doc))
+  setattr(cls, property_name, _FieldProperty(field, getter, setter, doc=doc))
 
 
 def _AddPropertiesForNonRepeatedCompositeField(field, cls):
@@ -713,7 +766,7 @@ def _AddPropertiesForNonRepeatedCompositeField(field, cls):
 
 
   doc = 'Magic attribute generated for "%s" proto field.' % proto_field_name
-  setattr(cls, property_name, property(getter, setter, doc=doc))
+  setattr(cls, property_name, _FieldProperty(field, getter, setter, doc=doc))
 
 
 def _AddPropertiesForExtensions(descriptor, cls):
@@ -1066,6 +1119,13 @@ def _AddSerializePartialToStringMethod(message_descriptor, cls):
 def _AddMergeFromStringMethod(message_descriptor, cls):
   """Helper for _AddMessageMethods()."""
   def MergeFromString(self, serialized):
+    if isinstance(serialized, memoryview) and six.PY2:
+      raise TypeError(
+          'memoryview not supported in Python 2 with the pure Python proto '
+          'implementation: this is to maintain compatibility with the C++ '
+          'implementation')
+
+    serialized = memoryview(serialized)
     length = len(serialized)
     try:
       if self._InternalParse(serialized, 0, length) != length:
@@ -1083,9 +1143,22 @@ def _AddMergeFromStringMethod(message_descriptor, cls):
   local_ReadTag = decoder.ReadTag
   local_SkipField = decoder.SkipField
   decoders_by_tag = cls._decoders_by_tag
-  is_proto3 = message_descriptor.syntax == "proto3"
 
   def InternalParse(self, buffer, pos, end):
+    """Create a message from serialized bytes.
+
+    Args:
+      self: Message, instance of the proto message object.
+      buffer: memoryview of the serialized data.
+      pos: int, position to start in the serialized data.
+      end: int, end position of the serialized data.
+
+    Returns:
+      Message object.
+    """
+
+
+    assert isinstance(buffer, memoryview)
     self._Modified()
     field_dict = self._fields
     unknown_field_list = self._unknown_fields
@@ -1097,12 +1170,10 @@ def _AddMergeFromStringMethod(message_descriptor, cls):
         new_pos = local_SkipField(buffer, new_pos, end, tag_bytes)
         if new_pos == -1:
           return pos
-        if (not is_proto3 or
-            api_implementation.GetPythonProto3PreserveUnknownsDefault()):
-          if not unknown_field_list:
-            unknown_field_list = self._unknown_fields = []
-          unknown_field_list.append(
-              (tag_bytes, buffer[value_start_pos:new_pos]))
+        if not unknown_field_list:
+          unknown_field_list = self._unknown_fields = []
+        unknown_field_list.append(
+            (tag_bytes, buffer[value_start_pos:new_pos].tobytes()))
         pos = new_pos
       else:
         pos = field_decoder(buffer, new_pos, end, self, field_dict)
@@ -1459,6 +1530,10 @@ class _ExtensionDict(object):
     if extension_handle.label == _FieldDescriptor.LABEL_REPEATED:
       result = extension_handle._default_constructor(self._extended_message)
     elif extension_handle.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
+      assert getattr(extension_handle.message_type, '_concrete_class', None), (
+          'Uninitialized concrete class found for field %r (message type %r)'
+          % (extension_handle.full_name,
+             extension_handle.message_type.full_name))
       result = extension_handle.message_type._concrete_class()
       try:
         result._SetListener(self._extended_message._listener_for_children)

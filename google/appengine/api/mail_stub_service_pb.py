@@ -20,7 +20,12 @@
 from google.net.proto import ProtocolBuffer
 import abc
 import array
-import dummy_thread as thread
+try:
+  from thread import allocate_lock as _Lock
+except ImportError:
+  from threading import Lock as _Lock
+
+if hasattr(__builtins__, 'xrange'): range = xrange
 
 if hasattr(ProtocolBuffer, 'ExtendableProtocolMessage'):
   _extension_runtime = True
@@ -60,7 +65,7 @@ class GetSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
 
   def MergeFrom(self, x):
     assert x is not self
-    for i in xrange(x.sent_message_size()): self.add_sent_message().CopyFrom(x.sent_message(i))
+    for i in range(x.sent_message_size()): self.add_sent_message().CopyFrom(x.sent_message(i))
 
   def Equals(self, x):
     if x is self: return 1
@@ -78,26 +83,26 @@ class GetSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
   def ByteSize(self):
     n = 0
     n += 1 * len(self.sent_message_)
-    for i in xrange(len(self.sent_message_)): n += self.lengthString(self.sent_message_[i].ByteSize())
+    for i in range(len(self.sent_message_)): n += self.lengthString(self.sent_message_[i].ByteSize())
     return n
 
   def ByteSizePartial(self):
     n = 0
     n += 1 * len(self.sent_message_)
-    for i in xrange(len(self.sent_message_)): n += self.lengthString(self.sent_message_[i].ByteSizePartial())
+    for i in range(len(self.sent_message_)): n += self.lengthString(self.sent_message_[i].ByteSizePartial())
     return n
 
   def Clear(self):
     self.clear_sent_message()
 
   def OutputUnchecked(self, out):
-    for i in xrange(len(self.sent_message_)):
+    for i in range(len(self.sent_message_)):
       out.putVarInt32(10)
       out.putVarInt32(self.sent_message_[i].ByteSize())
       self.sent_message_[i].OutputUnchecked(out)
 
   def OutputPartial(self, out):
-    for i in xrange(len(self.sent_message_)):
+    for i in range(len(self.sent_message_)):
       out.putVarInt32(10)
       out.putVarInt32(self.sent_message_[i].ByteSizePartial())
       self.sent_message_[i].OutputPartial(out)
@@ -113,7 +118,7 @@ class GetSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -131,7 +136,7 @@ class GetSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   ksent_message = 1
 
@@ -215,7 +220,7 @@ class ClearSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -226,7 +231,7 @@ class ClearSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   kmessages_cleared = 1
 
@@ -313,7 +318,7 @@ class GetLogMailBodyResponse(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -324,7 +329,7 @@ class GetLogMailBodyResponse(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   klog_mail_body = 1
 
@@ -411,7 +416,7 @@ class SetLogMailBodyRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -422,7 +427,7 @@ class SetLogMailBodyRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   klog_mail_body = 1
 
@@ -511,7 +516,7 @@ class GetLogMailLevelResponse(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -522,7 +527,7 @@ class GetLogMailLevelResponse(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   klog_mail_level = 1
 
@@ -611,7 +616,7 @@ class SetLogMailLevelRequest(ProtocolBuffer.ProtocolMessage):
         continue
 
 
-      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError
+      if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
       d.skipData(tt)
 
 
@@ -622,7 +627,7 @@ class SetLogMailLevelRequest(ProtocolBuffer.ProtocolMessage):
 
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
-    return tuple([sparse.get(i, default) for i in xrange(0, 1+maxtag)])
+    return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
 
   klog_mail_level = 1
 
