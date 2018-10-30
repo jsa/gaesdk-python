@@ -83,6 +83,7 @@ class GaeGoApplication(object):
     try:
       cwd = os.getcwd()
       os.chdir(app_root)
+      logging.debug('Working from dir %s', os.getcwd())
       stdout, stderr = _run_tool('go', args)
     finally:
       os.chdir(cwd)

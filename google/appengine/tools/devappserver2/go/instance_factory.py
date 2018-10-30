@@ -33,6 +33,7 @@ from google.appengine.tools.devappserver2 import application_configuration
 
 from google.appengine.tools.devappserver2 import http_runtime
 from google.appengine.tools.devappserver2 import instance
+from google.appengine.tools.devappserver2 import metrics
 from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2.go import application as go_application
 from google.appengine.tools.devappserver2.go import errors as go_errors
@@ -158,13 +159,15 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
       deleted or modified) in these directories will trigger a restart of all
       instances created with this factory.
     """
-    # Go >= 1.11 doesn't need to watch GOPATH if you have a go.mod file, because
-    # all dependencies will be local to this directory so we don't need to
-    # monitor anything but pwd.
+    # Go < 1.11 should always watch GOPATH
+    # Go == 1.11 should only watch GOPATH if GO111MODULE != on
+    # Go > 1.11 should only watch go.mod dir
     go_mod_dir = self._find_go_mod_dir(
         self._module_configuration.application_root)
-    if go_mod_dir:
+    if os.getenv('GO111MODULE', '').lower() == 'on' and go_mod_dir:
+      logging.info('Building with dependencies from go.mod.')
       return [go_mod_dir]
+    logging.info('Building with dependencies from GOPATH.')
 
     # Go <= 1.10 assumes GOPATH, or will infer it
     if not self._runtime_config_getter().go_config.enable_watching_go_path:
@@ -229,6 +232,8 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
         logging.error('Failed to build Go application: %s', e)
         # Deploy a failure proxy now and each time a new instance is requested.
         self._last_build_error = e
+        metrics.GetMetricsLogger().LogOnceOnStop(
+            metrics.DEVAPPSERVER_CATEGORY, metrics.ERROR_ACTION, label=repr(e))
 
       self._modified_since_last_build = False
 

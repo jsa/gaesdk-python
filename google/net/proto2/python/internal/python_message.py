@@ -259,6 +259,7 @@ def _AddSlots(message_descriptor, dictionary):
                              '_cached_byte_size_dirty',
                              '_fields',
                              '_unknown_fields',
+                             '_unknown_field_set',
                              '_is_present_in_parent',
                              '_listener',
                              '_listener_for_children',
@@ -510,6 +511,9 @@ def _AddInitMethod(message_descriptor, cls):
 
 
     self._unknown_fields = ()
+
+
+    self._unknown_field_set = None
     self._is_present_in_parent = False
     self._listener = message_listener_mod.NullMessageListener()
     self._listener_for_children = _Listener(self)
@@ -991,11 +995,11 @@ def _AddEqualsMethod(message_descriptor, cls):
       return False
 
 
+
     unknown_fields = list(self._unknown_fields)
     unknown_fields.sort()
     other_unknown_fields = list(other._unknown_fields)
     other_unknown_fields.sort()
-
     return unknown_fields == other_unknown_fields
 
   cls.__eq__ = __eq__
@@ -1161,19 +1165,36 @@ def _AddMergeFromStringMethod(message_descriptor, cls):
     assert isinstance(buffer, memoryview)
     self._Modified()
     field_dict = self._fields
-    unknown_field_list = self._unknown_fields
+
+    unknown_field_set = self._unknown_field_set
     while pos != end:
       (tag_bytes, new_pos) = local_ReadTag(buffer, pos)
       field_decoder, field_desc = decoders_by_tag.get(tag_bytes, (None, None))
       if field_decoder is None:
-        value_start_pos = new_pos
-        new_pos = local_SkipField(buffer, new_pos, end, tag_bytes)
+        if not self._unknown_fields:
+          self._unknown_fields = []
+        if unknown_field_set is None:
+
+          self._unknown_field_set = containers.UnknownFieldSet()
+
+          unknown_field_set = self._unknown_field_set
+
+        (tag, _) = decoder._DecodeVarint(tag_bytes, 0)
+        field_number, wire_type = wire_format.UnpackTag(tag)
+
+        old_pos = new_pos
+        (data, new_pos) = decoder._DecodeUnknownField(
+            buffer, new_pos, wire_type)
         if new_pos == -1:
           return pos
-        if not unknown_field_list:
-          unknown_field_list = self._unknown_fields = []
-        unknown_field_list.append(
-            (tag_bytes, buffer[value_start_pos:new_pos].tobytes()))
+
+        unknown_field_set._add(field_number, wire_type, data)
+
+        new_pos = local_SkipField(buffer, old_pos, end, tag_bytes)
+        if new_pos == -1:
+          return pos
+        self._unknown_fields.append(
+            (tag_bytes, buffer[old_pos:new_pos].tobytes()))
         pos = new_pos
       else:
         pos = field_decoder(buffer, new_pos, end, self, field_dict)
@@ -1319,6 +1340,10 @@ def _AddMergeFromMethod(cls):
         self._unknown_fields = []
       self._unknown_fields.extend(msg._unknown_fields)
 
+      if self._unknown_field_set is None:
+        self._unknown_field_set = containers.UnknownFieldSet()
+      self._unknown_field_set._extend(msg._unknown_field_set)
+
   cls.MergeFrom = MergeFrom
 
 
@@ -1350,12 +1375,25 @@ def _Clear(self):
 
   self._fields = {}
   self._unknown_fields = ()
+
+  if self._unknown_field_set is not None:
+    self._unknown_field_set._clear()
+    self._unknown_field_set = None
+
   self._oneofs = {}
   self._Modified()
 
 
+def _UnknownFields(self):
+  if self._unknown_field_set is None:
+
+    self._unknown_field_set = containers.UnknownFieldSet()
+  return self._unknown_field_set
+
+
 def _DiscardUnknownFields(self):
   self._unknown_fields = []
+  self._unknown_field_set = None
   for field, value in self.ListFields():
     if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
       if field.label == _FieldDescriptor.LABEL_REPEATED:
@@ -1394,6 +1432,7 @@ def _AddMessageMethods(message_descriptor, cls):
   _AddReduceMethod(cls)
 
   cls.Clear = _Clear
+  cls.UnknownFields = _UnknownFields
   cls.DiscardUnknownFields = _DiscardUnknownFields
   cls._SetListener = _SetListener
 

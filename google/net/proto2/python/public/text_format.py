@@ -142,7 +142,7 @@ def MessageToString(message,
       (per the "Format Specification Mini-Language"); otherwise, str() is used.
     use_field_number: If True, print field numbers instead of names.
     descriptor_pool: A DescriptorPool used to resolve Any types.
-    indent: The indent level, in terms of spaces, for pretty print.
+    indent: The initial indent level, in terms of spaces, for pretty print.
     message_formatter: A function(message, indent, as_one_line): unicode|None
       to custom format selected sub-messages (usually based on message type).
       Use to pretty print parts of the protobuf for easier diffing.
@@ -212,7 +212,8 @@ def PrintField(field,
   """Print a single field name/value pair."""
   printer = _Printer(out, indent, as_utf8, as_one_line,
                      use_short_repeated_primitives, pointy_brackets,
-                     use_index_order, float_format, message_formatter)
+                     use_index_order, float_format,
+                     message_formatter=message_formatter)
   printer.PrintField(field, value)
 
 
@@ -230,7 +231,8 @@ def PrintFieldValue(field,
   """Print a single field value (not including name)."""
   printer = _Printer(out, indent, as_utf8, as_one_line,
                      use_short_repeated_primitives, pointy_brackets,
-                     use_index_order, float_format, message_formatter)
+                     use_index_order, float_format,
+                     message_formatter=message_formatter)
   printer.PrintFieldValue(field, value)
 
 
@@ -283,7 +285,7 @@ class _Printer(object):
 
     Args:
       out: To record the text format result.
-      indent: The indent level for pretty print.
+      indent: The initial indent level for pretty print.
       as_utf8: Return unescaped Unicode for non-ASCII characters.
           In Python 3 actual Unicode characters may appear as is in strings.
           In Python 2 the return value will be valid UTF-8 rather than ASCII.
@@ -317,11 +319,13 @@ class _Printer(object):
 
   def _TryPrintAsAnyMessage(self, message):
     """Serializes if message is a google.protobuf.Any field."""
+    if '/' not in message.type_url:
+      return False
     packed_message = _BuildMessageFromTypeName(message.TypeName(),
                                                self.descriptor_pool)
     if packed_message:
       packed_message.MergeFromString(message.value)
-      self.out.write('%s[%s]' % (self.indent * ' ', message.type_url))
+      self.out.write('%s[%s] ' % (self.indent * ' ', message.type_url))
       self._PrintMessageFieldValue(packed_message)
       self.out.write(' ' if self.as_one_line else '\n')
       return True
@@ -400,11 +404,12 @@ class _Printer(object):
     if field.cpp_type != descriptor.FieldDescriptor.CPPTYPE_MESSAGE:
 
 
-      out.write(': ')
+      out.write(':')
 
   def PrintField(self, field, value):
     """Print a single field name/value pair."""
     self._PrintFieldName(field)
+    self.out.write(' ')
     self.PrintFieldValue(field, value)
     self.out.write(' ' if self.as_one_line else '\n')
 
@@ -428,11 +433,11 @@ class _Printer(object):
       closeb = '}'
 
     if self.as_one_line:
-      self.out.write(' %s ' % openb)
+      self.out.write('%s ' % openb)
       self.PrintMessage(value)
       self.out.write(closeb)
     else:
-      self.out.write(' %s\n' % openb)
+      self.out.write('%s\n' % openb)
       self.indent += 2
       self.PrintMessage(value)
       self.indent -= 2
