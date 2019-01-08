@@ -416,8 +416,8 @@ class _Printer(object):
   def _PrintShortRepeatedPrimitivesValue(self, field, value):
 
     self._PrintFieldName(field)
-    self.out.write('[')
-    for i in xrange(len(value) - 1):
+    self.out.write(' [')
+    for i in six.moves.range(len(value) - 1):
       self.PrintFieldValue(field, value[i])
       self.out.write(', ')
     self.PrintFieldValue(field, value[-1])

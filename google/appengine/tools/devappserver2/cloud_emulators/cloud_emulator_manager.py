@@ -93,7 +93,6 @@ class DatastoreEmulatorManager(object):
       auto_id_policy: A string specifying how the emualtor assigns auto id.
     """
     options = [
-        '--allow_reserved_kinds',
         '--regenerate_indexes=false',
         '--auto_id_policy=%s' % auto_id_policy,
         '--port=%d' % port]

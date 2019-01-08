@@ -597,7 +597,7 @@ def create_api_server(
           app_id=app_id,
           emulator_port=(options.datastore_emulator_port
                          if options.datastore_emulator_port else
-                         portpicker.PickUnusedPort()),
+                         portpicker.pick_unused_port()),
           silent=options.dev_appserver_log_level != 'debug',
           index_file=os.path.join(app_root, 'index.yaml'),
           require_indexes=options.require_indexes,

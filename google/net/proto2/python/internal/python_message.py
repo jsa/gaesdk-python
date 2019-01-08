@@ -282,7 +282,7 @@ def _IsMapField(field):
 
 
 def _IsMessageMapField(field):
-  value_type = field.message_type.fields_by_name["value"]
+  value_type = field.message_type.fields_by_name['value']
   return value_type.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE
 
 
@@ -302,12 +302,12 @@ def _AttachFieldHelpers(cls, field_descriptor):
                  wire_format.IsTypePackable(field_descriptor.type))
   if not is_packable:
     is_packed = False
-  elif field_descriptor.containing_type.syntax == "proto2":
+  elif field_descriptor.containing_type.syntax == 'proto2':
     is_packed = (field_descriptor.has_options and
                 field_descriptor.GetOptions().packed)
   else:
     has_packed_false = (field_descriptor.has_options and
-                        field_descriptor.GetOptions().HasField("packed") and
+                        field_descriptor.GetOptions().HasField('packed') and
                         field_descriptor.GetOptions().packed == False)
     is_packed = not has_packed_false
   is_map_entry = _IsMapField(field_descriptor)
@@ -520,7 +520,7 @@ def _AddInitMethod(message_descriptor, cls):
     for field_name, field_value in kwargs.items():
       field = _GetFieldByName(message_descriptor, field_name)
       if field is None:
-        raise TypeError("%s() got an unexpected keyword argument '%s'" %
+        raise TypeError('%s() got an unexpected keyword argument "%s"' %
                         (message_descriptor.name, field_name))
       if field_value is None:
 
@@ -610,7 +610,7 @@ def _AddPropertiesForField(field, cls):
 
   assert _FieldDescriptor.MAX_CPPTYPE == 10
 
-  constant_name = field.name.upper() + "_FIELD_NUMBER"
+  constant_name = field.name.upper() + '_FIELD_NUMBER'
   setattr(cls, constant_name, field.number)
 
   if field.label == _FieldDescriptor.LABEL_REPEATED:
@@ -689,7 +689,7 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
   type_checker = type_checkers.GetTypeChecker(field)
   default_value = field.default_value
   valid_values = set()
-  is_proto3 = field.containing_type.syntax == "proto3"
+  is_proto3 = field.containing_type.syntax == 'proto3'
 
   def getter(self):
 
@@ -777,7 +777,7 @@ def _AddPropertiesForExtensions(descriptor, cls):
   """Adds properties for all fields in this protocol message type."""
   extension_dict = descriptor.extensions_by_name
   for extension_name, extension_field in extension_dict.items():
-    constant_name = extension_name.upper() + "_FIELD_NUMBER"
+    constant_name = extension_name.upper() + '_FIELD_NUMBER'
     setattr(cls, constant_name, extension_field.number)
 
 
@@ -826,14 +826,14 @@ def _AddListFieldsMethod(message_descriptor, cls):
 
   cls.ListFields = ListFields
 
-_Proto3HasError = 'Protocol message has no non-repeated submessage field "%s"'
-_Proto2HasError = 'Protocol message has no non-repeated field "%s"'
+_PROTO3_ERROR_TEMPLATE = 'Protocol message %s has no non-repeated submessage field "%s"'
+_PROTO2_ERROR_TEMPLATE = 'Protocol message %s has no non-repeated field "%s"'
 
 def _AddHasFieldMethod(message_descriptor, cls):
   """Helper for _AddMessageMethods()."""
 
   is_proto3 = (message_descriptor.syntax == "proto3")
-  error_msg = _Proto3HasError if is_proto3 else _Proto2HasError
+  error_msg = _PROTO3_ERROR_TEMPLATE if is_proto3 else _PROTO2_ERROR_TEMPLATE
 
   hassable_fields = {}
   for field in message_descriptor.fields:
@@ -854,7 +854,7 @@ def _AddHasFieldMethod(message_descriptor, cls):
     try:
       field = hassable_fields[field_name]
     except KeyError:
-      raise ValueError(error_msg % field_name)
+      raise ValueError(error_msg % (message_descriptor.full_name, field_name))
 
     if isinstance(field, descriptor_mod.OneofDescriptor):
       try:
@@ -884,7 +884,7 @@ def _AddClearFieldMethod(message_descriptor, cls):
         else:
           return
       except KeyError:
-        raise ValueError('Protocol message %s() has no "%s" field.' %
+        raise ValueError('Protocol message %s has no "%s" field.' %
                          (message_descriptor.name, field_name))
 
     if field in self._fields:
@@ -1269,7 +1269,7 @@ def _AddIsInitializedMethod(message_descriptor, cls):
     for field, value in self.ListFields():
       if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
         if field.is_extension:
-          name = "(%s)" % field.full_name
+          name = '(%s)' % field.full_name
         else:
           name = field.name
 
@@ -1277,7 +1277,7 @@ def _AddIsInitializedMethod(message_descriptor, cls):
           if _IsMessageMapField(field):
             for key in value:
               element = value[key]
-              prefix = "%s[%s]." % (name, key)
+              prefix = '%s[%s].' % (name, key)
               sub_errors = element.FindInitializationErrors()
               errors += [prefix + error for error in sub_errors]
           else:
@@ -1286,11 +1286,11 @@ def _AddIsInitializedMethod(message_descriptor, cls):
         elif field.label == _FieldDescriptor.LABEL_REPEATED:
           for i in range(len(value)):
             element = value[i]
-            prefix = "%s[%d]." % (name, i)
+            prefix = '%s[%d].' % (name, i)
             sub_errors = element.FindInitializationErrors()
             errors += [prefix + error for error in sub_errors]
         else:
-          prefix = name + "."
+          prefix = name + '.'
           sub_errors = value.FindInitializationErrors()
           errors += [prefix + error for error in sub_errors]
 
@@ -1306,7 +1306,7 @@ def _AddMergeFromMethod(cls):
   def MergeFrom(self, msg):
     if not isinstance(msg, cls):
       raise TypeError(
-          "Parameter to MergeFrom() must be instance of same class: "
+          'Parameter to MergeFrom() must be instance of same class: '
           'expected %s got %s.' % (cls.__name__, msg.__class__.__name__))
 
     assert msg is not self
@@ -1602,8 +1602,8 @@ class _ExtensionDict(object):
     other_fields = other._extended_message.ListFields()
 
 
-    my_fields    = [ field for field in my_fields    if field.is_extension ]
-    other_fields = [ field for field in other_fields if field.is_extension ]
+    my_fields = [field for field in my_fields if field.is_extension]
+    other_fields = [field for field in other_fields if field.is_extension]
 
     return my_fields == other_fields
 

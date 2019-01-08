@@ -29,8 +29,12 @@ are:
 
 
 
-import collections
 import sys
+try:
+
+  import collections.abc as collections_abc
+except ImportError:
+  import collections as collections_abc
 
 if sys.version_info[0] < 3:
 
@@ -94,7 +98,7 @@ if sys.version_info[0] < 3:
     __hash__ = None
 
     def __eq__(self, other):
-      if not isinstance(other, collections.Mapping):
+      if not isinstance(other, collections_abc.Mapping):
         return NotImplemented
       return dict(self.items()) == dict(other.items())
 
@@ -161,13 +165,13 @@ if sys.version_info[0] < 3:
         self[key] = default
       return default
 
-  collections.Mapping.register(Mapping)
-  collections.MutableMapping.register(MutableMapping)
+  collections_abc.Mapping.register(Mapping)
+  collections_abc.MutableMapping.register(MutableMapping)
 
 else:
 
 
-  MutableMapping = collections.MutableMapping
+  MutableMapping = collections_abc.MutableMapping
 
 
 class BaseContainer(object):
@@ -325,7 +329,7 @@ class RepeatedScalarFieldContainer(BaseContainer):
 
     return other == self._values
 
-collections.MutableSequence.register(BaseContainer)
+collections_abc.MutableSequence.register(BaseContainer)
 
 
 class RepeatedCompositeFieldContainer(BaseContainer):

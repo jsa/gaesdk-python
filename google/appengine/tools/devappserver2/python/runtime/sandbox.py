@@ -104,9 +104,11 @@ _WHITE_LIST_C_MODULES = [
     'pyexpat',
     '_random',
     '_scproxy',  # Mac OS X compatibility
+    'select',
     '_sha256',  # Python2.5 compatibility
     '_sha512',  # Python2.5 compatibility
     '_sha',  # Python2.5 compatibility
+    '_socket',
     '_sre',
     'strop',
     '_struct',

@@ -95,7 +95,7 @@ class AppEngineWebXmlParser(object):
     element_name = xml_parser_utils.GetTag(child_node)
     camel_case_name = ''.join(part.title() for part in element_name.split('-'))
     method_name = 'Process%sNode' % camel_case_name
-    if hasattr(self, method_name) and method_name is not 'ProcessChildNode':
+    if hasattr(self, method_name) and method_name != 'ProcessChildNode':
       getattr(self, method_name)(child_node)
     else:
       self.errors.append('Second-level tag not recognized: <%s>' % element_name)

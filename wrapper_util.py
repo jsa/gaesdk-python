@@ -118,16 +118,12 @@ class Paths(object):
 
     grpc_importable = False
     grpc_path = os.path.join(dir_path, 'lib', 'grpcio-1.9.1')
-    current_dir = os.getcwd()
-    try:
-      if os.path.exists(grpc_path):
-        os.chdir(grpc_path)
+    if os.path.exists(grpc_path):
 
 
-        grpc_importable = not subprocess.call(
-            [sys.executable, '-c', 'import grpc'], stderr=subprocess.PIPE)
-    finally:
-      os.chdir(current_dir)
+      grpc_importable = not subprocess.call(
+          [sys.executable, '-c', 'import grpc'],
+          cwd=grpc_path, stderr=subprocess.PIPE)
 
 
     self.v1_extra_paths = [

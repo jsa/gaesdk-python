@@ -178,7 +178,14 @@ SERVICE_ACCOUNT_BASE = (
 
 APP_YAML_FILENAME = 'app.yaml'
 
-GCLOUD_ONLY_RUNTIMES = set(['custom', 'nodejs', 'nodejs8', 'php72'])
+GCLOUD_ONLY_RUNTIMES = set([
+    'custom',
+    'go111',
+    'nodejs',
+    'nodejs8',
+    'php72',
+    'python37',
+])
 
 
 
@@ -3455,7 +3462,7 @@ class AppCfgApp(object):
     msg = 'Application: %s' % appyaml.application
     if appyaml.application != orig_application:
       msg += ' (was: %s)' % orig_application
-    if self.action.function is 'Update':
+    if self.action.function == 'Update':
 
       if (appyaml.module is not None and
           appyaml.module != appinfo.DEFAULT_MODULE):

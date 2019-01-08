@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 
 from google.appengine._internal.ruamel.yaml.error import YAMLError
-from google.appengine._internal.ruamel.yaml.compat import nprint, DBG_NODE, dbg, string_types
+from google.appengine._internal.ruamel.yaml.compat import nprint, DBG_NODE, dbg, string_types, nprintf  # NOQA
 from google.appengine._internal.ruamel.yaml.util import RegExp
 
 from google.appengine._internal.ruamel.yaml.events import (

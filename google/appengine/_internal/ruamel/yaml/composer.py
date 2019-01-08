@@ -5,7 +5,7 @@ from __future__ import absolute_import, print_function
 import warnings
 
 from google.appengine._internal.ruamel.yaml.error import MarkedYAMLError, ReusedAnchorWarning
-from google.appengine._internal.ruamel.yaml.compat import utf8, nprint
+from google.appengine._internal.ruamel.yaml.compat import utf8, nprint, nprintf  # NOQA
 
 from google.appengine._internal.ruamel.yaml.events import (
     StreamStartEvent,

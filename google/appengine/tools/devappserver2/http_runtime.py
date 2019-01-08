@@ -354,7 +354,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       serialized_config = runtime_config.SerializeToString()
       with self._process_lock:
         assert not self._process, 'start() can only be called once'
-        port = portpicker.PickUnusedPort()
+        port = portpicker.pick_unused_port()
         self._env['PORT'] = str(port)
 
         # If any of the strings in args contain {port}, replace that substring
@@ -372,7 +372,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       serialized_config = runtime_config.SerializeToString()
       with self._process_lock:
         assert not self._process, 'start() can only be called once'
-        port = portpicker.PickUnusedPort()
+        port = portpicker.pick_unused_port()
         self._env['PORT'] = str(port)
 
         self._process = safe_subprocess.start_process(
@@ -386,7 +386,7 @@ class HttpRuntimeProxy(instance.RuntimeProxy):
       serialized_config = runtime_config.SerializeToString()
       with self._process_lock:
         assert not self._process, 'start() can only be called once'
-        port = portpicker.PickUnusedPort()
+        port = portpicker.pick_unused_port()
         if self._extra_args_getter:
           self._args.append(self._extra_args_getter(port))
 

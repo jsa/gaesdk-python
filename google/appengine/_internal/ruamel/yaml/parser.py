@@ -80,7 +80,7 @@ from google.appengine._internal.ruamel.yaml.error import MarkedYAMLError
 from google.appengine._internal.ruamel.yaml.tokens import *  # NOQA
 from google.appengine._internal.ruamel.yaml.events import *  # NOQA
 from google.appengine._internal.ruamel.yaml.scanner import Scanner, RoundTripScanner, ScannerError  # NOQA
-from google.appengine._internal.ruamel.yaml.compat import utf8, nprint  # NOQA
+from google.appengine._internal.ruamel.yaml.compat import utf8, nprint, nprintf  # NOQA
 
 if False:  # MYPY
     from typing import Any, Dict, Optional, List  # NOQA
