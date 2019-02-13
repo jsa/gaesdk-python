@@ -52,6 +52,7 @@ import tempfile
 import time
 import urllib
 import urllib2
+import urlparse
 
 import google
 
@@ -154,6 +155,10 @@ DEFAULT_RESOURCE_LIMITS = {
     'max_file_count': 10000,
 }
 
+
+
+DEV_SERVER_HOSTNAMES = ('localhost', '127.0.0.1', '::1')
+
 # Client ID and secrets are managed in the Google API console.
 
 
@@ -251,6 +256,10 @@ def _PrintErrorAndExit(stream, msg, exit_code=2):
   """
   stream.write(msg)
   sys.exit(exit_code)
+
+
+def _IsDevAppserver(server):
+  return urlparse.urlparse('//' + server).hostname in DEV_SERVER_HOSTNAMES
 
 
 def JavaSupported():
@@ -3207,9 +3216,7 @@ class AppCfgApp(object):
 
     source = GetSourceName()
 
-    dev_appserver = self.options.host in ['localhost', '127.0.0.1']
-
-    if dev_appserver:
+    if _IsDevAppserver(self.options.server):
       if not self.rpc_server_class:
         self.rpc_server_class = appengine_rpc.HttpRpcServer
         if hasattr(self, 'runtime'):
@@ -4844,6 +4851,14 @@ class AppCfgApp(object):
       logging.error('upload_data action requires SQLite3 and the python '
                     'sqlite3 module (included in python since 2.5).')
       sys.exit(1)
+
+    if _IsDevAppserver(self.options.server):
+
+
+
+
+
+      arg_dict['throttle_class'] = lambda *args, **kwargs: self._GetRpcServer()
 
     sys.exit(bulkloader.Run(arg_dict, self._GetOAuth2Parameters()))
 
