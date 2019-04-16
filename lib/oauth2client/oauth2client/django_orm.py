@@ -29,8 +29,6 @@ from oauth2client.client import Storage as BaseStorage
 
 class CredentialsField(models.Field):
 
-  __metaclass__ = models.SubfieldBase
-
   def __init__(self, *args, **kwargs):
     if 'null' not in kwargs:
       kwargs['null'] = True
@@ -46,6 +44,9 @@ class CredentialsField(models.Field):
       return value
     return pickle.loads(base64.b64decode(value))
 
+  def from_db_value(self, value, expression, connection, context):
+    return self.to_python(value)
+
   def get_db_prep_value(self, value, connection, prepared=False):
     if value is None:
       return None
@@ -53,8 +54,6 @@ class CredentialsField(models.Field):
 
 
 class FlowField(models.Field):
-
-  __metaclass__ = models.SubfieldBase
 
   def __init__(self, *args, **kwargs):
     if 'null' not in kwargs:
@@ -70,6 +69,9 @@ class FlowField(models.Field):
     if isinstance(value, oauth2client.client.Flow):
       return value
     return pickle.loads(base64.b64decode(value))
+
+  def from_db_value(self, value, expression, connection, context):
+    return self.to_python(value)
 
   def get_db_prep_value(self, value, connection, prepared=False):
     if value is None:

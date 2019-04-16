@@ -257,11 +257,11 @@ _SQLSERVICECLIENTERROR_CLIENTERRORCODE.containing_type = _SQLSERVICECLIENTERROR
 DESCRIPTOR.message_types_by_name['SqlServiceClientError'] = _SQLSERVICECLIENTERROR
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-SqlServiceClientError = _reflection.GeneratedProtocolMessageType('SqlServiceClientError', (_message.Message,), dict(
-  DESCRIPTOR = _SQLSERVICECLIENTERROR,
-  __module__ = 'google.storage.speckle.proto.client_error_code_pb2'
+SqlServiceClientError = _reflection.GeneratedProtocolMessageType('SqlServiceClientError', (_message.Message,), {
+  'DESCRIPTOR' : _SQLSERVICECLIENTERROR,
+  '__module__' : 'google.storage.speckle.proto.client_error_code_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(SqlServiceClientError)
 
 

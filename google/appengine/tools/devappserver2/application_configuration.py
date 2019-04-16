@@ -151,6 +151,7 @@ class ModuleConfiguration(object):
                                    self.application_external_name)
     self._api_version = self._app_info_external.api_version
     self._module_name = self._app_info_external.module
+    self._main = self._app_info_external.main
     self._version = self._app_info_external.version
     self._threadsafe = self._app_info_external.threadsafe
     self._basic_scaling_config = self._app_info_external.basic_scaling
@@ -285,6 +286,10 @@ class ModuleConfiguration(object):
   @property
   def module_name(self):
     return self._module_name or appinfo.DEFAULT_MODULE
+
+  @property
+  def main(self):
+    return self._main or ''
 
   @property
   def major_version(self):
@@ -730,6 +735,10 @@ class BackendConfiguration(object):
   @property
   def module_name(self):
     return self._backend_entry.name
+
+  @property
+  def main(self):
+    return self._module_configuration.main
 
   @property
   def major_version(self):

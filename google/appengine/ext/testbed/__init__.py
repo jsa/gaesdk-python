@@ -61,7 +61,7 @@ Example::
         # Because we use the datastore stub, this put() does not have
         # permanent side effects.
         TestModel().put()
-        fetched_entities = TestModel.all().fetch(2)
+        fetched_entities = TestModel.query().fetch(2)
         self.assertEqual(1, len(fetched_entities))
         self.assertEqual(42, fetched_entities[0].number)
 

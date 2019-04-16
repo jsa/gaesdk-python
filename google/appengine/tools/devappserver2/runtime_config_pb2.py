@@ -686,81 +686,81 @@ DESCRIPTOR.message_types_by_name['Environ'] = _ENVIRON
 DESCRIPTOR.message_types_by_name['VMConfig'] = _VMCONFIG
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Config = _reflection.GeneratedProtocolMessageType('Config', (_message.Message,), dict(
-  DESCRIPTOR = _CONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+Config = _reflection.GeneratedProtocolMessageType('Config', (_message.Message,), {
+  'DESCRIPTOR' : _CONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.Config)
-  ))
+  })
 _sym_db.RegisterMessage(Config)
 
-PhpConfig = _reflection.GeneratedProtocolMessageType('PhpConfig', (_message.Message,), dict(
-  DESCRIPTOR = _PHPCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+PhpConfig = _reflection.GeneratedProtocolMessageType('PhpConfig', (_message.Message,), {
+  'DESCRIPTOR' : _PHPCONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.PhpConfig)
-  ))
+  })
 _sym_db.RegisterMessage(PhpConfig)
 
-NodeConfig = _reflection.GeneratedProtocolMessageType('NodeConfig', (_message.Message,), dict(
-  DESCRIPTOR = _NODECONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+NodeConfig = _reflection.GeneratedProtocolMessageType('NodeConfig', (_message.Message,), {
+  'DESCRIPTOR' : _NODECONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.NodeConfig)
-  ))
+  })
 _sym_db.RegisterMessage(NodeConfig)
 
-PythonConfig = _reflection.GeneratedProtocolMessageType('PythonConfig', (_message.Message,), dict(
-  DESCRIPTOR = _PYTHONCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+PythonConfig = _reflection.GeneratedProtocolMessageType('PythonConfig', (_message.Message,), {
+  'DESCRIPTOR' : _PYTHONCONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.PythonConfig)
-  ))
+  })
 _sym_db.RegisterMessage(PythonConfig)
 
-JavaConfig = _reflection.GeneratedProtocolMessageType('JavaConfig', (_message.Message,), dict(
-  DESCRIPTOR = _JAVACONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+JavaConfig = _reflection.GeneratedProtocolMessageType('JavaConfig', (_message.Message,), {
+  'DESCRIPTOR' : _JAVACONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.JavaConfig)
-  ))
+  })
 _sym_db.RegisterMessage(JavaConfig)
 
-GoConfig = _reflection.GeneratedProtocolMessageType('GoConfig', (_message.Message,), dict(
-  DESCRIPTOR = _GOCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+GoConfig = _reflection.GeneratedProtocolMessageType('GoConfig', (_message.Message,), {
+  'DESCRIPTOR' : _GOCONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.GoConfig)
-  ))
+  })
 _sym_db.RegisterMessage(GoConfig)
 
-CustomConfig = _reflection.GeneratedProtocolMessageType('CustomConfig', (_message.Message,), dict(
-  DESCRIPTOR = _CUSTOMCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+CustomConfig = _reflection.GeneratedProtocolMessageType('CustomConfig', (_message.Message,), {
+  'DESCRIPTOR' : _CUSTOMCONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.CustomConfig)
-  ))
+  })
 _sym_db.RegisterMessage(CustomConfig)
 
-CloudSQL = _reflection.GeneratedProtocolMessageType('CloudSQL', (_message.Message,), dict(
-  DESCRIPTOR = _CLOUDSQL,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+CloudSQL = _reflection.GeneratedProtocolMessageType('CloudSQL', (_message.Message,), {
+  'DESCRIPTOR' : _CLOUDSQL,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.CloudSQL)
-  ))
+  })
 _sym_db.RegisterMessage(CloudSQL)
 
-Library = _reflection.GeneratedProtocolMessageType('Library', (_message.Message,), dict(
-  DESCRIPTOR = _LIBRARY,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+Library = _reflection.GeneratedProtocolMessageType('Library', (_message.Message,), {
+  'DESCRIPTOR' : _LIBRARY,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.Library)
-  ))
+  })
 _sym_db.RegisterMessage(Library)
 
-Environ = _reflection.GeneratedProtocolMessageType('Environ', (_message.Message,), dict(
-  DESCRIPTOR = _ENVIRON,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+Environ = _reflection.GeneratedProtocolMessageType('Environ', (_message.Message,), {
+  'DESCRIPTOR' : _ENVIRON,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.Environ)
-  ))
+  })
 _sym_db.RegisterMessage(Environ)
 
-VMConfig = _reflection.GeneratedProtocolMessageType('VMConfig', (_message.Message,), dict(
-  DESCRIPTOR = _VMCONFIG,
-  __module__ = 'google.appengine.tools.devappserver2.runtime_config_pb2'
+VMConfig = _reflection.GeneratedProtocolMessageType('VMConfig', (_message.Message,), {
+  'DESCRIPTOR' : _VMCONFIG,
+  '__module__' : 'google.appengine.tools.devappserver2.runtime_config_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.VMConfig)
-  ))
+  })
 _sym_db.RegisterMessage(VMConfig)
 
 

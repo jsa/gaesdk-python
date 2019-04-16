@@ -312,32 +312,32 @@ DESCRIPTOR.message_types_by_name['ApplicationError'] = _APPLICATIONERROR
 DESCRIPTOR.message_types_by_name['RpcError'] = _RPCERROR
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Request = _reflection.GeneratedProtocolMessageType('Request', (_message.Message,), dict(
-  DESCRIPTOR = _REQUEST,
-  __module__ = 'google.appengine.tools.devappserver2.grpc_service_pb2'
+Request = _reflection.GeneratedProtocolMessageType('Request', (_message.Message,), {
+  'DESCRIPTOR' : _REQUEST,
+  '__module__' : 'google.appengine.tools.devappserver2.grpc_service_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.Request)
-  ))
+  })
 _sym_db.RegisterMessage(Request)
 
-Response = _reflection.GeneratedProtocolMessageType('Response', (_message.Message,), dict(
-  DESCRIPTOR = _RESPONSE,
-  __module__ = 'google.appengine.tools.devappserver2.grpc_service_pb2'
+Response = _reflection.GeneratedProtocolMessageType('Response', (_message.Message,), {
+  'DESCRIPTOR' : _RESPONSE,
+  '__module__' : 'google.appengine.tools.devappserver2.grpc_service_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.Response)
-  ))
+  })
 _sym_db.RegisterMessage(Response)
 
-ApplicationError = _reflection.GeneratedProtocolMessageType('ApplicationError', (_message.Message,), dict(
-  DESCRIPTOR = _APPLICATIONERROR,
-  __module__ = 'google.appengine.tools.devappserver2.grpc_service_pb2'
+ApplicationError = _reflection.GeneratedProtocolMessageType('ApplicationError', (_message.Message,), {
+  'DESCRIPTOR' : _APPLICATIONERROR,
+  '__module__' : 'google.appengine.tools.devappserver2.grpc_service_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.ApplicationError)
-  ))
+  })
 _sym_db.RegisterMessage(ApplicationError)
 
-RpcError = _reflection.GeneratedProtocolMessageType('RpcError', (_message.Message,), dict(
-  DESCRIPTOR = _RPCERROR,
-  __module__ = 'google.appengine.tools.devappserver2.grpc_service_pb2'
+RpcError = _reflection.GeneratedProtocolMessageType('RpcError', (_message.Message,), {
+  'DESCRIPTOR' : _RPCERROR,
+  '__module__' : 'google.appengine.tools.devappserver2.grpc_service_pb2'
   # @@protoc_insertion_point(class_scope:apphosting.tools.devappserver2.RpcError)
-  ))
+  })
 _sym_db.RegisterMessage(RpcError)
 
 

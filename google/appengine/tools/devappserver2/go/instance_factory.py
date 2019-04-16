@@ -142,8 +142,13 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
     """Returns the path to go.mod, if it exists, or None if not."""
     # Start at application_root and walk up until we reach root or find a go.mod
     pwd = base_path
+    if os.path.isfile(os.path.join(pwd, 'go.mod')):
+      return pwd
     while pwd:
       if os.path.isfile(os.path.join(pwd, 'go.mod')):
+        logging.warning('go.mod found in parent directory. Move app.yaml to '
+                        'that directory and add the line "main: %s".',
+                        os.path.relpath(base_path, pwd))
         return pwd
       parent = os.path.dirname(pwd)
       if parent == pwd:
@@ -164,10 +169,16 @@ class GoRuntimeInstanceFactory(instance.InstanceFactory):
     # Go > 1.11 should only watch go.mod dir
     go_mod_dir = self._find_go_mod_dir(
         self._module_configuration.application_root)
-    if os.getenv('GO111MODULE', '').lower() == 'on' and go_mod_dir:
+    # pylint: disable=line-too-long
+    if go_mod_dir and (
+        os.getenv('GO111MODULE', '').lower() == 'on' or  # explicitly enabled
+        (os.getenv('GO111MODULE', 'auto').lower() == 'auto' and  # automatic, so depends on GOPATH
+         (not os.getenv('GOPATH') or  # either GOPATH unset, or...
+          not go_mod_dir.startswith(os.getenv('GOPATH'))))):  # ...path is not on GOPATH
       logging.info('Building with dependencies from go.mod.')
       return [go_mod_dir]
     logging.info('Building with dependencies from GOPATH.')
+    # pylint: enable=line-too-long
 
     # Go <= 1.10 assumes GOPATH, or will infer it
     if not self._runtime_config_getter().go_config.enable_watching_go_path:

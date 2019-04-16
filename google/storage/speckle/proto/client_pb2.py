@@ -2571,117 +2571,117 @@ DESCRIPTOR.enum_types_by_name['MetadataType'] = _METADATATYPE
 DESCRIPTOR.enum_types_by_name['ClientType'] = _CLIENTTYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-BindVariableProto = _reflection.GeneratedProtocolMessageType('BindVariableProto', (_message.Message,), dict(
-  DESCRIPTOR = _BINDVARIABLEPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+BindVariableProto = _reflection.GeneratedProtocolMessageType('BindVariableProto', (_message.Message,), {
+  'DESCRIPTOR' : _BINDVARIABLEPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(BindVariableProto)
 
-ResultProto = _reflection.GeneratedProtocolMessageType('ResultProto', (_message.Message,), dict(
-  DESCRIPTOR = _RESULTPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+ResultProto = _reflection.GeneratedProtocolMessageType('ResultProto', (_message.Message,), {
+  'DESCRIPTOR' : _RESULTPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ResultProto)
 
-OpProto = _reflection.GeneratedProtocolMessageType('OpProto', (_message.Message,), dict(
-  DESCRIPTOR = _OPPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+OpProto = _reflection.GeneratedProtocolMessageType('OpProto', (_message.Message,), {
+  'DESCRIPTOR' : _OPPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(OpProto)
 
-SavePoint = _reflection.GeneratedProtocolMessageType('SavePoint', (_message.Message,), dict(
-  DESCRIPTOR = _SAVEPOINT,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+SavePoint = _reflection.GeneratedProtocolMessageType('SavePoint', (_message.Message,), {
+  'DESCRIPTOR' : _SAVEPOINT,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(SavePoint)
 
-SqlException = _reflection.GeneratedProtocolMessageType('SqlException', (_message.Message,), dict(
-  DESCRIPTOR = _SQLEXCEPTION,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+SqlException = _reflection.GeneratedProtocolMessageType('SqlException', (_message.Message,), {
+  'DESCRIPTOR' : _SQLEXCEPTION,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(SqlException)
 
-TupleProto = _reflection.GeneratedProtocolMessageType('TupleProto', (_message.Message,), dict(
-  DESCRIPTOR = _TUPLEPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+TupleProto = _reflection.GeneratedProtocolMessageType('TupleProto', (_message.Message,), {
+  'DESCRIPTOR' : _TUPLEPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(TupleProto)
 
-ColumnProto = _reflection.GeneratedProtocolMessageType('ColumnProto', (_message.Message,), dict(
-  DESCRIPTOR = _COLUMNPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+ColumnProto = _reflection.GeneratedProtocolMessageType('ColumnProto', (_message.Message,), {
+  'DESCRIPTOR' : _COLUMNPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ColumnProto)
 
-RowSetProto = _reflection.GeneratedProtocolMessageType('RowSetProto', (_message.Message,), dict(
-  DESCRIPTOR = _ROWSETPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+RowSetProto = _reflection.GeneratedProtocolMessageType('RowSetProto', (_message.Message,), {
+  'DESCRIPTOR' : _ROWSETPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(RowSetProto)
 
-JdbcDatabaseMetaDataProto = _reflection.GeneratedProtocolMessageType('JdbcDatabaseMetaDataProto', (_message.Message,), dict(
+JdbcDatabaseMetaDataProto = _reflection.GeneratedProtocolMessageType('JdbcDatabaseMetaDataProto', (_message.Message,), {
 
-  Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,), dict(
-    DESCRIPTOR = _JDBCDATABASEMETADATAPROTO_SCHEMA,
-    __module__ = 'google.storage.speckle.proto.client_pb2'
+  'Schema' : _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,), {
+    'DESCRIPTOR' : _JDBCDATABASEMETADATAPROTO_SCHEMA,
+    '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-    ))
+    })
   ,
-  DESCRIPTOR = _JDBCDATABASEMETADATAPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+  'DESCRIPTOR' : _JDBCDATABASEMETADATAPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(JdbcDatabaseMetaDataProto)
 _sym_db.RegisterMessage(JdbcDatabaseMetaDataProto.Schema)
 
-Property = _reflection.GeneratedProtocolMessageType('Property', (_message.Message,), dict(
-  DESCRIPTOR = _PROPERTY,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+Property = _reflection.GeneratedProtocolMessageType('Property', (_message.Message,), {
+  'DESCRIPTOR' : _PROPERTY,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(Property)
 
-ExecOptions = _reflection.GeneratedProtocolMessageType('ExecOptions', (_message.Message,), dict(
-  DESCRIPTOR = _EXECOPTIONS,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+ExecOptions = _reflection.GeneratedProtocolMessageType('ExecOptions', (_message.Message,), {
+  'DESCRIPTOR' : _EXECOPTIONS,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ExecOptions)
 
-BatchBindVariableProto = _reflection.GeneratedProtocolMessageType('BatchBindVariableProto', (_message.Message,), dict(
-  DESCRIPTOR = _BATCHBINDVARIABLEPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+BatchBindVariableProto = _reflection.GeneratedProtocolMessageType('BatchBindVariableProto', (_message.Message,), {
+  'DESCRIPTOR' : _BATCHBINDVARIABLEPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(BatchBindVariableProto)
 
-BatchProto = _reflection.GeneratedProtocolMessageType('BatchProto', (_message.Message,), dict(
-  DESCRIPTOR = _BATCHPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+BatchProto = _reflection.GeneratedProtocolMessageType('BatchProto', (_message.Message,), {
+  'DESCRIPTOR' : _BATCHPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(BatchProto)
 
-ParameterMetadata = _reflection.GeneratedProtocolMessageType('ParameterMetadata', (_message.Message,), dict(
-  DESCRIPTOR = _PARAMETERMETADATA,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+ParameterMetadata = _reflection.GeneratedProtocolMessageType('ParameterMetadata', (_message.Message,), {
+  'DESCRIPTOR' : _PARAMETERMETADATA,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ParameterMetadata)
 
-RpcErrorProto = _reflection.GeneratedProtocolMessageType('RpcErrorProto', (_message.Message,), dict(
-  DESCRIPTOR = _RPCERRORPROTO,
-  __module__ = 'google.storage.speckle.proto.client_pb2'
+RpcErrorProto = _reflection.GeneratedProtocolMessageType('RpcErrorProto', (_message.Message,), {
+  'DESCRIPTOR' : _RPCERRORPROTO,
+  '__module__' : 'google.storage.speckle.proto.client_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(RpcErrorProto)
 
 

@@ -924,11 +924,9 @@ class _Parser(object):
       else:
         getattr(message, field.name).append(value)
     else:
-
-
-      can_check_presence = not self._IsProto3Syntax(message)
       if field.is_extension:
-        if (not self._allow_multiple_scalars and can_check_presence and
+        if (not self._allow_multiple_scalars and
+            not self._IsProto3Syntax(message) and
             message.HasExtension(field)):
           raise tokenizer.ParseErrorPreviousToken(
               'Message type "%s" should not have multiple "%s" extensions.' %
@@ -936,8 +934,16 @@ class _Parser(object):
         else:
           message.Extensions[field] = value
       else:
-        if (not self._allow_multiple_scalars and can_check_presence and
-            message.HasField(field.name)):
+        duplicate_error = False
+        if not self._allow_multiple_scalars:
+          if self._IsProto3Syntax(message):
+
+
+            duplicate_error = bool(getattr(message, field.name))
+          else:
+            duplicate_error = message.HasField(field.name)
+
+        if duplicate_error:
           raise tokenizer.ParseErrorPreviousToken(
               'Message type "%s" should not have multiple "%s" fields.' %
               (message.DESCRIPTOR.full_name, field.name))

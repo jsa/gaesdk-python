@@ -2787,6 +2787,7 @@ class AppCfgApp(object):
     argv: The original command line as a list.
     args: The positional command line args left over after parsing the options.
     error_fh: Unexpected HTTPErrors are printed to this file handle.
+    stage_dir: Stagind directory used for deployment.
 
   Attributes for testing:
     parser_class: The class to use for parsing the command line.  Because
@@ -3877,10 +3878,7 @@ class AppCfgApp(object):
 
 
 
-
-
-      sdk_root = os.path.dirname(appcfg_java.__file__)
-      self.stage_dir = java_app_update.CreateStagingDirectory(sdk_root)
+      self.stage_dir = java_app_update.CreateStagingDirectory()
       try:
         appyaml = self._ParseAppInfoFromYaml(
             self.stage_dir,
@@ -4211,8 +4209,7 @@ class AppCfgApp(object):
     if JavaSupported() and appcfg_java.IsWarFileWithoutYaml(self.basepath):
       java_app_update = appcfg_java.JavaAppUpdate(self.basepath, self.options)
       self.options.compile_jsps = True
-      sdk_root = os.path.dirname(appcfg_java.__file__)
-      basepath = java_app_update.CreateStagingDirectory(sdk_root)
+      basepath = java_app_update.CreateStagingDirectory()
     else:
       basepath = self.basepath
 

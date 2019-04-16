@@ -44,6 +44,15 @@ class GaeGoApplication(object):
     self._module_configuration = module_configuration
     self._go_executable = None
     self._work_dir = None
+    self._main_executable_path = os.path.normpath(
+        getattr(self._module_configuration, 'main', ''))
+    dotslash = '.' + os.path.sep
+    if (self._main_executable_path != '.' and
+        not self._main_executable_path.startswith(dotslash) and
+        os.path.exists(
+            os.path.join(self._module_configuration.application_root,
+                         self._main_executable_path))):
+      self._main_executable_path = dotslash + self._main_executable_path
     if work_dir:
       # Multiple modules might be running within the same server.
       # These must not share a single workdir, as otherwise the build fails
@@ -77,7 +86,7 @@ class GaeGoApplication(object):
 
     app_root = self._module_configuration.application_root
     exe_name = os.path.join(self._work_dir, '_ah_exe')
-    args = ['build', '-o', exe_name]
+    args = ['build', '-o', exe_name, self._main_executable_path]
     if self._enable_debugging:
       args.extend(['-N', '-l'])
     try:
@@ -90,7 +99,7 @@ class GaeGoApplication(object):
     if not _file_is_executable(exe_name):
       # TODO: Fix this doc string
       raise go_errors.BuildError(
-          'Your Go app must use "package main" and must provide a func main().'
+          'Your Go app must use "package main" and must provide a func main(). '
           'See https://cloud.google.com/appengine/docs/standard/go/'
           'building-app/creating-your-application#creating_your_maingo_file '
           'for more information.')

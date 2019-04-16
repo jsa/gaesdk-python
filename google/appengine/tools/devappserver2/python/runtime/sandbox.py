@@ -80,10 +80,12 @@ _WHITE_LIST_C_MODULES = [
     '_elementtree',
     'errno',
     'exceptions',
+    'fcntl',
     '_fileio',
     '_functools',
     'future_builtins',
     'gc',
+    'grp',
     '_hashlib',
     '_heapq',
     'imp',
@@ -95,6 +97,7 @@ _WHITE_LIST_C_MODULES = [
     '__main__',
     'marshal',
     'math',
+    'mmap',
     '_md5',  # Python2.5 compatibility
     '_multibytecodec',
     'nt',  # Only indirectly through the os module.
@@ -103,8 +106,9 @@ _WHITE_LIST_C_MODULES = [
     'posix',  # Only indirectly through the os module.
     'pyexpat',
     '_random',
-    '_scproxy',  # Mac OS X compatibility
     'select',
+    'spwd',
+    '_scproxy',  # Mac OS X compatibility
     '_sha256',  # Python2.5 compatibility
     '_sha512',  # Python2.5 compatibility
     '_sha',  # Python2.5 compatibility
@@ -947,18 +951,17 @@ class ModuleOverridePolicy(object):
 _MODULE_OVERRIDE_POLICIES = {
     'os': ModuleOverridePolicy(
         default_stub=stubs.os_error_not_implemented,
-        whitelist=['altsep', 'curdir', 'defpath', 'devnull', 'environ', 'error',
-                   'fstat', 'getcwd', 'getcwdu', 'getenv', '_get_exports_list',
-                   'name', 'open', 'pardir', 'path', 'pathsep', 'sep',
-                   'stat_float_times', 'stat_result', 'strerror', 'sys',
-                   'walk'],
+        whitelist=['altsep', 'chown', 'curdir', 'defpath', 'devnull', 'environ',
+                   'error', 'execv', 'fchmod', 'fchown', 'fork', 'fstat',
+                   'ftruncate', 'getcwd', 'getcwdu', 'getenv',
+                   '_get_exports_list', 'kill', 'lchown', 'lstat', 'name',
+                   'open', 'pardir', 'path', 'pathsep', 'readline', 'sep',
+                   'setuid', 'stat', 'stat_float_times', 'stat_result',
+                   'strerror', 'sys', 'waitpid', 'walk', 'readlink'],
         overrides={
             'access': stubs.fake_access,
             'listdir': stubs.RestrictedPathFunction(os.listdir),
-            # Alias lstat() to stat() to match the behavior in production.
-            'lstat': stubs.RestrictedPathFunction(os.stat),
             'open': stubs.fake_open,
-            'stat': stubs.RestrictedPathFunction(os.stat),
             'uname': stubs.fake_uname,
             'getpid': stubs.return_minus_one,
             'getppid': stubs.return_minus_one,
@@ -970,7 +973,7 @@ _MODULE_OVERRIDE_POLICIES = {
             'urandom': stubs.fake_urandom,
             'system': stubs.return_minus_one,
             },
-        deletes=['execv', 'execve']),
+        deletes=['execve']),
     'signal': ModuleOverridePolicy(overrides={'__doc__': None}),
     'locale': ModuleOverridePolicy(
         overrides={'setlocale': stubs.fake_set_locale},

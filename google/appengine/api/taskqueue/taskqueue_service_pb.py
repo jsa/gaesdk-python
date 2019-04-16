@@ -69,6 +69,7 @@ class TaskQueueServiceError(ProtocolBuffer.ProtocolMessage):
   TASK_LEASE_EXPIRED =   25
   QUEUE_PAUSED =   26
   INVALID_TAG  =   27
+  INVALID_LOGGING_CONFIG =   28
   DATASTORE_ERROR = 10000
 
   _ErrorCode_NAMES = {
@@ -100,6 +101,7 @@ class TaskQueueServiceError(ProtocolBuffer.ProtocolMessage):
     25: "TASK_LEASE_EXPIRED",
     26: "QUEUE_PAUSED",
     27: "INVALID_TAG",
+    28: "INVALID_LOGGING_CONFIG",
     10000: "DATASTORE_ERROR",
   }
 

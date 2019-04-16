@@ -1210,7 +1210,7 @@ class BaseCursor(object):
 
     Args:
       last_result: the last result returned by this query.
-      compiled_cursor: an empty datstore_pb.CompiledCursor.
+      compiled_cursor: an empty datastore_pb.CompiledCursor.
     """
     if last_result is not None:
 
@@ -1788,8 +1788,8 @@ class LiveTxn(object):
     We assume that old_entity represents the current state of the Datastore.
 
     Args:
-      old_entity: Entity representing the current state in the Datstore.
-      new_entity: Entity representing the desired state in the Datstore.
+      old_entity: Entity representing the current state in the Datastore.
+      new_entity: Entity representing the desired state in the Datastore.
     """
     composite_indexes = self._kind_to_indexes[_GetKeyKind(new_entity.key())]
     entity_writes, index_writes = _CalculateWriteOps(
@@ -2956,7 +2956,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
     self.Flush()
 
   def Close(self):
-    """Closes the Datstore, writing any buffered data."""
+    """Closes the Datastore, writing any buffered data."""
     self.Write()
 
   def _GetQueryCursor(self, query, filters, orders, index_list):
@@ -4657,7 +4657,7 @@ class StubServiceConverter(object):
     """Converts a v3 QueryResult to a v4 ContinueQueryResponse.
 
     Args:
-      v3_resp: a datstore_pb.QueryResult
+      v3_resp: a datastore_pb.QueryResult
 
     Returns:
       a datastore_v4_pb.ContinueQueryResponse
@@ -5159,8 +5159,8 @@ def _CalculateWriteOps(composite_indexes, old_entity, new_entity):
 
   Args:
     composite_indexes: The composite_indexes for the kind of the entities.
-    old_entity: Entity representing the current state in the Datstore.
-    new_entity: Entity representing the desired state in the Datstore.
+    old_entity: Entity representing the current state in the Datastore.
+    new_entity: Entity representing the desired state in the Datastore.
 
   Returns:
     A tuple of size 2, where the first value is the number of entity writes and

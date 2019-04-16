@@ -541,11 +541,11 @@ class PrettyTable:
                 if fields and field not in fields:
                     continue
                 if align == "l":
-                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: left\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
+                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: left; white-space: pre\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
                 elif align == "r":
-                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: right\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
+                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: right; white-space: pre\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
                 else:
-                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: center\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
+                    bits.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: center; white-space: pre\">%s</td>" % (lpad, rpad, cgi.escape(six.text_type(datum))))
         bits.append("    </tr>")
         bits.append("</table>")
         string = "\n".join(bits)

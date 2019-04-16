@@ -339,8 +339,6 @@ def get_entity_group_version(key):
     guaranteed to increase on every change to the entity group. The version
     may increase even in the absence of user-visible changes to the entity
     group. May return None if the entity group was never written to.
-
-    On non-HR datatores, this function returns None.
   """
 
   eg = EntityGroup.key_for_entity_group(key).get()

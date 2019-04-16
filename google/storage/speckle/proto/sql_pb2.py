@@ -634,74 +634,74 @@ DESCRIPTOR.message_types_by_name['CloseConnectionRequest'] = _CLOSECONNECTIONREQ
 DESCRIPTOR.message_types_by_name['CloseConnectionResponse'] = _CLOSECONNECTIONRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ExecRequest = _reflection.GeneratedProtocolMessageType('ExecRequest', (_message.Message,), dict(
-  DESCRIPTOR = _EXECREQUEST,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+ExecRequest = _reflection.GeneratedProtocolMessageType('ExecRequest', (_message.Message,), {
+  'DESCRIPTOR' : _EXECREQUEST,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ExecRequest)
 
-ExecResponse = _reflection.GeneratedProtocolMessageType('ExecResponse', (_message.Message,), dict(
-  DESCRIPTOR = _EXECRESPONSE,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+ExecResponse = _reflection.GeneratedProtocolMessageType('ExecResponse', (_message.Message,), {
+  'DESCRIPTOR' : _EXECRESPONSE,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ExecResponse)
 
-ExecOpRequest = _reflection.GeneratedProtocolMessageType('ExecOpRequest', (_message.Message,), dict(
-  DESCRIPTOR = _EXECOPREQUEST,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+ExecOpRequest = _reflection.GeneratedProtocolMessageType('ExecOpRequest', (_message.Message,), {
+  'DESCRIPTOR' : _EXECOPREQUEST,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ExecOpRequest)
 
-ExecOpResponse = _reflection.GeneratedProtocolMessageType('ExecOpResponse', (_message.Message,), dict(
-  DESCRIPTOR = _EXECOPRESPONSE,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+ExecOpResponse = _reflection.GeneratedProtocolMessageType('ExecOpResponse', (_message.Message,), {
+  'DESCRIPTOR' : _EXECOPRESPONSE,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(ExecOpResponse)
 
-MetadataRequest = _reflection.GeneratedProtocolMessageType('MetadataRequest', (_message.Message,), dict(
-  DESCRIPTOR = _METADATAREQUEST,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+MetadataRequest = _reflection.GeneratedProtocolMessageType('MetadataRequest', (_message.Message,), {
+  'DESCRIPTOR' : _METADATAREQUEST,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(MetadataRequest)
 
-MetadataResponse = _reflection.GeneratedProtocolMessageType('MetadataResponse', (_message.Message,), dict(
-  DESCRIPTOR = _METADATARESPONSE,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+MetadataResponse = _reflection.GeneratedProtocolMessageType('MetadataResponse', (_message.Message,), {
+  'DESCRIPTOR' : _METADATARESPONSE,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(MetadataResponse)
 
-OpenConnectionRequest = _reflection.GeneratedProtocolMessageType('OpenConnectionRequest', (_message.Message,), dict(
-  DESCRIPTOR = _OPENCONNECTIONREQUEST,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+OpenConnectionRequest = _reflection.GeneratedProtocolMessageType('OpenConnectionRequest', (_message.Message,), {
+  'DESCRIPTOR' : _OPENCONNECTIONREQUEST,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(OpenConnectionRequest)
 
-OpenConnectionResponse = _reflection.GeneratedProtocolMessageType('OpenConnectionResponse', (_message.Message,), dict(
-  DESCRIPTOR = _OPENCONNECTIONRESPONSE,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+OpenConnectionResponse = _reflection.GeneratedProtocolMessageType('OpenConnectionResponse', (_message.Message,), {
+  'DESCRIPTOR' : _OPENCONNECTIONRESPONSE,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(OpenConnectionResponse)
 
-CloseConnectionRequest = _reflection.GeneratedProtocolMessageType('CloseConnectionRequest', (_message.Message,), dict(
-  DESCRIPTOR = _CLOSECONNECTIONREQUEST,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+CloseConnectionRequest = _reflection.GeneratedProtocolMessageType('CloseConnectionRequest', (_message.Message,), {
+  'DESCRIPTOR' : _CLOSECONNECTIONREQUEST,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(CloseConnectionRequest)
 
-CloseConnectionResponse = _reflection.GeneratedProtocolMessageType('CloseConnectionResponse', (_message.Message,), dict(
-  DESCRIPTOR = _CLOSECONNECTIONRESPONSE,
-  __module__ = 'google.storage.speckle.proto.sql_pb2'
+CloseConnectionResponse = _reflection.GeneratedProtocolMessageType('CloseConnectionResponse', (_message.Message,), {
+  'DESCRIPTOR' : _CLOSECONNECTIONRESPONSE,
+  '__module__' : 'google.storage.speckle.proto.sql_pb2'
 
-  ))
+  })
 _sym_db.RegisterMessage(CloseConnectionResponse)
 
 
