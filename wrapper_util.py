@@ -117,7 +117,7 @@ class Paths(object):
 
 
     grpc_importable = False
-    grpc_path = os.path.join(dir_path, 'lib', 'grpcio-1.9.1')
+    grpc_path = os.path.join(dir_path, 'lib', 'grpcio-1.20.0')
     if os.path.exists(grpc_path):
 
 

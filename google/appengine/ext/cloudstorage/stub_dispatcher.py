@@ -187,7 +187,7 @@ def _handle_put(gcs_stub, filename, param_dict, headers, payload):
                                    payload,
                                    content_range.range,
                                    content_range.length)
-  except ValueError, e:
+  except ValueError as e:
     return _FakeUrlFetchResult(e.args[1], {}, e.args[0])
 
   if content_range.length is not None:

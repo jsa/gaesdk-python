@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 import pkg_resources
 
-VERSION = "0.47.0"
+VERSION = "0.56.0"
 NAME = "websocket_client"
 
 install_requires = ["six"]
@@ -12,12 +12,12 @@ tests_require = []
 if sys.version_info[0] == 2 and sys.version_info[1] < 7:
         tests_require.append('unittest2==0.8.0')
 
-insecure_pythons = '2.4, 2.5, 2.6, ' + ', '.join("2.7.{pv}".format(pv=pv) for pv in range(10))
+insecure_pythons = '2.6, ' + ', '.join("2.7.{pv}".format(pv=pv) for pv in range(10))
 
 extras_require = {
     ':python_version in "{ips}"'.format(ips=insecure_pythons):
         ['backports.ssl_match_hostname'],
-    ':python_version in "2.4, 2.5, 2.6"': ['argparse'],
+    ':python_version in "2.6"': ['argparse'],
 }
 
 try:
@@ -38,18 +38,25 @@ except Exception:
 setup(
     name=NAME,
     version=VERSION,
-    description="WebSocket client for python. hybi13 is supported.",
+    description="WebSocket client for Python. hybi13 is supported.",
     long_description=open("README.rst").read(),
     author="liris",
     author_email="liris.pp@gmail.com",
-    license="LGPL",
+    license="BSD",
     url="https://github.com/websocket-client/websocket-client.git",
+    python_requires='>=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
     classifiers=[
         "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)",
+        "License :: OSI Approved :: BSD License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.6",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX",
         "Operating System :: Microsoft :: Windows",
@@ -62,8 +69,7 @@ setup(
     install_requires=install_requires,
     packages=["websocket", "websocket.tests"],
     package_data={
-        'websocket.tests': ['data/*.txt'],
-        'websocket': ["cacert.pem"]
+        'websocket.tests': ['data/*.txt']
     },
     tests_require=tests_require,
     test_suite="websocket.tests"

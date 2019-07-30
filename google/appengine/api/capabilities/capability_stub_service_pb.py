@@ -43,9 +43,9 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
   has_call_ = 0
   call_ = ""
   has_status_ = 0
+  status_ = 0
 
   def __init__(self, contents=None):
-    self.status_ = Status()
     if contents is not None: self.MergeFromString(contents)
 
   def service_name(self): return self.service_name_
@@ -76,9 +76,14 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
 
   def status(self): return self.status_
 
-  def mutable_status(self): self.has_status_ = 1; return self.status_
+  def set_status(self, x):
+    self.has_status_ = 1
+    self.status_ = x
 
-  def clear_status(self):self.has_status_ = 0; self.status_.Clear()
+  def clear_status(self):
+    if self.has_status_:
+      self.has_status_ = 0
+      self.status_ = 0
 
   def has_status(self): return self.has_status_
 
@@ -87,7 +92,7 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     if (x.has_service_name()): self.set_service_name(x.service_name())
     if (x.has_call()): self.set_call(x.call())
-    if (x.has_status()): self.mutable_status().MergeFrom(x.status())
+    if (x.has_status()): self.set_status(x.status())
 
   def Equals(self, x):
     if x is self: return 1
@@ -113,14 +118,13 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
       initialized = 0
       if debug_strs is not None:
         debug_strs.append('Required field: status not set.')
-    elif not self.status_.IsInitialized(debug_strs): initialized = 0
     return initialized
 
   def ByteSize(self):
     n = 0
     n += self.lengthString(len(self.service_name_))
     n += self.lengthString(len(self.call_))
-    n += self.lengthString(self.status_.ByteSize())
+    n += self.lengthVarInt64(self.status_)
     return n + 3
 
   def ByteSizePartial(self):
@@ -133,7 +137,7 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
       n += self.lengthString(len(self.call_))
     if (self.has_status_):
       n += 1
-      n += self.lengthString(self.status_.ByteSizePartial())
+      n += self.lengthVarInt64(self.status_)
     return n
 
   def Clear(self):
@@ -146,9 +150,8 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
     out.putPrefixedString(self.service_name_)
     out.putVarInt32(18)
     out.putPrefixedString(self.call_)
-    out.putVarInt32(26)
-    out.putVarInt32(self.status_.ByteSize())
-    self.status_.OutputUnchecked(out)
+    out.putVarInt32(24)
+    out.putVarInt32(self.status_)
 
   def OutputPartial(self, out):
     if (self.has_service_name_):
@@ -158,9 +161,8 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(18)
       out.putPrefixedString(self.call_)
     if (self.has_status_):
-      out.putVarInt32(26)
-      out.putVarInt32(self.status_.ByteSizePartial())
-      self.status_.OutputPartial(out)
+      out.putVarInt32(24)
+      out.putVarInt32(self.status_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -171,11 +173,8 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
       if tt == 18:
         self.set_call(d.getPrefixedString())
         continue
-      if tt == 26:
-        length = d.getVarInt32()
-        tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
-        d.skip(length)
-        self.mutable_status().TryMerge(tmp)
+      if tt == 24:
+        self.set_status(d.getVarInt32())
         continue
 
 
@@ -187,10 +186,7 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
     res=""
     if self.has_service_name_: res+=prefix+("service_name: %s\n" % self.DebugFormatString(self.service_name_))
     if self.has_call_: res+=prefix+("call: %s\n" % self.DebugFormatString(self.call_))
-    if self.has_status_:
-      res+=prefix+"status <\n"
-      res+=self.status_.__str__(prefix + "  ", printElemNumber)
-      res+=prefix+">\n"
+    if self.has_status_: res+=prefix+("status: %s\n" % self.DebugFormatInt32(self.status_))
     return res
 
 
@@ -212,7 +208,7 @@ class SetCapabilityStatusRequest(ProtocolBuffer.ProtocolMessage):
     0: ProtocolBuffer.Encoder.NUMERIC,
     1: ProtocolBuffer.Encoder.STRING,
     2: ProtocolBuffer.Encoder.STRING,
-    3: ProtocolBuffer.Encoder.STRING,
+    3: ProtocolBuffer.Encoder.NUMERIC,
   }, 3, ProtocolBuffer.Encoder.MAX_TYPE)
 
 

@@ -43,8 +43,7 @@ core.workflow(
     authoring = authoring.pass_thru("kadircet <kadircet@google.com>"),
     name = "default",
     origin = git.github_origin(
-        url = "https://github.com/requests/requests",
-        ref = "6cfbe1aedd56f8c2f9ff8b968efe65b22669795b",
+        url = "https://github.com/kennethreitz/requests.git",
     ),
     origin_files = origin_files,
     destination = piper.destination(),

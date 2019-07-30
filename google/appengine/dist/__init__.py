@@ -35,8 +35,6 @@ __all__ = [
     'select',
     'py_select',
     'socket',
-    'subprocess',
-    'tempfile',
 
     'fix_paths',
     'use_library',

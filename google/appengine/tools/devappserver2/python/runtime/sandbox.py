@@ -23,6 +23,7 @@ import imp
 import os
 import re
 import sys
+import tempfile
 import traceback
 import types
 import google
@@ -409,9 +410,13 @@ def _install_import_hooks(config, path_override_hook):
 
 def _install_fake_file(config, python_lib_paths, path_override_hook):
   """Install a stub file implementation to enforce sandbox rules."""
+  # Set up a private temp folder for the sandbox
+  fake_temp = tempfile.mkdtemp()
+  tempfile.tempdir = fake_temp
   stubs.FakeFile.set_allowed_paths(config.application_root,
                                    python_lib_paths[1:] +
-                                   path_override_hook.extra_accessible_paths)
+                                   path_override_hook.extra_accessible_paths,
+                                   fake_temp)
   stubs.FakeFile.set_skip_files(config.skip_files)
   stubs.FakeFile.set_static_files(config.static_files)
   __builtin__.file = stubs.FakeFile
@@ -447,7 +452,7 @@ def _find_shared_object_c_module():
 def _should_keep_module(name):
   """Returns True if the module should be retained after sandboxing."""
   return (name in ('__builtin__', '__main__', 'sys', 'codecs', 'encodings',
-                   'site', 'google') or
+                   'site', 'google', 'tempfile') or
           name.startswith('google.') or name.startswith('encodings.') or
 
 
@@ -951,17 +956,26 @@ class ModuleOverridePolicy(object):
 _MODULE_OVERRIDE_POLICIES = {
     'os': ModuleOverridePolicy(
         default_stub=stubs.os_error_not_implemented,
-        whitelist=['altsep', 'chown', 'curdir', 'defpath', 'devnull', 'environ',
-                   'error', 'execv', 'fchmod', 'fchown', 'fork', 'fstat',
-                   'ftruncate', 'getcwd', 'getcwdu', 'getenv',
-                   '_get_exports_list', 'kill', 'lchown', 'lstat', 'name',
+        whitelist=['altsep', 'chown', 'close', 'curdir', 'defpath', 'devnull',
+                   'environ', 'error', 'execv', 'fchmod', 'fchown', 'fdopen',
+                   'fork', 'fstat', 'ftruncate', 'getcwd', 'getcwdu', 'getenv',
+                   '_get_exports_list', 'kill', 'lchown', 'name',
                    'open', 'pardir', 'path', 'pathsep', 'readline', 'sep',
-                   'setuid', 'stat', 'stat_float_times', 'stat_result',
+                   'setuid', 'stat_float_times', 'stat_result',
                    'strerror', 'sys', 'waitpid', 'walk', 'readlink'],
         overrides={
             'access': stubs.fake_access,
-            'listdir': stubs.RestrictedPathFunction(os.listdir),
+            'chmod': stubs.RestrictedPathFunction(os.chmod,
+                                                  for_write=True),
+            'listdir': stubs.make_fake_listdir(os.listdir),
+            # Alias lstat() to stat() to match the behavior in production.
+            'lstat': stubs.RestrictedPathFunction(os.stat),
+            'makedirs': stubs.RestrictedPathFunction(os.makedirs,
+                                                     for_write=True),
+            'mkdir': stubs.RestrictedPathFunction(os.mkdir,
+                                                  for_write=True),
             'open': stubs.fake_open,
+            'stat': stubs.RestrictedPathFunction(os.stat),
             'uname': stubs.fake_uname,
             'getpid': stubs.return_minus_one,
             'getppid': stubs.return_minus_one,
@@ -970,6 +984,12 @@ _MODULE_OVERRIDE_POLICIES = {
             'getegid': stubs.return_minus_one,
             'geteuid': stubs.return_minus_one,
             'getuid': stubs.return_minus_one,
+            'remove': stubs.RestrictedPathFunction(os.remove,
+                                                   for_write=True),
+            'rename': stubs.RestrictedPathFunction(os.rename,
+                                                   for_write=True),
+            'unlink': stubs.RestrictedPathFunction(os.unlink,
+                                                   for_write=True),
             'urandom': stubs.fake_urandom,
             'system': stubs.return_minus_one,
             },

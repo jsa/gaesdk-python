@@ -113,13 +113,18 @@ def HandleRequest(unused_environ, handler_name, unused_url, post_data,
         if parent_module:
           parent_module.__dict__[submodule_name] = module
     return _ParseResponse(body)
-  except:
+  except (Exception, SystemExit) as e:
+
     exception = sys.exc_info()
 
 
     message = ''.join(traceback.format_exception(exception[0], exception[1],
                                                  exception[2].tb_next))
     logging.error(message)
+    if isinstance(e, SystemExit):
+
+
+      return {'error': 1, 'exit_code': e.code}
     return {'error': 1}
   finally:
     sys.stdin, sys.stdout = saved_streams

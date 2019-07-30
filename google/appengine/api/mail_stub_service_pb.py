@@ -56,7 +56,7 @@ class GetSentMessagesResponse(ProtocolBuffer.ProtocolMessage):
     return self.sent_message_[i]
 
   def add_sent_message(self):
-    x = MailMessage()
+    x = google.appengine.api.mail_service_pb.MailMessage()
     self.sent_message_.append(x)
     return x
 

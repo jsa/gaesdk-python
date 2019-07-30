@@ -186,6 +186,7 @@ APP_YAML_FILENAME = 'app.yaml'
 GCLOUD_ONLY_RUNTIMES = set([
     'custom',
     'go111',
+    'go112',
     'nodejs',
     'nodejs8',
     'php72',

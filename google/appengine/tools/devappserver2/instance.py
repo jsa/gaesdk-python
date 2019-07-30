@@ -574,6 +574,10 @@ class ModernInstanceFactoryMixin(object):
         'GAE_VERSION': (
             self._module_configuration.major_version or instance_start_time),
         'GOOGLE_CLOUD_PROJECT': self._get_google_cloud_project(),
+
+        # Python will change the LC_CTYPE env var and write the result back
+        # into the env in Python 3.7+ unless PYTHONCOERCELOCALE=0. See PEP 538
+        'PYTHONCOERCECLOCALE': '0',
         'LC_CTYPE': 'C.UTF-8',
 
         # $HOME, $PWD and $PATH should just be same as in the shell executing

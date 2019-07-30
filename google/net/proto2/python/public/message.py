@@ -301,4 +301,9 @@ class Message(object):
   def __setstate__(self, state):
     """Support the pickle protocol."""
     self.__init__()
-    self.ParseFromString(state['serialized'])
+    serialized = state['serialized']
+
+
+    if not isinstance(serialized, bytes):
+      serialized = serialized.encode('latin1')
+    self.ParseFromString(serialized)

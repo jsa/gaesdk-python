@@ -259,7 +259,13 @@ class WsgiRequest(object):
 
         logging.error('Original exception:', exc_info=exc_info)
       return {'error': _DEADLINE_DURING_LOADING}
+    except SystemExit as e:
+
+
+      logging.exception('')
+      return {'error': 1, 'exit_code': e.code}
     except:
+
       logging.exception('')
       return {'error': 1}
     result = None
@@ -275,7 +281,13 @@ class WsgiRequest(object):
       body = ''.join(self._written_body + self._body)
       return {'response_code': self._status, 'headers':
               self._response_headers, 'body': body}
+    except SystemExit as e:
+
+
+      logging.exception('')
+      return {'error': 1, 'exit_code': e.code}
     except:
+
       logging.exception('')
       return {'error': 1}
     finally:

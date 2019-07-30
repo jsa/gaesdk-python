@@ -90,8 +90,7 @@ import sys
 import re
 import tempfile
 import atexit
-import urllib2
-import urlparse
+from six.moves import urllib
 
 import grizzled.exception
 from grizzled.file import unlink_quietly
@@ -284,7 +283,7 @@ class Includer(object):
         :Parameters:
             length : int
                 a length hint, or negative if you don't care
-                
+
         :rtype: str
         :return: the line read
         """
@@ -355,12 +354,12 @@ class Includer(object):
         is_url = False
         openFunc = None
 
-        parsed_url = urlparse.urlparse(name_to_open)
+        parsed_url = urllib.parse.urlparse(name_to_open)
 
         # Account for Windows drive letters.
 
         if (parsed_url.scheme != '') and (len(parsed_url.scheme) > 1):
-            openFunc = urllib2.urlopen
+            openFunc = urllib.request.urlopen
             is_url = True
 
         else:
@@ -368,9 +367,9 @@ class Includer(object):
 
             if enclosing_file_is_url:
                 # Use the parent URL as the base URL.
-                
-                name_to_open = urlparse.urljoin(enclosing_file, name_to_open)
-                open_func = urllib2.urlopen
+
+                name_to_open = urllib.parse.urljoin(enclosing_file, name_to_open)
+                open_func = urllib.request.urlopen
                 is_url = True
 
             elif not os.path.isabs(name_to_open):
@@ -399,7 +398,7 @@ class Includer(object):
                 'Unable to open "{0}" as a file or a URL'.format(name_to_open)
             )
         return (f, is_url, name_to_open)
-    
+
 # ---------------------------------------------------------------------------
 # Public functions
 # ---------------------------------------------------------------------------
@@ -439,7 +438,7 @@ def preprocess(file_or_url, output=None, temp_suffix='.txt', temp_prefix='inc'):
     Includer(file_or_url, output=output)
     return result
 
-    
+
 # ---------------------------------------------------------------------------
 # Private functions
 # ---------------------------------------------------------------------------
@@ -461,7 +460,7 @@ if __name__ == '__main__':
         import cStringIO as StringIO
         out = StringIO.StringIO()
         preprocess(file, output=out)
-        
+
         header = 'File: %s, via preprocess()'
         sep = '-' * len(header)
         print('\n{0}\n{1}\n{2}\n'.format(sep, header, sep))

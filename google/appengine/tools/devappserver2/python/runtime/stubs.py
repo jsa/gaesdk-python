@@ -65,23 +65,24 @@ def fake_urandom(n):
 
 
 def fake_access(path, mode, _os_access=os.access):
-  """Fake version of os.access where only reads are supported."""
-  if mode & (os.W_OK | os.X_OK):
-    return False
-  elif FakeFile.is_file_accessible(path) != FakeFile.Visibility.OK:
+  """Fake version of os.access."""
+  check_for_write = mode & (os.W_OK | os.X_OK)
+  if FakeFile.is_file_accessible(path,
+                                 check_for_write) != FakeFile.Visibility.OK:
     return False
   return _os_access(path, mode)
 
 
-def fake_open(filename, flags, mode=0777, _os_open=os.open):
+def fake_open(filename, flags, mode=0o777, _os_open=os.open):  # pylint: disable=invalid-name
   """Fake version of os.open."""
   # A copy of os.open is saved in _os_open so it can still be used after os.open
   # is replaced with this stub.
-  if flags & (os.O_RDWR | os.O_CREAT | os.O_WRONLY):
-    raise OSError(errno.EROFS, 'Read-only file system', filename)
-  visible = FakeFile.is_file_accessible(filename)
-  if visible != FakeFile.Visibility.OK:
-    log_access_check_fail(filename, visible)
+  check_for_write = flags & (os.O_RDWR | os.O_CREAT | os.O_WRONLY)
+  accessible = FakeFile.is_file_accessible(filename, check_for_write)
+  if accessible != FakeFile.Visibility.OK:
+    log_access_check_fail(filename, accessible)
+    if accessible == FakeFile.Visibility.WRITE_BLOCK:
+      raise OSError(errno.EROFS, 'Read-only file system', filename)
     raise OSError(errno.ENOENT, 'No such file or directory', filename)
   return _os_open(filename, flags, mode)
 
@@ -115,6 +116,7 @@ class FakeFile(file):
     SKIP_BLOCK = 2
     STATIC_BLOCK = 3
     PATH_BLOCK = 4
+    WRITE_BLOCK = 5
 
   ALLOWED_MODES = frozenset(['r', 'rb', 'U', 'rU'])
 
@@ -150,6 +152,7 @@ class FakeFile(file):
 
   # Configuration - set_allowed_paths must be called to initialize them.
   _allowed_dirs = None  # List of accessible paths.
+  _writeable_dirs = None  # Set of writeable paths
 
   # Configuration - set_skip_files must be called to initialize it.
   _skip_files = None  # Regex of skip files.
@@ -161,7 +164,7 @@ class FakeFile(file):
   _availability_cache_lock = threading.Lock()
 
   @staticmethod
-  def set_allowed_paths(root_path, application_paths):
+  def set_allowed_paths(root_path, application_paths, temp_path=None):
     """Configures which paths are allowed to be accessed.
 
     Must be called at least once before any file objects are created in the
@@ -172,6 +175,7 @@ class FakeFile(file):
       application_paths: List of additional paths that the application may
         access, this must include the App Engine runtime but not the Python
         library directories.
+      temp_path: Temporary root folder; writing to this folder will be allowed.
     """
     # Use os.path.realpath to flush out symlink-at-root issues.
     # (Deeper symlinks will not use realpath.)
@@ -182,6 +186,10 @@ class FakeFile(file):
     FakeFile._root_path = os.path.normcase(os.path.abspath(root_path))
     _application_paths.add(FakeFile._root_path)
     FakeFile._allowed_dirs = _application_paths | FakeFile.ALLOWED_DIRS
+
+    FakeFile._writeable_dirs = set()
+    if temp_path:
+      FakeFile._writeable_dirs.add(temp_path)
 
     with FakeFile._availability_cache_lock:
       FakeFile._availability_cache = {}
@@ -217,7 +225,7 @@ class FakeFile(file):
       FakeFile._availability_cache = {}
 
   @staticmethod
-  def is_file_accessible(filename):
+  def is_file_accessible(filename, for_write=False):
     """Determines if a file is accessible.
 
     set_allowed_paths(), set_skip_files() and SetStaticFileConfigMatcher() must
@@ -227,6 +235,7 @@ class FakeFile(file):
       filename: Path of the file to check (relative or absolute). May be a
         directory, in which case access for files inside that directory will
         be checked.
+      for_write: If true, only include writeable files/directories.
 
     Returns:
       The visibility of the file. Visibility.OK means it's visible; other
@@ -246,40 +255,51 @@ class FakeFile(file):
     # regular expressions for a match.  As long as app.yaml isn't changed the
     # answer will always be the same as it's only depending on the filename and
     # the configuration, not on which files do exist or not.
+    cache_key = (fixed_filename, for_write)
     with FakeFile._availability_cache_lock:
-      cached_result = FakeFile._availability_cache.get(fixed_filename)
+      cached_result = FakeFile._availability_cache.get(cache_key)
     if cached_result is False:
       return FakeFile.Visibility.CACHED_BLOCK
     elif cached_result is True:
       return FakeFile.Visibility.OK
     assert cached_result is None, 'Unexpected value in availability cache'
     visibility = FakeFile.Visibility.OK
-    if not (
-        fixed_filename in FakeFile.ALLOWED_FILES or
-        _is_path_in_directories(fixed_filename, FakeFile._allowed_dirs)):
-      visibility = FakeFile.Visibility.PATH_BLOCK
-    if (_is_path_in_directories(fixed_filename, [FakeFile._root_path]) and
-        fixed_filename != FakeFile._root_path):
-      relative_filename = fixed_filename[len(FakeFile._root_path):].lstrip(
-          os.path.sep)
-      if FakeFile._skip_files.match(relative_filename):
-        visibility = FakeFile.Visibility.SKIP_BLOCK
-      elif FakeFile._static_files.match(relative_filename):
-        visibility = FakeFile.Visibility.STATIC_BLOCK
+    if for_write:
+      # Checking write access: Allow only _writeable_dirs
+      if not _is_path_in_directories(fixed_filename, FakeFile._writeable_dirs):
+        visibility = FakeFile.Visibility.WRITE_BLOCK
+    else:
+      # Checking read access: Allow only whitelisted files and dirs
+      if not (
+          fixed_filename in FakeFile.ALLOWED_FILES or
+          _is_path_in_directories(
+              fixed_filename,
+              FakeFile._allowed_dirs | FakeFile._writeable_dirs)):
+        visibility = FakeFile.Visibility.PATH_BLOCK
+
+      # Also exclude skipped or static files within the app
+      if (_is_path_in_directories(fixed_filename, [FakeFile._root_path]) and
+          fixed_filename != FakeFile._root_path):
+        relative_filename = fixed_filename[len(FakeFile._root_path):].lstrip(
+            os.path.sep)
+        if FakeFile._skip_files.match(relative_filename):
+          visibility = FakeFile.Visibility.SKIP_BLOCK
+        elif FakeFile._static_files.match(relative_filename):
+          visibility = FakeFile.Visibility.STATIC_BLOCK
 
     with FakeFile._availability_cache_lock:
-      FakeFile._availability_cache[fixed_filename] = (
+      FakeFile._availability_cache[cache_key] = (
           visibility == FakeFile.Visibility.OK)
     return visibility
 
   def __init__(self, filename, mode='r', bufsize=-1, **kwargs):
     """Initializer. See file built-in documentation."""
-    if mode not in FakeFile.ALLOWED_MODES:
-      raise IOError(errno.EROFS, 'Read-only file system', filename)
-
-    visible = FakeFile.is_file_accessible(filename)
-    if visible != FakeFile.Visibility.OK:
-      log_access_check_fail(filename, visible)
+    check_for_write = mode not in FakeFile.ALLOWED_MODES
+    accessible = FakeFile.is_file_accessible(filename, check_for_write)
+    if accessible != FakeFile.Visibility.OK:
+      log_access_check_fail(filename, accessible)
+      if accessible == FakeFile.Visibility.WRITE_BLOCK:
+        raise IOError(errno.EROFS, 'Read-only file system', filename)
       raise IOError(errno.EACCES, 'file not accessible', filename)
 
     super(FakeFile, self).__init__(filename, mode, bufsize, **kwargs)
@@ -288,7 +308,7 @@ class FakeFile(file):
 class RestrictedPathFunction(object):
   """Enforces restrictions for functions with a path as their first argument."""
 
-  def __init__(self, original_func, error_class=OSError):
+  def __init__(self, original_func, error_class=OSError, for_write=False):
     """Initializer.
 
     Args:
@@ -296,16 +316,20 @@ class RestrictedPathFunction(object):
         file or directory on disk; all subsequent arguments may be variable.
       error_class: The class of the error to raise when the file is not
         accessible.
+      for_write: If true, only allow writeable directories.
     """
     self._original_func = original_func
     functools.update_wrapper(self, original_func)
     self._error_class = error_class
+    self._for_write = for_write
 
   def __call__(self, path, *args, **kwargs):
     """Enforces access permissions for the wrapped function."""
-    visible = FakeFile.is_file_accessible(path)
+    visible = FakeFile.is_file_accessible(path, self._for_write)
     if visible != FakeFile.Visibility.OK:
       log_access_check_fail(path, visible)
+      if visible == FakeFile.Visibility.WRITE_BLOCK:
+        raise self._error_class(errno.EROFS, 'read-only file system')
       raise self._error_class(errno.EACCES, 'path not accessible', path)
 
     return self._original_func(path, *args, **kwargs)
@@ -329,3 +353,14 @@ def _is_path_in_directories(filename, directories):
     if os.path.commonprefix([fixed_path, fixed_parent]) == fixed_parent:
       return True
   return False
+
+
+def make_fake_listdir(real_listdir):
+  @RestrictedPathFunction
+  def fake_listdir(path):
+    def visible(f):
+      return (FakeFile.is_file_accessible(os.path.join(path, f)) ==
+              FakeFile.Visibility.OK)
+    return [f for f in real_listdir(path) if visible(f)]
+  return fake_listdir
+

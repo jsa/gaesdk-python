@@ -178,7 +178,7 @@ __docformat__ = "restructuredtext en"
 # Imports
 # ---------------------------------------------------------------------------
 
-import ConfigParser
+from six.moves import configparser as ConfigParser
 import logging
 import string
 import os
@@ -427,7 +427,7 @@ class Configuration(ConfigParser.SafeConfigParser):
         '''
         self.__preprocess(fp, filename)
 
-    def get(self, section, option, optional=False):
+    def get(self, section, option, optional=False, raw=False, vars=None, fallback=None):
         """
         Get an option from a section.
 
@@ -447,7 +447,8 @@ class Configuration(ConfigParser.SafeConfigParser):
         :raise NoOptionError: no such option in the section
         """
         def do_get(section, option):
-            val = ConfigParser.SafeConfigParser.get(self, section, option)
+            val = ConfigParser.SafeConfigParser.get(
+                self, section, option, raw=raw)
             if len(val.strip()) == 0:
                 raise ConfigParser.NoOptionError(option, section)
             return val

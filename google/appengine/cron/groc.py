@@ -27,14 +27,13 @@
 
 from __future__ import absolute_import
 
-
-
 import google
 
 from . import GrocLexer
 from . import GrocParser
-
 import antlr3
+
+
 
 
 class GrocException(Exception):

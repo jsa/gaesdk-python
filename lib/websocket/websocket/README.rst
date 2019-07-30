@@ -8,40 +8,39 @@ websocket-client supports only hybi-13.
 
 
 License
-============
+=======
 
- - LGPL
+ - BSD
 
 Installation
-=============
+============
 
-This module is tested on Python 2.7 and Python 3.x.
+This module is tested on Python 2.7 and Python 3.4+.
 
 Type "python setup.py install" or "pip install websocket-client" to install.
 
 .. CAUTION::
 
-  from v0.16.0, we can install by "pip install websocket-client" for python 3.
+  from v0.16.0, we can install by "pip install websocket-client" for Python 3.
 
-This module depend on
+This module depends on
 
  - six
  - backports.ssl_match_hostname for Python 2.x
 
-performance
-------------------
+Performance
+-----------
 
- "send" method is too slow on pure python. If you want to get better performace, please install numpy or wsaccel.
-You can get the best performance from numpy.
+The "send" and "validate_utf8" methods are too slow on pure python. If you want to get better performace, please install both numpy and wsaccel.
 
 
 How about Python 3
-===========================
+==================
 
-Now, we support python 3 on  single source code from version 0.14.0. Thanks, @battlemidget and @ralphbean.
+Now, we support Python 3 on single source code from version 0.14.0. Thanks, @battlemidget and @ralphbean.
 
 HTTP Proxy
-=============
+==========
 
 Support websocket access via http proxy.
 The proxy server must allow "CONNECT" method to websocket port.
@@ -57,7 +56,6 @@ example
     import websocket
     ws = websocket.WebSocket()
     ws.connect("ws://example.com/websocket", http_proxy_host="proxy_host_name", http_proxy_port=3128)
-
 
 
 
@@ -107,6 +105,7 @@ This example is similar to how WebSocket code looks in browsers using JavaScript
         ws.run_forever()
 
 
+
 Short-lived one-off send-receive
 --------------------------------
 This is if you want to communicate a short message and disconnect immediately when done.
@@ -122,6 +121,7 @@ This is if you want to communicate a short message and disconnect immediately wh
     result =  ws.recv()
     print("Received '%s'" % result)
     ws.close()
+
 
 If you want to customize socket options, set sockopt.
 
@@ -153,10 +153,10 @@ You can also write your own class for the connection, if you want to handle the 
 
 
 FAQ
-============
+===
 
 How to disable ssl cert verification?
-----------------------------------------
+-------------------------------------
 
 Please set sslopt to {"cert_reqs": ssl.CERT_NONE}.
 
@@ -167,12 +167,14 @@ WebSocketApp sample
     ws = websocket.WebSocketApp("wss://echo.websocket.org")
     ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
+
 create_connection sample
 
 .. code:: python
 
     ws = websocket.create_connection("wss://echo.websocket.org",
       sslopt={"cert_reqs": ssl.CERT_NONE})
+
 
 WebSocket sample
 
@@ -182,8 +184,8 @@ WebSocket sample
     ws.connect("wss://echo.websocket.org")
 
 
-How to disable hostname verification.
-----------------------------------------
+How to disable hostname verification?
+-------------------------------------
 
 Please set sslopt to {"check_hostname": False}.
 (since v0.18.0)
@@ -195,12 +197,14 @@ WebSocketApp sample
     ws = websocket.WebSocketApp("wss://echo.websocket.org")
     ws.run_forever(sslopt={"check_hostname": False})
 
+
 create_connection sample
 
 .. code:: python
 
     ws = websocket.create_connection("wss://echo.websocket.org",
       sslopt={"check_hostname": False})
+
 
 WebSocket sample
 
@@ -217,7 +221,7 @@ SNI support is available for Python 2.7.9+ and 3.2+. It will be enabled automati
 
 
 Sub Protocols.
-----------------------------------------
+--------------
 
 The server needs to support sub protocols, please set the subprotocol like this.
 
@@ -231,7 +235,7 @@ Subprotocol sample
 
 
 wsdump.py
-============
+=========
 
 wsdump.py is simple WebSocket test(debug) tool.
 
@@ -244,22 +248,26 @@ sample for echo.websocket.org::
   > How are you?
   < How are you?
 
+
 Usage
----------
+-----
 
 usage::
 
   wsdump.py [-h] [-v [VERBOSE]] ws_url
+
 
 WebSocket Simple Dump Tool
 
 positional arguments:
   ws_url                websocket url. ex. ws://echo.websocket.org/
 
+
 optional arguments:
   -h, --help                           show this help message and exit
 WebSocketApp
   -v VERBOSE, --verbose VERBOSE    set verbose mode. If set to 1, show opcode. If set to 2, enable to trace websocket module
+
 
 example::
 

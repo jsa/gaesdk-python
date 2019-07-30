@@ -290,7 +290,7 @@ class IsEnabledResponse(ProtocolBuffer.ProtocolMessage):
     return self.config_[i]
 
   def add_config(self):
-    x = CapabilityConfig()
+    x = google.appengine.base.capabilities_pb.CapabilityConfig()
     self.config_.append(x)
     return x
 

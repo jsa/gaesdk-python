@@ -862,7 +862,7 @@ class TransactionRequest_Precondition(ProtocolBuffer.ProtocolMessage):
   hash_ = ""
 
   def __init__(self, contents=None):
-    self.key_ = Reference()
+    self.key_ = google.appengine.datastore.entity_pb.Reference()
     if contents is not None: self.MergeFromString(contents)
 
   def key(self): return self.key_
@@ -1005,7 +1005,7 @@ class TransactionRequest(ProtocolBuffer.ProtocolMessage):
     if self.puts_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.puts_ is None: self.puts_ = PutRequest()
+        if self.puts_ is None: self.puts_ = google.appengine.datastore.datastore_v3_pb.PutRequest()
       finally:
         self.lazy_init_lock_.release()
     return self.puts_
@@ -1024,7 +1024,7 @@ class TransactionRequest(ProtocolBuffer.ProtocolMessage):
     if self.deletes_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.deletes_ is None: self.deletes_ = DeleteRequest()
+        if self.deletes_ is None: self.deletes_ = google.appengine.datastore.datastore_v3_pb.DeleteRequest()
       finally:
         self.lazy_init_lock_.release()
     return self.deletes_
@@ -1229,8 +1229,8 @@ class TransactionQueryResult(ProtocolBuffer.ProtocolMessage):
   entity_group_ = None
 
   def __init__(self, contents=None):
-    self.result_ = QueryResult()
-    self.entity_group_key_ = Reference()
+    self.result_ = google.appengine.datastore.datastore_v3_pb.QueryResult()
+    self.entity_group_key_ = google.appengine.datastore.entity_pb.Reference()
     self.lazy_init_lock_ = _Lock()
     if contents is not None: self.MergeFromString(contents)
 
@@ -1254,7 +1254,7 @@ class TransactionQueryResult(ProtocolBuffer.ProtocolMessage):
     if self.entity_group_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.entity_group_ is None: self.entity_group_ = EntityProto()
+        if self.entity_group_ is None: self.entity_group_ = google.appengine.datastore.entity_pb.EntityProto()
       finally:
         self.lazy_init_lock_.release()
     return self.entity_group_

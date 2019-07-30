@@ -38,13 +38,16 @@ Extensions to be considered:
 """
 
 from __future__ import absolute_import
-
-
+from __future__ import division
+from __future__ import print_function
 
 import calendar
 import datetime
 
 from . import groc
+
+
+
 
 
 
@@ -116,7 +119,7 @@ class TimeSpecification(object):
       a list of n datetime objects
     """
     out = []
-    for _ in range(n):
+    while len(out) < n:
       start = self.GetMatch(start)
       out.append(start)
     return out
@@ -287,7 +290,7 @@ class IntervalTimeSpecification(TimeSpecification):
 
     t_delta = t - start_time
     t_delta_seconds = (t_delta.days * 60 * 24 + t_delta.seconds)
-    num_intervals = (t_delta_seconds + self.seconds) / self.seconds
+    num_intervals = (t_delta_seconds + self.seconds) // self.seconds
     interval_time = (
         start_time + datetime.timedelta(seconds=(num_intervals * self.seconds)))
     if self.timezone:
@@ -566,7 +569,7 @@ class SpecificTimeSpecification(TimeSpecification):
       months = self._NextMonthGenerator(start_time.month, self.months)
     while True:
 
-      month, yearwraps = months.next()
+      month, yearwraps = next(months)
       candidate_month = start_time.replace(day=1, month=month,
                                            year=start_time.year + yearwraps)
 

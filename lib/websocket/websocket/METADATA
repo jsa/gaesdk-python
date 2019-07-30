@@ -12,7 +12,7 @@ third_party {
   }
   version: "56387981674cfd064b79e0cb9b740136a8f40d15"  # 0.47.0
   last_upgrade_date { year: 2018 month: 2 day: 5 }
-  license_type: RESTRICTED  # LGPL
+  local_modifications: "cl/245777829"
 }
 
 # Runs the TAP tests.

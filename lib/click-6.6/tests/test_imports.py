@@ -41,8 +41,6 @@ if WIN:
                             'zlib'])
 
 
-@pytest.mark.xfail(raises=AttributeError,
-                   reason="App Engine doesn't allow subprocess.Popen")
 def test_light_imports():
     c = subprocess.Popen([sys.executable, '-'], stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE)

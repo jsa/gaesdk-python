@@ -57,10 +57,6 @@ del server_software
 _DESIRED_DJANGO_VERSION = 'v0_96'
 
 
-
-AUTO_IMPORT_FIXER_FILE = 'auto_import_fixer.py'
-
-
 def fix_paths(app_path, python_lib_path):
   """Fix the __path__ attr of sys.modules entries.
 
@@ -72,13 +68,6 @@ def fix_paths(app_path, python_lib_path):
     app_path: The root path of the application code.
     python_lib_path: The root path of the python library.
   """
-
-
-
-
-  if os.path.isfile(os.path.join(app_path, AUTO_IMPORT_FIXER_FILE)):
-    return
-
   for module_name, module in sys.modules.items():
     if getattr(module, '__path__', None) is None:
       continue
@@ -226,10 +215,6 @@ PACKAGES = {
                 '1.1': None,
                 '1.2': None,
                 '1.3': None,
-                '1.4': None,
-                '1.5': None,
-                '1.9': None,
-                '1.11': None,
                 }),
 
 
@@ -360,7 +345,7 @@ def CallSetAllowedModule(name, desired):
 
 
 
-    if desired in ('0.96', '1.2', '1.3', '1.4', '1.5', '1.9', '1.11'):
+    if desired in ('0.96', '1.2', '1.3'):
       sys.path.insert(1, os.path.join(PYTHON_LIB, 'lib', 'django-' + desired))
   SetAllowedModule(name)
 

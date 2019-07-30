@@ -171,3 +171,24 @@ class _ExtensionDict(object):
       Extension field descriptor.
     """
     return self._extended_message._extensions_by_number.get(number, None)
+
+  def __iter__(self):
+
+    return (f[0] for f in self._extended_message.ListFields()
+            if f[0].is_extension)
+
+  def __contains__(self, extension_handle):
+    _VerifyExtensionHandle(self._extended_message, extension_handle)
+
+    if extension_handle not in self._extended_message._fields:
+      return False
+
+    if extension_handle.label == FieldDescriptor.LABEL_REPEATED:
+      return bool(self._extended_message._fields.get(extension_handle))
+
+    if extension_handle.cpp_type == FieldDescriptor.CPPTYPE_MESSAGE:
+      value = self._extended_message._fields.get(extension_handle)
+
+      return value is not None and value._is_present_in_parent
+
+    return True

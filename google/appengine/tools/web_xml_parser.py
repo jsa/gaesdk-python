@@ -26,7 +26,6 @@ SecurityConstraint: Contains information about specified security constraints.
 """
 
 import logging
-
 from xml.etree import ElementTree
 
 from google.appengine.tools import xml_parser_utils

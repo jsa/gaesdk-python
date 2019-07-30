@@ -45,8 +45,8 @@ class GetQueuesResponse(ProtocolBuffer.ProtocolMessage):
   has_fetch_queue_stats_response_ = 0
 
   def __init__(self, contents=None):
-    self.fetch_queues_response_ = TaskQueueFetchQueuesResponse()
-    self.fetch_queue_stats_response_ = TaskQueueFetchQueueStatsResponse()
+    self.fetch_queues_response_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueFetchQueuesResponse()
+    self.fetch_queue_stats_response_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueFetchQueueStatsResponse()
     if contents is not None: self.MergeFromString(contents)
 
   def fetch_queues_response(self): return self.fetch_queues_response_
@@ -200,7 +200,7 @@ class GetFilteredTasksResponse(ProtocolBuffer.ProtocolMessage):
     if self.query_tasks_response_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.query_tasks_response_ is None: self.query_tasks_response_ = TaskQueueQueryTasksResponse()
+        if self.query_tasks_response_ is None: self.query_tasks_response_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueQueryTasksResponse()
       finally:
         self.lazy_init_lock_.release()
     return self.query_tasks_response_
@@ -1122,7 +1122,7 @@ class GetQueueStateInfoResponse_QueueInfo_TaskInfo(ProtocolBuffer.ProtocolMessag
     if self.add_request_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.add_request_ is None: self.add_request_ = TaskQueueAddRequest()
+        if self.add_request_ is None: self.add_request_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueAddRequest()
       finally:
         self.lazy_init_lock_.release()
     return self.add_request_
@@ -1338,7 +1338,7 @@ class GetQueueStateInfoResponse_QueueInfo(ProtocolBuffer.ProtocolMessage):
     if self.retry_parameters_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.retry_parameters_ is None: self.retry_parameters_ = TaskQueueRetryParameters()
+        if self.retry_parameters_ is None: self.retry_parameters_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueRetryParameters()
       finally:
         self.lazy_init_lock_.release()
     return self.retry_parameters_
@@ -1383,7 +1383,7 @@ class GetQueueStateInfoResponse_QueueInfo(ProtocolBuffer.ProtocolMessage):
     if self.acl_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.acl_ is None: self.acl_ = TaskQueueAcl()
+        if self.acl_ is None: self.acl_ = google.appengine.api.taskqueue.taskqueue_service_pb.TaskQueueAcl()
       finally:
         self.lazy_init_lock_.release()
     return self.acl_

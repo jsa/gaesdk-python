@@ -67,34 +67,68 @@ class StubsTest(unittest.TestCase):
   def test_fake_uname(self):
     self.assertEqual(('Linux', '', '', '', ''), stubs.fake_uname())
 
+  def test_fake_listdir_in(self):
+    my_dir = os.path.dirname(__file__)
+    stubs.FakeFile.is_file_accessible(my_dir, False).AndReturn(
+        stubs.FakeFile.Visibility.OK)
+    for f in os.listdir(my_dir):
+      p = os.path.join(my_dir, f)
+      stubs.FakeFile.is_file_accessible(p).AndReturn(
+          stubs.FakeFile.Visibility.OK)
+    self.mox.ReplayAll()
+    fake_listdir = stubs.make_fake_listdir(os.listdir)
+    files = fake_listdir(os.path.dirname(__file__))
+    self.assertIn(os.path.basename(__file__), files)
+    self.mox.VerifyAll()
+
+  def test_fake_listdir_out(self):
+    my_dir = os.path.dirname(__file__)
+    stubs.FakeFile.is_file_accessible(my_dir, False).AndReturn(
+        stubs.FakeFile.Visibility.OK)
+    for f in os.listdir(my_dir):
+      p = os.path.join(my_dir, f)
+      if p != __file__:
+        stubs.FakeFile.is_file_accessible(p).AndReturn(
+            stubs.FakeFile.Visibility.OK)
+      else:
+        stubs.FakeFile.is_file_accessible(p).AndReturn(
+            stubs.FakeFile.Visibility.SKIP_BLOCK)
+    self.mox.ReplayAll()
+    fake_listdir = stubs.make_fake_listdir(os.listdir)
+    files = fake_listdir(os.path.dirname(__file__))
+    self.assertNotIn(os.path.basename(__file__), files)
+    self.mox.VerifyAll()
+
   def test_fake_access_accessible(self):
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, 0).AndReturn(
         stubs.FakeFile.Visibility.OK)
     self.mox.ReplayAll()
     self.assertTrue(stubs.fake_access(__file__, os.R_OK))
     self.mox.VerifyAll()
 
   def test_fake_access_inaccessible(self):
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, 0).AndReturn(
         stubs.FakeFile.Visibility.SKIP_BLOCK)
     self.mox.ReplayAll()
     self.assertFalse(stubs.fake_access(__file__, os.R_OK))
     self.mox.VerifyAll()
 
   def test_fake_access_write(self):
+    stubs.FakeFile.is_file_accessible(__file__, 2).AndReturn(
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
     self.mox.ReplayAll()
     self.assertFalse(stubs.fake_access(__file__, os.W_OK))
     self.mox.VerifyAll()
 
   def test_fake_open_accessible(self):
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, 0).AndReturn(
         stubs.FakeFile.Visibility.OK)
     self.mox.ReplayAll()
     os.close(stubs.fake_open(__file__, os.O_RDONLY))
     self.mox.VerifyAll()
 
   def test_fake_open_inaccessible(self):
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, 0).AndReturn(
         stubs.FakeFile.Visibility.STATIC_BLOCK)
     logging.info('Sandbox prevented access to static file "%s"', __file__)
     logging.info(
@@ -110,6 +144,8 @@ class StubsTest(unittest.TestCase):
     self.mox.VerifyAll()
 
   def test_fake_open_write(self):
+    stubs.FakeFile.is_file_accessible(__file__, 2).AndReturn(
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
     self.mox.ReplayAll()
     with self.assertRaises(OSError) as cm:
       stubs.fake_open(__file__, os.O_RDWR)
@@ -152,7 +188,7 @@ class StubsTest(unittest.TestCase):
   def test_restricted_path_function_allowed(self):
     fake_function = self.mox.CreateMockAnything()
     fake_function('foo', bar='baz').AndReturn(1)
-    stubs.FakeFile.is_file_accessible('foo').AndReturn(
+    stubs.FakeFile.is_file_accessible('foo', False).AndReturn(
         stubs.FakeFile.Visibility.OK)
     self.mox.ReplayAll()
     restricted_path_fake_function = stubs.RestrictedPathFunction(fake_function)
@@ -161,12 +197,12 @@ class StubsTest(unittest.TestCase):
 
   def test_static_access_message_restricted_path_function(self):
     fake_function = self.mox.CreateMockAnything()
-    stubs.FakeFile.is_file_accessible('foo').AndReturn(
+    stubs.FakeFile.is_file_accessible('foo', False).AndReturn(
         stubs.FakeFile.Visibility.STATIC_BLOCK)
     logging.info('Sandbox prevented access to static file "%s"', 'foo')
     logging.info(
         'Check that `application_readable: true` is set in app.yaml')
-    stubs.FakeFile.is_file_accessible('foo').AndReturn(
+    stubs.FakeFile.is_file_accessible('foo', False).AndReturn(
         stubs.FakeFile.Visibility.CACHED_BLOCK)
     self.mox.ReplayAll()
     # We'll try to access it twice here, the second time with the result cached.
@@ -201,7 +237,7 @@ class FakeFileTest(unittest.TestCase):
 
   def test_init_accessible(self):
     self.mox.StubOutWithMock(stubs.FakeFile, 'is_file_accessible')
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, False).AndReturn(
         stubs.FakeFile.Visibility.OK)
     self.mox.ReplayAll()
     with stubs.FakeFile(__file__) as f:
@@ -213,7 +249,7 @@ class FakeFileTest(unittest.TestCase):
 
   def test_init_inaccessible(self):
     self.mox.StubOutWithMock(stubs.FakeFile, 'is_file_accessible')
-    stubs.FakeFile.is_file_accessible(__file__).AndReturn(
+    stubs.FakeFile.is_file_accessible(__file__, False).AndReturn(
         stubs.FakeFile.Visibility.SKIP_BLOCK)
     self.mox.ReplayAll()
     self.assertRaises(IOError, stubs.FakeFile, __file__)
@@ -221,18 +257,24 @@ class FakeFileTest(unittest.TestCase):
 
   def test_init_to_write(self):
     self.mox.StubOutWithMock(stubs.FakeFile, 'is_file_accessible')
+    stubs.FakeFile.is_file_accessible(__file__, True).AndReturn(
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
     self.mox.ReplayAll()
     self.assertRaises(IOError, stubs.FakeFile, __file__, 'w')
     self.mox.VerifyAll()
 
   def test_init_to_append(self):
     self.mox.StubOutWithMock(stubs.FakeFile, 'is_file_accessible')
+    stubs.FakeFile.is_file_accessible(__file__, True).AndReturn(
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
     self.mox.ReplayAll()
     self.assertRaises(IOError, stubs.FakeFile, __file__, 'a')
     self.mox.VerifyAll()
 
   def test_init_to_read_plus(self):
     self.mox.StubOutWithMock(stubs.FakeFile, 'is_file_accessible')
+    stubs.FakeFile.is_file_accessible(__file__, True).AndReturn(
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
     self.mox.ReplayAll()
     self.assertRaises(IOError, stubs.FakeFile, __file__, 'r+')
     self.mox.VerifyAll()
@@ -259,6 +301,52 @@ class FakeFileTest(unittest.TestCase):
     self.assertEqual(stubs.FakeFile.is_file_accessible(
         os.path.join(self.tempdir, 'not_allowed')),
                      stubs.FakeFile.Visibility.CACHED_BLOCK)
+
+  def test_cache_write_then_read(self):
+    # Accessibility rules for writing are stricter than for reading; check that
+    # a failed attempt to open a read-only file for writing doesn't cache it as
+    # "blocked" and prevent a subsequent attempt to open it for reading.
+    filename = os.path.join(self.tempdir, 'allowed_for_read')
+    open(filename, 'w').close()
+    stubs.FakeFile.set_allowed_paths(filename, [])
+    # The access test when opening for writing should fail.
+    self.assertEqual(stubs.FakeFile.is_file_accessible(filename, True),
+                     stubs.FakeFile.Visibility.WRITE_BLOCK)
+    # The access test when opening for reading should succeed -- the previous
+    # open-for-write test shouldn't result in a CACHED_BLOCK response here.
+    self.assertEqual(stubs.FakeFile.is_file_accessible(filename),
+                     stubs.FakeFile.Visibility.OK)
+
+  def test_cache_read_then_write(self):
+    # As for test_cache_write_then_read, except check that opening a read-only
+    # file for reading doesn't result in it being cached as accessible for
+    # writing.
+    filename = os.path.join(self.tempdir, 'allowed_for_read')
+    open(filename, 'w').close()
+    stubs.FakeFile.set_allowed_paths(filename, [])
+    # The access test when opening for reading should succeed.
+    self.assertEqual(stubs.FakeFile.is_file_accessible(filename),
+                     stubs.FakeFile.Visibility.OK)
+    # The access test when opening for writing should fail -- the previous
+    # open-for-read test shouldn't result in a cached OK response here.
+    self.assertEqual(stubs.FakeFile.is_file_accessible(filename, True),
+                     stubs.FakeFile.Visibility.WRITE_BLOCK)
+
+  def test_allowed_write(self):
+    # Ensure that writes to the allowed temporary folder will be permitted
+    writeable_root = tempfile.mkdtemp()
+    writeable_filename = os.path.join(writeable_root, 'allowed_for_write')
+    readable_filename = os.path.join(self.tempdir, 'only_allowed_for_read')
+    stubs.FakeFile.set_allowed_paths(self.tempdir, [], writeable_root)
+    self.assertEqual(
+        stubs.FakeFile.is_file_accessible(writeable_filename, True),
+        stubs.FakeFile.Visibility.OK)
+    self.assertEqual(
+        stubs.FakeFile.is_file_accessible(readable_filename, True),
+        stubs.FakeFile.Visibility.WRITE_BLOCK)
+    self.assertEqual(
+        stubs.FakeFile.is_file_accessible(readable_filename, False),
+        stubs.FakeFile.Visibility.OK)
 
   def test_is_accessible_accessible_directory(self):
     os.mkdir(os.path.join(self.tempdir, 'allowed'))

@@ -246,7 +246,7 @@ class ModuleOverrideImportHookTest(unittest.TestCase):
     hooked_os.__dict__.update(os.__dict__)
     sandbox._MODULE_OVERRIDE_POLICIES['os'].apply_policy(hooked_os.__dict__)
     self.assertEqual(stubs.return_minus_one, hooked_os.getpid)
-    self.assertEqual(stubs.os_error_not_implemented, hooked_os.unlink)
+    self.assertEqual(stubs.os_error_not_implemented, hooked_os.fsync)
     self.assertEqual(os.walk, hooked_os.walk)
 
 

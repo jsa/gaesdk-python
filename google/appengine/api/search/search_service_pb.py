@@ -783,7 +783,7 @@ class IndexMetadata(ProtocolBuffer.ProtocolMessage):
     return self.field_[i]
 
   def add_field(self):
-    x = FieldTypes()
+    x = google.appengine.datastore.document_pb.FieldTypes()
     self.field_.append(x)
     return x
 
@@ -1090,7 +1090,7 @@ class IndexDocumentParams(ProtocolBuffer.ProtocolMessage):
     return self.document_[i]
 
   def add_document(self):
-    x = Document()
+    x = google.appengine.datastore.document_pb.Document()
     self.document_.append(x)
     return x
 
@@ -1399,9 +1399,11 @@ class IndexDocumentRequest(ProtocolBuffer.ProtocolMessage):
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.IndexDocumentRequest'
-class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
+class IndexDocumentResponse(_ExtendableProtocolMessage):
 
   def __init__(self, contents=None):
+    if _extension_runtime:
+      self._extension_fields = {}
     self.status_ = []
     self.doc_id_ = []
     if contents is not None: self.MergeFromString(contents)
@@ -1442,6 +1444,7 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     for i in range(x.status_size()): self.add_status().CopyFrom(x.status(i))
     for i in range(x.doc_id_size()): self.add_doc_id(x.doc_id(i))
+    if _extension_runtime: self._MergeExtensionFields(x)
 
   def Equals(self, x):
     if x is self: return 1
@@ -1451,6 +1454,7 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     if len(self.doc_id_) != len(x.doc_id_): return 0
     for e1, e2 in zip(self.doc_id_, x.doc_id_):
       if e1 != e2: return 0
+    if _extension_runtime and not self._ExtensionEquals(x): return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -1465,6 +1469,8 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     for i in range(len(self.status_)): n += self.lengthString(self.status_[i].ByteSize())
     n += 1 * len(self.doc_id_)
     for i in range(len(self.doc_id_)): n += self.lengthString(len(self.doc_id_[i]))
+    if _extension_runtime:
+      n += self._ExtensionByteSize(False)
     return n
 
   def ByteSizePartial(self):
@@ -1473,13 +1479,19 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     for i in range(len(self.status_)): n += self.lengthString(self.status_[i].ByteSizePartial())
     n += 1 * len(self.doc_id_)
     for i in range(len(self.doc_id_)): n += self.lengthString(len(self.doc_id_[i]))
+    if _extension_runtime:
+      n += self._ExtensionByteSize(True)
     return n
 
   def Clear(self):
     self.clear_status()
     self.clear_doc_id()
+    if _extension_runtime: self._extension_fields.clear()
 
   def OutputUnchecked(self, out):
+    if _extension_runtime:
+      extensions = self._ListExtensions()
+      extension_index = 0
     for i in range(len(self.status_)):
       out.putVarInt32(10)
       out.putVarInt32(self.status_[i].ByteSize())
@@ -1487,8 +1499,13 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     for i in range(len(self.doc_id_)):
       out.putVarInt32(18)
       out.putPrefixedString(self.doc_id_[i])
+    if _extension_runtime:
+      extension_index = self._OutputExtensionFields(out, False, extensions, extension_index, 10000)
 
   def OutputPartial(self, out):
+    if _extension_runtime:
+      extensions = self._ListExtensions()
+      extension_index = 0
     for i in range(len(self.status_)):
       out.putVarInt32(10)
       out.putVarInt32(self.status_[i].ByteSizePartial())
@@ -1496,6 +1513,8 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
     for i in range(len(self.doc_id_)):
       out.putVarInt32(18)
       out.putPrefixedString(self.doc_id_[i])
+    if _extension_runtime:
+      extension_index = self._OutputExtensionFields(out, True, extensions, extension_index, 10000)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -1509,6 +1528,10 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
       if tt == 18:
         self.add_doc_id(d.getPrefixedString())
         continue
+      if _extension_runtime:
+        if (1000 <= tt and tt < 10000):
+          self._ParseOneExtensionField(tt, d)
+          continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
@@ -1531,8 +1554,12 @@ class IndexDocumentResponse(ProtocolBuffer.ProtocolMessage):
       if printElemNumber: elm="(%d)" % cnt
       res+=prefix+("doc_id%s: %s\n" % (elm, self.DebugFormatString(e)))
       cnt+=1
+    if _extension_runtime:
+      res+=self._ExtensionDebugString(prefix, printElemNumber)
     return res
 
+  if _extension_runtime:
+    _extensions_by_field_number = {}
 
   def _BuildTagLookupTable(sparse, maxtag, default=None):
     return tuple([sparse.get(i, default) for i in range(0, 1+maxtag)])
@@ -2359,7 +2386,7 @@ class ListDocumentsResponse(ProtocolBuffer.ProtocolMessage):
     return self.document_[i]
 
   def add_document(self):
-    x = Document()
+    x = google.appengine.datastore.document_pb.Document()
     self.document_.append(x)
     return x
 
@@ -7108,7 +7135,7 @@ class SearchResult(ProtocolBuffer.ProtocolMessage):
   cursor_ = ""
 
   def __init__(self, contents=None):
-    self.document_ = Document()
+    self.document_ = google.appengine.datastore.document_pb.Document()
     self.expression_ = []
     self.score_ = []
     if contents is not None: self.MergeFromString(contents)
@@ -7131,7 +7158,7 @@ class SearchResult(ProtocolBuffer.ProtocolMessage):
     return self.expression_[i]
 
   def add_expression(self):
-    x = Field()
+    x = google.appengine.datastore.document_pb.Field()
     self.expression_.append(x)
     return x
 

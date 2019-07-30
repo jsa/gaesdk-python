@@ -119,7 +119,7 @@ class Transaction(ProtocolBuffer.ProtocolMessage):
     return self.composite_index_[i]
 
   def add_composite_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.composite_index_.append(x)
     return x
 
@@ -360,7 +360,7 @@ class Query_Filter(ProtocolBuffer.ProtocolMessage):
     return self.property_[i]
 
   def add_property(self):
-    x = Property()
+    x = google.appengine.datastore.entity_pb.Property()
     self.property_.append(x)
     return x
 
@@ -756,7 +756,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     if self.ancestor_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.ancestor_ is None: self.ancestor_ = Reference()
+        if self.ancestor_ is None: self.ancestor_ = google.appengine.datastore.entity_pb.Reference()
       finally:
         self.lazy_init_lock_.release()
     return self.ancestor_
@@ -929,7 +929,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     return self.composite_index_[i]
 
   def add_composite_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.composite_index_.append(x)
     return x
 
@@ -2904,7 +2904,7 @@ class CompiledQuery_EntityFilter(ProtocolBuffer.ProtocolMessage):
     if self.ancestor_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.ancestor_ is None: self.ancestor_ = Reference()
+        if self.ancestor_ is None: self.ancestor_ = google.appengine.datastore.entity_pb.Reference()
       finally:
         self.lazy_init_lock_.release()
     return self.ancestor_
@@ -3070,7 +3070,7 @@ class CompiledQuery(ProtocolBuffer.ProtocolMessage):
     if self.index_def_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.index_def_ is None: self.index_def_ = Index()
+        if self.index_def_ is None: self.index_def_ = google.appengine.datastore.entity_pb.Index()
       finally:
         self.lazy_init_lock_.release()
     return self.index_def_
@@ -3561,7 +3561,7 @@ class CompiledCursor_PositionIndexValue(ProtocolBuffer.ProtocolMessage):
   has_value_ = 0
 
   def __init__(self, contents=None):
-    self.value_ = PropertyValue()
+    self.value_ = google.appengine.datastore.entity_pb.PropertyValue()
     if contents is not None: self.MergeFromString(contents)
 
   def property(self): return self.property_
@@ -3719,7 +3719,7 @@ class CompiledCursor_Position(ProtocolBuffer.ProtocolMessage):
     if self.key_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.key_ is None: self.key_ = Reference()
+        if self.key_ is None: self.key_ = google.appengine.datastore.entity_pb.Reference()
       finally:
         self.lazy_init_lock_.release()
     return self.key_
@@ -3938,7 +3938,7 @@ class CompiledCursor(ProtocolBuffer.ProtocolMessage):
     if self.postfix_position_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.postfix_position_ is None: self.postfix_position_ = IndexPostfix()
+        if self.postfix_position_ is None: self.postfix_position_ = google.appengine.datastore.entity_pb.IndexPostfix()
       finally:
         self.lazy_init_lock_.release()
     return self.postfix_position_
@@ -3957,7 +3957,7 @@ class CompiledCursor(ProtocolBuffer.ProtocolMessage):
     if self.absolute_position_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.absolute_position_ is None: self.absolute_position_ = IndexPosition()
+        if self.absolute_position_ is None: self.absolute_position_ = google.appengine.datastore.entity_pb.IndexPosition()
       finally:
         self.lazy_init_lock_.release()
     return self.absolute_position_
@@ -4854,7 +4854,7 @@ class GetRequest(ProtocolBuffer.ProtocolMessage):
     return self.key_[i]
 
   def add_key(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.key_.append(x)
     return x
 
@@ -5111,7 +5111,7 @@ class GetResponse_Entity(ProtocolBuffer.ProtocolMessage):
     if self.entity_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.entity_ is None: self.entity_ = EntityProto()
+        if self.entity_ is None: self.entity_ = google.appengine.datastore.entity_pb.EntityProto()
       finally:
         self.lazy_init_lock_.release()
     return self.entity_
@@ -5130,7 +5130,7 @@ class GetResponse_Entity(ProtocolBuffer.ProtocolMessage):
     if self.key_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.key_ is None: self.key_ = Reference()
+        if self.key_ is None: self.key_ = google.appengine.datastore.entity_pb.Reference()
       finally:
         self.lazy_init_lock_.release()
     return self.key_
@@ -5299,7 +5299,7 @@ class GetResponse(ProtocolBuffer.ProtocolMessage):
     return self.deferred_[i]
 
   def add_deferred(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.deferred_.append(x)
     return x
 
@@ -5513,7 +5513,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     return self.entity_[i]
 
   def add_entity(self):
-    x = EntityProto()
+    x = google.appengine.datastore.entity_pb.EntityProto()
     self.entity_.append(x)
     return x
 
@@ -5548,7 +5548,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     return self.composite_index_[i]
 
   def add_composite_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.composite_index_.append(x)
     return x
 
@@ -5603,7 +5603,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     return self.snapshot_[i]
 
   def add_snapshot(self):
-    x = Snapshot()
+    x = google.appengine.datastore.snapshot_pb.Snapshot()
     self.snapshot_.append(x)
     return x
 
@@ -5910,7 +5910,7 @@ class PutResponse(ProtocolBuffer.ProtocolMessage):
     return self.key_[i]
 
   def add_key(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.key_.append(x)
     return x
 
@@ -6117,7 +6117,7 @@ class TouchRequest(ProtocolBuffer.ProtocolMessage):
     return self.key_[i]
 
   def add_key(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.key_.append(x)
     return x
 
@@ -6133,7 +6133,7 @@ class TouchRequest(ProtocolBuffer.ProtocolMessage):
     return self.composite_index_[i]
 
   def add_composite_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.composite_index_.append(x)
     return x
 
@@ -6162,7 +6162,7 @@ class TouchRequest(ProtocolBuffer.ProtocolMessage):
     return self.snapshot_[i]
 
   def add_snapshot(self):
-    x = Snapshot()
+    x = google.appengine.datastore.snapshot_pb.Snapshot()
     self.snapshot_.append(x)
     return x
 
@@ -6489,7 +6489,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     return self.key_[i]
 
   def add_key(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.key_.append(x)
     return x
 
@@ -6524,7 +6524,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     return self.composite_index_[i]
 
   def add_composite_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.composite_index_.append(x)
     return x
 
@@ -6579,7 +6579,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     return self.snapshot_[i]
 
   def add_snapshot(self):
-    x = Snapshot()
+    x = google.appengine.datastore.snapshot_pb.Snapshot()
     self.snapshot_.append(x)
     return x
 
@@ -7251,7 +7251,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     return self.result_[i]
 
   def add_result(self):
-    x = EntityProto()
+    x = google.appengine.datastore.entity_pb.EntityProto()
     self.result_.append(x)
     return x
 
@@ -7370,7 +7370,7 @@ class QueryResult(ProtocolBuffer.ProtocolMessage):
     return self.index_[i]
 
   def add_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.index_.append(x)
     return x
 
@@ -7846,7 +7846,7 @@ class AllocateIdsRequest(ProtocolBuffer.ProtocolMessage):
     if self.model_key_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.model_key_ is None: self.model_key_ = Reference()
+        if self.model_key_ is None: self.model_key_ = google.appengine.datastore.entity_pb.Reference()
       finally:
         self.lazy_init_lock_.release()
     return self.model_key_
@@ -7897,7 +7897,7 @@ class AllocateIdsRequest(ProtocolBuffer.ProtocolMessage):
     return self.reserve_[i]
 
   def add_reserve(self):
-    x = Reference()
+    x = google.appengine.datastore.entity_pb.Reference()
     self.reserve_.append(x)
     return x
 
@@ -8298,7 +8298,7 @@ class CompositeIndices(ProtocolBuffer.ProtocolMessage):
     return self.index_[i]
 
   def add_index(self):
-    x = CompositeIndex()
+    x = google.appengine.datastore.entity_pb.CompositeIndex()
     self.index_.append(x)
     return x
 
@@ -8422,7 +8422,7 @@ class AddActionsRequest(ProtocolBuffer.ProtocolMessage):
     return self.action_[i]
 
   def add_action(self):
-    x = Action()
+    x = google.appengine.datastore.action_pb.Action()
     self.action_.append(x)
     return x
 
@@ -8891,7 +8891,7 @@ class CommitResponse_Version(ProtocolBuffer.ProtocolMessage):
   version_ = 0
 
   def __init__(self, contents=None):
-    self.root_entity_key_ = Reference()
+    self.root_entity_key_ = google.appengine.datastore.entity_pb.Reference()
     if contents is not None: self.MergeFromString(contents)
 
   def root_entity_key(self): return self.root_entity_key_

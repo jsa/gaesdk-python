@@ -29,10 +29,16 @@ This files defines well known classes which need extra maintenance including:
 
 
 import calendar
-import collections
 from datetime import datetime
 from datetime import timedelta
 from google.appengine._internal import six
+
+try:
+
+  import collections.abc as collections_abc
+except ImportError:
+
+  import collections as collections_abc
 
 from google.net.proto2.python.public.descriptor import FieldDescriptor
 
@@ -48,6 +54,8 @@ _DURATION_SECONDS_MAX = 315576000000
 
 class Any(object):
   """Class for Any Message type."""
+
+  __slots__ = ()
 
   def Pack(self, msg, type_url_prefix='type.googleapis.com/',
            deterministic=None):
@@ -76,8 +84,13 @@ class Any(object):
     return '/' in self.type_url and self.TypeName() == descriptor.full_name
 
 
+_EPOCH_DATETIME = datetime.utcfromtimestamp(0)
+
+
 class Timestamp(object):
   """Class for Timestamp message type."""
+
+  __slots__ = ()
 
   def ToJsonString(self):
     """Converts Timestamp to RFC 3339 date string format.
@@ -209,8 +222,9 @@ class Timestamp(object):
 
   def ToDatetime(self):
     """Converts Timestamp to datetime."""
-    return datetime.utcfromtimestamp(
-        self.seconds + self.nanos / float(_NANOS_PER_SECOND))
+    return _EPOCH_DATETIME + timedelta(
+        seconds=self.seconds, microseconds=_RoundTowardZero(
+            self.nanos, _NANOS_PER_MICROSECOND))
 
   def FromDatetime(self, dt):
     """Converts datetime to Timestamp."""
@@ -227,6 +241,8 @@ class Timestamp(object):
 
 class Duration(object):
   """Class for Duration message type."""
+
+  __slots__ = ()
 
   def ToJsonString(self):
     """Converts Duration to string format.
@@ -385,6 +401,8 @@ def _RoundTowardZero(value, divider):
 class FieldMask(object):
   """Class for FieldMask message type."""
 
+  __slots__ = ()
+
   def ToJsonString(self):
     """Converts FieldMask to string according to proto3 JSON spec."""
     camelcase_paths = []
@@ -540,6 +558,8 @@ class _FieldMaskTree(object):
             +- bar --- baz
   In the tree, each leaf node represents a field path.
   """
+
+  __slots__ = ('_root',)
 
   def __init__(self, field_mask=None):
     """Initializes the tree by FieldMask."""
@@ -721,7 +741,7 @@ def _GetStructValue(struct_value):
 class Struct(object):
   """Class for Struct message type."""
 
-  __slots__ = []
+  __slots__ = ()
 
   def __getitem__(self, key):
     return _GetStructValue(self.fields[key])
@@ -768,11 +788,13 @@ class Struct(object):
     for key, value in dictionary.items():
       _SetStructValue(self.fields[key], value)
 
-collections.MutableMapping.register(Struct)
+collections_abc.MutableMapping.register(Struct)
 
 
 class ListValue(object):
   """Class for ListValue message type."""
+
+  __slots__ = ()
 
   def __len__(self):
     return len(self.values)
@@ -812,7 +834,7 @@ class ListValue(object):
     list_value.Clear()
     return list_value
 
-collections.MutableSequence.register(ListValue)
+collections_abc.MutableSequence.register(ListValue)
 
 
 WKTBASES = {

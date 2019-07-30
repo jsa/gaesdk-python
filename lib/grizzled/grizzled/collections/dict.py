@@ -309,7 +309,7 @@ class LRUDict(dict):
             max_capacity : int
                 The maximum size of the dictionary
         """
-        if kw.has_key('max_capacity'):
+        if 'max_capacity' in kw:
             self.__max_capacity = kw['max_capacity']
             del kw['max_capacity']
         else:
@@ -411,7 +411,7 @@ class LRUDict(dict):
         """
         Clear all removal and ejection listeners from the list of listeners.
         """
-        for key in self.__removal_listeners.keys():
+        for key in list(self.__removal_listeners.keys()):
             del self.__removal_listeners[key]
 
     def __setitem__(self, key, value):

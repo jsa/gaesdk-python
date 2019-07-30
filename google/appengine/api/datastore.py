@@ -2219,7 +2219,7 @@ class MultiQuery(Query):
     return lower_bound, upper_bound, config
 
   def __GetProjectionOverride(self,  config):
-    """Returns a tuple of (original projection, projeciton override).
+    """Returns a tuple of (original projection, projection override).
 
     If projection is None, there is no projection. If override is None,
     projection is sufficent for this query.

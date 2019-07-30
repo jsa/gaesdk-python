@@ -4,6 +4,8 @@
 Tester.
 """
 
+from __future__ import print_function
+
 # ---------------------------------------------------------------------------
 # Imports
 # ---------------------------------------------------------------------------
@@ -45,12 +47,12 @@ class TestReadOnly(object):
         try:
             self.r.a += 1
             assert False, 'Expected a ReadOnlyObjectError'
-        except ReadOnlyObjectError, ex:
-            print 'Got expected %s' % ex
+        except ReadOnlyObjectError as ex:
+            print('Got expected %s' % ex)
 
     def testReadOnlyAccess2(self):
         try:
             self.r.a = 200
             assert False, 'Expected a ReadOnlyObjectError'
-        except ReadOnlyObjectError, ex:
-            print 'Got expected %s' % ex
+        except ReadOnlyObjectError as ex:
+            print('Got expected %s' % ex)

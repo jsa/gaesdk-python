@@ -2,16 +2,15 @@
 
 """Specify the modules for which a Python 2.7 stub exists."""
 
-__all__ = [
-  # These reside here.
-  'httplib',
-  'socket',
-  'threading',
-  'urllib',
-  ]
+# pylint: disable=undefined-all-variable
 
-MODULE_OVERRIDES = __all__ + [
-  # These are used in the Py27 runtime but must be imported from dist.
-  'subprocess',
-  'tempfile',
-  ]
+__all__ = [
+    # These reside here.
+    'httplib',
+    'socket',
+    'subprocess',
+    'threading',
+    'urllib',
+    ]
+
+MODULE_OVERRIDES = __all__

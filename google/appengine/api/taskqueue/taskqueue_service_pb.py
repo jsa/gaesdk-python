@@ -1157,7 +1157,7 @@ class TaskQueueAddRequest(ProtocolBuffer.ProtocolMessage):
     if self.transaction_ is None:
       self.lazy_init_lock_.acquire()
       try:
-        if self.transaction_ is None: self.transaction_ = Transaction()
+        if self.transaction_ is None: self.transaction_ = google.appengine.datastore.datastore_v3_pb.Transaction()
       finally:
         self.lazy_init_lock_.release()
     return self.transaction_
