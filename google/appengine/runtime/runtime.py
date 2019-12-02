@@ -32,6 +32,7 @@ WSGI interface.
 
 
 import cStringIO
+import sys
 import thread
 import threading
 import urlparse
@@ -123,6 +124,12 @@ def HandleRequest(environ, handler_name, url, post_data, application_root,
           levels are 0..4 for Debug, Info, Warning, Error, Critical.
       stats: A list of strings, for internal stats collection.
   """
+
+
+
+  if 'ctypes' in sys.modules and environ.get('GAE_USE_CTYPES', '1') != '1':
+    del sys.modules['ctypes']
+
   try:
     error = logservice.LogsBuffer()
     runtime_stats = {

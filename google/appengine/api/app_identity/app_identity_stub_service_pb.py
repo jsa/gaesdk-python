@@ -26,7 +26,7 @@ try:
 except ImportError:
   from threading import Lock as _Lock
 try:
-  from google3.net.proto import _net_proto___parse__python
+  _net_proto___parse__python = None
 except ImportError:
   _net_proto___parse__python = None
 import sys

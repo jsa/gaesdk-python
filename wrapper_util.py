@@ -129,7 +129,6 @@ class Paths(object):
     self.v1_extra_paths = [
         dir_path,
         os.path.join(dir_path, 'lib', 'antlr3'),
-        os.path.join(dir_path, 'lib', 'django-0.96'),
         os.path.join(dir_path, 'lib', 'fancy_urllib'),
         os.path.join(dir_path, 'lib', 'ipaddr'),
         os.path.join(dir_path, 'lib', 'jinja2-2.6'),

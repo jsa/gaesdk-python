@@ -5495,6 +5495,8 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
   mark_changes_ = 0
   has_auto_id_policy_ = 0
   auto_id_policy_ = 0
+  has_sequence_number_ = 0
+  sequence_number_ = 0
 
   def __init__(self, contents=None):
     self.entity_ = []
@@ -5622,6 +5624,19 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
 
   def has_auto_id_policy(self): return self.has_auto_id_policy_
 
+  def sequence_number(self): return self.sequence_number_
+
+  def set_sequence_number(self, x):
+    self.has_sequence_number_ = 1
+    self.sequence_number_ = x
+
+  def clear_sequence_number(self):
+    if self.has_sequence_number_:
+      self.has_sequence_number_ = 0
+      self.sequence_number_ = 0
+
+  def has_sequence_number(self): return self.has_sequence_number_
+
 
   def MergeFrom(self, x):
     assert x is not self
@@ -5633,6 +5648,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     if (x.has_mark_changes()): self.set_mark_changes(x.mark_changes())
     for i in range(x.snapshot_size()): self.add_snapshot().CopyFrom(x.snapshot(i))
     if (x.has_auto_id_policy()): self.set_auto_id_policy(x.auto_id_policy())
+    if (x.has_sequence_number()): self.set_sequence_number(x.sequence_number())
 
   def Equals(self, x):
     if x is self: return 1
@@ -5655,6 +5671,8 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
       if e1 != e2: return 0
     if self.has_auto_id_policy_ != x.has_auto_id_policy_: return 0
     if self.has_auto_id_policy_ and self.auto_id_policy_ != x.auto_id_policy_: return 0
+    if self.has_sequence_number_ != x.has_sequence_number_: return 0
+    if self.has_sequence_number_ and self.sequence_number_ != x.sequence_number_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -5681,6 +5699,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     n += 1 * len(self.snapshot_)
     for i in range(len(self.snapshot_)): n += self.lengthString(self.snapshot_[i].ByteSize())
     if (self.has_auto_id_policy_): n += 1 + self.lengthVarInt64(self.auto_id_policy_)
+    if (self.has_sequence_number_): n += 1 + self.lengthVarInt64(self.sequence_number_)
     return n
 
   def ByteSizePartial(self):
@@ -5696,6 +5715,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     n += 1 * len(self.snapshot_)
     for i in range(len(self.snapshot_)): n += self.lengthString(self.snapshot_[i].ByteSizePartial())
     if (self.has_auto_id_policy_): n += 1 + self.lengthVarInt64(self.auto_id_policy_)
+    if (self.has_sequence_number_): n += 1 + self.lengthVarInt64(self.sequence_number_)
     return n
 
   def Clear(self):
@@ -5707,6 +5727,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     self.clear_mark_changes()
     self.clear_snapshot()
     self.clear_auto_id_policy()
+    self.clear_sequence_number()
 
   def OutputUnchecked(self, out):
     for i in range(len(self.entity_)):
@@ -5737,6 +5758,9 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_auto_id_policy_):
       out.putVarInt32(80)
       out.putVarInt32(self.auto_id_policy_)
+    if (self.has_sequence_number_):
+      out.putVarInt32(96)
+      out.putVarInt64(self.sequence_number_)
 
   def OutputPartial(self, out):
     for i in range(len(self.entity_)):
@@ -5767,6 +5791,9 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_auto_id_policy_):
       out.putVarInt32(80)
       out.putVarInt32(self.auto_id_policy_)
+    if (self.has_sequence_number_):
+      out.putVarInt32(96)
+      out.putVarInt64(self.sequence_number_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -5806,6 +5833,9 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
         continue
       if tt == 80:
         self.set_auto_id_policy(d.getVarInt32())
+        continue
+      if tt == 96:
+        self.set_sequence_number(d.getVarInt64())
         continue
 
 
@@ -5847,6 +5877,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
       res+=prefix+">\n"
       cnt+=1
     if self.has_auto_id_policy_: res+=prefix+("auto_id_policy: %s\n" % self.DebugFormatInt32(self.auto_id_policy_))
+    if self.has_sequence_number_: res+=prefix+("sequence_number: %s\n" % self.DebugFormatInt64(self.sequence_number_))
     return res
 
 
@@ -5861,6 +5892,7 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
   kmark_changes = 8
   ksnapshot = 9
   kauto_id_policy = 10
+  ksequence_number = 12
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
@@ -5872,7 +5904,8 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     8: "mark_changes",
     9: "snapshot",
     10: "auto_id_policy",
-  }, 10)
+    12: "sequence_number",
+  }, 12)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -5884,7 +5917,8 @@ class PutRequest(ProtocolBuffer.ProtocolMessage):
     8: ProtocolBuffer.Encoder.NUMERIC,
     9: ProtocolBuffer.Encoder.STRING,
     10: ProtocolBuffer.Encoder.NUMERIC,
-  }, 10, ProtocolBuffer.Encoder.MAX_TYPE)
+    12: ProtocolBuffer.Encoder.NUMERIC,
+  }, 12, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
@@ -6471,6 +6505,8 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
   force_ = 0
   has_mark_changes_ = 0
   mark_changes_ = 0
+  has_sequence_number_ = 0
+  sequence_number_ = 0
 
   def __init__(self, contents=None):
     self.key_ = []
@@ -6585,6 +6621,19 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
 
   def clear_snapshot(self):
     self.snapshot_ = []
+  def sequence_number(self): return self.sequence_number_
+
+  def set_sequence_number(self, x):
+    self.has_sequence_number_ = 1
+    self.sequence_number_ = x
+
+  def clear_sequence_number(self):
+    if self.has_sequence_number_:
+      self.has_sequence_number_ = 0
+      self.sequence_number_ = 0
+
+  def has_sequence_number(self): return self.has_sequence_number_
+
 
   def MergeFrom(self, x):
     assert x is not self
@@ -6595,6 +6644,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     if (x.has_force()): self.set_force(x.force())
     if (x.has_mark_changes()): self.set_mark_changes(x.mark_changes())
     for i in range(x.snapshot_size()): self.add_snapshot().CopyFrom(x.snapshot(i))
+    if (x.has_sequence_number()): self.set_sequence_number(x.sequence_number())
 
   def Equals(self, x):
     if x is self: return 1
@@ -6615,6 +6665,8 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     if len(self.snapshot_) != len(x.snapshot_): return 0
     for e1, e2 in zip(self.snapshot_, x.snapshot_):
       if e1 != e2: return 0
+    if self.has_sequence_number_ != x.has_sequence_number_: return 0
+    if self.has_sequence_number_ and self.sequence_number_ != x.sequence_number_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -6640,6 +6692,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_mark_changes_): n += 2
     n += 1 * len(self.snapshot_)
     for i in range(len(self.snapshot_)): n += self.lengthString(self.snapshot_[i].ByteSize())
+    if (self.has_sequence_number_): n += 1 + self.lengthVarInt64(self.sequence_number_)
     return n
 
   def ByteSizePartial(self):
@@ -6654,6 +6707,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     if (self.has_mark_changes_): n += 2
     n += 1 * len(self.snapshot_)
     for i in range(len(self.snapshot_)): n += self.lengthString(self.snapshot_[i].ByteSizePartial())
+    if (self.has_sequence_number_): n += 1 + self.lengthVarInt64(self.sequence_number_)
     return n
 
   def Clear(self):
@@ -6664,6 +6718,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     self.clear_force()
     self.clear_mark_changes()
     self.clear_snapshot()
+    self.clear_sequence_number()
 
   def OutputUnchecked(self, out):
     if (self.has_trusted_):
@@ -6691,6 +6746,9 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(90)
       out.putVarInt32(self.composite_index_[i].ByteSize())
       self.composite_index_[i].OutputUnchecked(out)
+    if (self.has_sequence_number_):
+      out.putVarInt32(96)
+      out.putVarInt64(self.sequence_number_)
 
   def OutputPartial(self, out):
     if (self.has_trusted_):
@@ -6718,6 +6776,9 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
       out.putVarInt32(90)
       out.putVarInt32(self.composite_index_[i].ByteSizePartial())
       self.composite_index_[i].OutputPartial(out)
+    if (self.has_sequence_number_):
+      out.putVarInt32(96)
+      out.putVarInt64(self.sequence_number_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -6754,6 +6815,9 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
         tmp = ProtocolBuffer.Decoder(d.buffer(), d.pos(), d.pos() + length)
         d.skip(length)
         self.add_composite_index().TryMerge(tmp)
+        continue
+      if tt == 96:
+        self.set_sequence_number(d.getVarInt64())
         continue
 
 
@@ -6794,6 +6858,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
       res+=e.__str__(prefix + "  ", printElemNumber)
       res+=prefix+">\n"
       cnt+=1
+    if self.has_sequence_number_: res+=prefix+("sequence_number: %s\n" % self.DebugFormatInt64(self.sequence_number_))
     return res
 
 
@@ -6807,6 +6872,7 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
   kforce = 7
   kmark_changes = 8
   ksnapshot = 9
+  ksequence_number = 12
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
@@ -6817,7 +6883,8 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     8: "mark_changes",
     9: "snapshot",
     11: "composite_index",
-  }, 11)
+    12: "sequence_number",
+  }, 12)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -6828,7 +6895,8 @@ class DeleteRequest(ProtocolBuffer.ProtocolMessage):
     8: ProtocolBuffer.Encoder.NUMERIC,
     9: ProtocolBuffer.Encoder.STRING,
     11: ProtocolBuffer.Encoder.STRING,
-  }, 11, ProtocolBuffer.Encoder.MAX_TYPE)
+    12: ProtocolBuffer.Encoder.NUMERIC,
+  }, 12, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""

@@ -39,6 +39,7 @@ following are acceptable:
 
 import errno
 import getpass
+import importlib
 import itertools
 import json
 import logging
@@ -56,6 +57,12 @@ import urlparse
 import google
 import portpicker
 from google.appengine._internal.ruamel import yaml
+
+if 'APISERVER_EXTRA_IMPORTS' in os.environ:
+  extras = os.environ['APISERVER_EXTRA_IMPORTS'].split(':')
+  for extra in extras:
+    importlib.import_module(extra)
+# pylint: disable=g-import-not-at-top
 
 from google.appengine.api import apiproxy_stub
 from google.appengine.api import apiproxy_stub_map

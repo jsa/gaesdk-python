@@ -74,87 +74,11 @@ import sys
 from google.appengine.api import lib_config
 
 
-def __django_version_setup():
-  """Selects a particular Django version to load."""
-  django_version = _config_handle.django_version
-
-  if django_version is not None:
-
-
-    from google.appengine.dist import use_library
-    use_library('django', str(django_version))
-  else:
-
-
-
-    from google.appengine.dist import _library
-    version, explicit = _library.installed.get('django', ('0.96', False))
-    if not explicit:
-      logging.warn('You are using the default Django version (%s). '
-                   'The default Django version will change in an '
-                   'App Engine release in the near future. '
-                   'Please call use_library() to explicitly select a '
-                   'Django version. '
-                   'For more information see %s',
-                   version,
-                   'https://developers.google.com/appengine/docs/python/tools/'
-                   'libraries#Django')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def _django_setup():
   """Imports and configures Django.
 
-  This can be overridden by defining a function named
-  webapp_django_setup() in the app's appengine_config.py file (see
-  lib_config docs).  Such a function should import and configure
-  Django.
-
-  In the Python 2.5 runtime, you can also just configure the Django version to
-  be used by setting webapp_django_version in that file.
-
-  Finally, calling use_library('django', <version>) in that file
-  should also work:
-
-    # Example taken from from
-    # https://developers.google.com/appengine/docs/python/tools/libraries#Django
-
-    import os
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
-
-    from google.appengine.dist import use_library
-    use_library('django', '1.2')
-
-  In the Python 2.7 runtime, the Django version is specified in you app.yaml
-  file and use_library is not supported.
+  In the Python 2.7 runtime, the Django version is specified in your app.yaml
+  file.
 
   If your application also imports Django directly it should ensure
   that the same code is executed before your app imports Django
@@ -169,8 +93,17 @@ def _django_setup():
   in appengine_config.py is executed, as a side effect of importing
   the webapp.template module.
   """
-  if os.environ.get('APPENGINE_RUNTIME') != 'python27':
-    __django_version_setup()
+
+
+
+
+
+
+
+
+
+
+
 
 
   import django
@@ -181,8 +114,7 @@ def _django_setup():
 
 
     getattr(django.conf.settings, 'FAKE_ATTR', None)
-  except (ImportError, EnvironmentError), e:
-
+  except (ImportError, EnvironmentError) as e:
 
 
     if os.getenv(django.conf.ENVIRONMENT_VARIABLE):
@@ -201,7 +133,6 @@ def _django_setup():
     except (EnvironmentError, RuntimeError):
 
 
-
       pass
 
 
@@ -214,6 +145,7 @@ if os.environ.get('APPENGINE_RUNTIME') == 'python27':
       {'add_wsgi_middleware': lambda app: app,})
   from webapp2 import *
 else:
+
   _config_handle = lib_config.register(
       'webapp',
       {'django_setup': _django_setup,

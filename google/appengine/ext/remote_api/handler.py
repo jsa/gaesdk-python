@@ -361,7 +361,7 @@ class ApiCallHandler(webapp.RequestHandler):
         }
 
     self.response.headers['Content-Type'] = 'text/plain'
-    self.response.out.write(yaml.dump(app_info))
+    self.response.out.write(yaml.safe_dump(app_info))
 
   def post(self):
     """Handle POST requests by executing the API call."""
@@ -395,7 +395,7 @@ class ApiCallHandler(webapp.RequestHandler):
       response_data = self.ExecuteRequest(request)
       response.set_response(response_data.Encode())
       self.response.set_status(200)
-    except Exception, e:
+    except Exception as e:
       logging.exception('Exception while handling %s', request)
       self.response.set_status(200)
 

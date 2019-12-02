@@ -104,7 +104,8 @@ class Dispatcher(request_info.Dispatcher):
                external_port,
                specified_service_ports=None,
                enable_host_checking=True,
-               ssl_certificate_paths=None):
+               ssl_certificate_paths=None,
+               test_ssl_port=None):
     """Initializer for Dispatcher.
 
     Args:
@@ -162,6 +163,7 @@ class Dispatcher(request_info.Dispatcher):
           be enforced for incoming requests.
       ssl_certificate_paths: A ssl_utils.SSLCertificatePaths instance. If
           specified, modules will be launched with SSL.
+      test_ssl_port: An ssl port for the users app for dev_appserver tests.
     """
     self._configuration = configuration
     self._php_config = php_config
@@ -198,6 +200,7 @@ class Dispatcher(request_info.Dispatcher):
     self._specified_service_ports = specified_service_ports or {}
     self._enable_host_checking = enable_host_checking
     self._ssl_certificate_paths = ssl_certificate_paths
+    self._test_ssl_port = test_ssl_port
 
   def start(self, api_host, api_port, request_data):
     """Starts the configured modules.
@@ -241,8 +244,12 @@ class Dispatcher(request_info.Dispatcher):
       # connections
       ssl_port = None
       if self._ssl_certificate_paths:
-        ssl_port = self._find_next_available_port(service_port + 1,
-                                                  service_name)
+        if self._test_ssl_port is None:
+          ssl_port = self._find_next_available_port(service_port + 1,
+                                                    service_name)
+        else:
+          ssl_port = self._test_ssl_port
+          self._test_ssl_port = None
 
       _service = self._create_module(module_configuration, service_port,
                                      ssl_port)

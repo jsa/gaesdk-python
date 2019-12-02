@@ -27,7 +27,6 @@ import tempfile
 import traceback
 import types
 import google
-from google.appengine import dist
 from google.appengine.api import app_logging
 from google.appengine.api.logservice import logservice
 from google.appengine import dist27 as dist27
@@ -1045,13 +1044,7 @@ class StubModuleImportHook(BaseImportHook):
 
   def import_stub_module(self, name):
     """Import the stub module replacement for the specified module."""
-    # Do the equivalent of
-    # ``from google.appengine.dist import <name>``.
-    providing_dist = dist
-    # When using the Py27 runtime, modules in dist27 have priority.
-    # (They have already been vetted.)
-    if name in dist27.__all__:
-      providing_dist = dist27
+    providing_dist = dist27
     fullname = '%s.%s' % (providing_dist.__name__, name)
     __import__(fullname, {}, {})
     module = imp.new_module(fullname)

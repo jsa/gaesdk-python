@@ -683,7 +683,11 @@ def _AddPropertiesForNonRepeatedScalarField(field, cls):
 
 
 
-    new_value = type_checker.CheckValue(new_value)
+    try:
+      new_value = type_checker.CheckValue(new_value)
+    except TypeError as e:
+      raise TypeError(
+          'Cannot set %s to %.1024r: %s' % (field.full_name, new_value, e))
     if clear_when_set_to_default and not new_value:
       self._fields.pop(field, None)
     else:

@@ -20,30 +20,10 @@
 from google.net.proto import ProtocolBuffer
 import abc
 import array
-import base64
 try:
   from thread import allocate_lock as _Lock
 except ImportError:
   from threading import Lock as _Lock
-try:
-  from google3.net.proto import _net_proto___parse__python
-except ImportError:
-  _net_proto___parse__python = None
-import sys
-try:
-  __import__('google.net.rpc.python.proto_python_api_1_stub')
-  __import__('google.net.rpc.python.pywraprpc')
-  proto_python_api_1_stub = sys.modules.get('google.net.rpc.python.proto_python_api_1_stub')
-  pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc')
-  _client_stub_base_class = proto_python_api_1_stub.Stub
-except ImportError:
-  _client_stub_base_class = object
-try:
-  __import__('google.net.rpc.python.rpcserver')
-  rpcserver = sys.modules.get('google.net.rpc.python.rpcserver')
-  _server_stub_base_class = rpcserver.BaseRpcServer
-except ImportError:
-  _server_stub_base_class = object
 
 if hasattr(__builtins__, 'xrange'): range = xrange
 
@@ -97,33 +77,6 @@ class StoreBlobRequest(ProtocolBuffer.ProtocolMessage):
     assert x is not self
     if (x.has_blob_key()): self.set_blob_key(x.blob_key())
     if (x.has_content()): self.set_content(x.content())
-
-  if _net_proto___parse__python is not None:
-    def _CMergeFromString(self, s):
-      _net_proto___parse__python.MergeFromString(self, 'apphosting.StoreBlobRequest', s)
-
-  if _net_proto___parse__python is not None:
-    def _CEncode(self):
-      return _net_proto___parse__python.Encode(self, 'apphosting.StoreBlobRequest')
-
-  if _net_proto___parse__python is not None:
-    def _CEncodePartial(self):
-      return _net_proto___parse__python.EncodePartial(self, 'apphosting.StoreBlobRequest')
-
-  if _net_proto___parse__python is not None:
-    def _CToASCII(self, output_format):
-      return _net_proto___parse__python.ToASCII(self, 'apphosting.StoreBlobRequest', output_format)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCII(self, s):
-      _net_proto___parse__python.ParseASCII(self, 'apphosting.StoreBlobRequest', s)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCIIIgnoreUnknown(self, s):
-      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.StoreBlobRequest', s)
-
 
   def Equals(self, x):
     if x is self: return 1
@@ -218,12 +171,6 @@ class StoreBlobRequest(ProtocolBuffer.ProtocolMessage):
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.StoreBlobRequest'
-  _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WjVhcHBob3N0aW5nL2FwaS9ibG9ic3RvcmUvYmxvYnN0b3JlX3N0dWJfc2VydmljZS5wcm90bwobYXBwaG9zdGluZy5TdG9yZUJsb2JSZXF1ZXN0ExoIYmxvYl9rZXkgASgCMAk4AhQTGgdjb250ZW50IAIoAjAJOAEUugGgBAo1YXBwaG9zdGluZy9hcGkvYmxvYnN0b3JlL2Jsb2JzdG9yZV9zdHViX3NlcnZpY2UucHJvdG8SCmFwcGhvc3RpbmcaHWFwcGhvc3RpbmcvYXBpL2FwaV9iYXNlLnByb3RvIjUKEFN0b3JlQmxvYlJlcXVlc3QSEAoIYmxvYl9rZXkYASACKAkSDwoHY29udGVudBgCIAEoDCKJAQoZU2V0QmxvYlN0b3JhZ2VUeXBlUmVxdWVzdBJHCgxzdG9yYWdlX3R5cGUYASACKA4yMS5hcHBob3N0aW5nLlNldEJsb2JTdG9yYWdlVHlwZVJlcXVlc3QuU3RvcmFnZVR5cGUiIwoLU3RvcmFnZVR5cGUSCgoGTUVNT1JZEAASCAoERklMRRABMroBChRCbG9ic3RvcmVTdHViU2VydmljZRJHCglTdG9yZUJsb2ISHC5hcHBob3N0aW5nLlN0b3JlQmxvYlJlcXVlc3QaGi5hcHBob3N0aW5nLmJhc2UuVm9pZFByb3RvIgASWQoSU2V0QmxvYlN0b3JhZ2VUeXBlEiUuYXBwaG9zdGluZy5TZXRCbG9iU3RvcmFnZVR5cGVSZXF1ZXN0GhouYXBwaG9zdGluZy5iYXNlLlZvaWRQcm90byIAQjwKImNvbS5nb29nbGUuYXBwZW5naW5lLmFwaS5ibG9ic3RvcmVCFkJsb2JzdG9yZVN0dWJTZXJ2aWNlUGI="))
-  if _net_proto___parse__python is not None:
-    _net_proto___parse__python.RegisterType(
-        _SERIALIZED_DESCRIPTOR.tostring())
-
 class SetBlobStorageTypeRequest(ProtocolBuffer.ProtocolMessage):
 
 
@@ -261,33 +208,6 @@ class SetBlobStorageTypeRequest(ProtocolBuffer.ProtocolMessage):
   def MergeFrom(self, x):
     assert x is not self
     if (x.has_storage_type()): self.set_storage_type(x.storage_type())
-
-  if _net_proto___parse__python is not None:
-    def _CMergeFromString(self, s):
-      _net_proto___parse__python.MergeFromString(self, 'apphosting.SetBlobStorageTypeRequest', s)
-
-  if _net_proto___parse__python is not None:
-    def _CEncode(self):
-      return _net_proto___parse__python.Encode(self, 'apphosting.SetBlobStorageTypeRequest')
-
-  if _net_proto___parse__python is not None:
-    def _CEncodePartial(self):
-      return _net_proto___parse__python.EncodePartial(self, 'apphosting.SetBlobStorageTypeRequest')
-
-  if _net_proto___parse__python is not None:
-    def _CToASCII(self, output_format):
-      return _net_proto___parse__python.ToASCII(self, 'apphosting.SetBlobStorageTypeRequest', output_format)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCII(self, s):
-      _net_proto___parse__python.ParseASCII(self, 'apphosting.SetBlobStorageTypeRequest', s)
-
-
-  if _net_proto___parse__python is not None:
-    def ParseASCIIIgnoreUnknown(self, s):
-      _net_proto___parse__python.ParseASCIIIgnoreUnknown(self, 'apphosting.SetBlobStorageTypeRequest', s)
-
 
   def Equals(self, x):
     if x is self: return 1
@@ -364,256 +284,7 @@ class SetBlobStorageTypeRequest(ProtocolBuffer.ProtocolMessage):
   _STYLE = """"""
   _STYLE_CONTENT_TYPE = """"""
   _PROTO_DESCRIPTOR_NAME = 'apphosting.SetBlobStorageTypeRequest'
-  _SERIALIZED_DESCRIPTOR = array.array('B')
-  _SERIALIZED_DESCRIPTOR.fromstring(base64.decodestring("WjVhcHBob3N0aW5nL2FwaS9ibG9ic3RvcmUvYmxvYnN0b3JlX3N0dWJfc2VydmljZS5wcm90bwokYXBwaG9zdGluZy5TZXRCbG9iU3RvcmFnZVR5cGVSZXF1ZXN0ExoMc3RvcmFnZV90eXBlIAEoADAFOAJoABRzegtTdG9yYWdlVHlwZYsBkgEGTUVNT1JZmAEAjAGLAZIBBEZJTEWYAQGMAXTCARthcHBob3N0aW5nLlN0b3JlQmxvYlJlcXVlc3Q="))
-  if _net_proto___parse__python is not None:
-    _net_proto___parse__python.RegisterType(
-        _SERIALIZED_DESCRIPTOR.tostring())
-
-
-
-class BlobstoreStubServiceStub(object):
-  """Makes Stubby RPC calls to a BlobstoreStubService server."""
-
-  __metaclass__ = abc.ABCMeta
-
-  __slots__ = ()
-
-  @abc.abstractmethod
-  def StoreBlob(self, request, rpc=None, callback=None, response=None):
-    """Make a StoreBlob RPC call.
-
-    Args:
-      request: a StoreBlobRequest instance.
-      rpc: Optional RPC instance to use for the call.
-      callback: Optional final callback. Will be called as
-          callback(rpc, result) when the rpc completes. If None, the
-          call is synchronous.
-      response: Optional ProtocolMessage to be filled in with response.
-
-    Returns:
-      The google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto if callback is None. Otherwise, returns None.
-    """
-    raise NotImplementedError()
-
-  @abc.abstractmethod
-  def SetBlobStorageType(self, request, rpc=None, callback=None, response=None):
-    """Make a SetBlobStorageType RPC call.
-
-    Args:
-      request: a SetBlobStorageTypeRequest instance.
-      rpc: Optional RPC instance to use for the call.
-      callback: Optional final callback. Will be called as
-          callback(rpc, result) when the rpc completes. If None, the
-          call is synchronous.
-      response: Optional ProtocolMessage to be filled in with response.
-
-    Returns:
-      The google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto if callback is None. Otherwise, returns None.
-    """
-    raise NotImplementedError()
-
-
-class _BlobstoreStubService_ClientBaseStub(
-    BlobstoreStubServiceStub, _client_stub_base_class):
-  """Makes Stubby RPC calls to a BlobstoreStubService server."""
-
-  __slots__ = (
-      '_protorpc_StoreBlob', '_full_name_StoreBlob',
-      '_protorpc_SetBlobStorageType', '_full_name_SetBlobStorageType',
-  )
-
-  def __init__(self, rpc_stub, rpc_factory=None):
-    super(_BlobstoreStubService_ClientBaseStub, self).__init__(
-        None, inject_stub=rpc_stub, rpc_factory=rpc_factory)
-
-    self._protorpc_StoreBlob = pywraprpc.RPC()
-    self._full_name_StoreBlob = self._stub.GetFullMethodName(
-        'StoreBlob')
-
-    self._protorpc_SetBlobStorageType = pywraprpc.RPC()
-    self._full_name_SetBlobStorageType = self._stub.GetFullMethodName(
-        'SetBlobStorageType')
-
-  def StoreBlob(self, request, rpc=None, callback=None, response=None):
-    """Make a StoreBlob RPC call.
-
-    Args:
-      request: a StoreBlobRequest instance.
-      rpc: Optional RPC instance to use for the call.
-      callback: Optional final callback. Will be called as
-          callback(rpc, result) when the rpc completes. If None, the
-          call is synchronous.
-      response: Optional ProtocolMessage to be filled in with response.
-
-    Returns:
-      The google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto if callback is None. Otherwise, returns None.
-    """
-
-    if response is None:
-      response = google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto
-    return self._MakeCall(rpc,
-                          self._full_name_StoreBlob,
-                          'StoreBlob',
-                          request,
-                          response,
-                          callback,
-                          self._protorpc_StoreBlob,
-                          package_name='apphosting')
-
-  def SetBlobStorageType(self, request, rpc=None, callback=None, response=None):
-    """Make a SetBlobStorageType RPC call.
-
-    Args:
-      request: a SetBlobStorageTypeRequest instance.
-      rpc: Optional RPC instance to use for the call.
-      callback: Optional final callback. Will be called as
-          callback(rpc, result) when the rpc completes. If None, the
-          call is synchronous.
-      response: Optional ProtocolMessage to be filled in with response.
-
-    Returns:
-      The google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto if callback is None. Otherwise, returns None.
-    """
-
-    if response is None:
-      response = google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto
-    return self._MakeCall(rpc,
-                          self._full_name_SetBlobStorageType,
-                          'SetBlobStorageType',
-                          request,
-                          response,
-                          callback,
-                          self._protorpc_SetBlobStorageType,
-                          package_name='apphosting')
-
-
-class _BlobstoreStubService_ClientStub(_BlobstoreStubService_ClientBaseStub):
-  __slots__ = ('_params',)
-  def __init__(self, rpc_stub_parameters, service_name, rpc_factory=None):
-    if service_name is None:
-      service_name = 'BlobstoreStubService'
-    stub = pywraprpc.RPC_GenericStub(service_name, rpc_stub_parameters)
-    super(_BlobstoreStubService_ClientStub, self).__init__(stub, rpc_factory=rpc_factory)
-    self._params = rpc_stub_parameters
-
-
-class _BlobstoreStubService_RPC2ClientStub(_BlobstoreStubService_ClientBaseStub):
-  __slots__ = ()
-  def __init__(self, server, channel, service_name, rpc_factory=None):
-    if service_name is None:
-      service_name = 'BlobstoreStubService'
-    if channel is None:
-      if server is None:
-        raise RuntimeError('Invalid argument combination to create a stub')
-      channel = pywraprpc.NewClientChannel(server)
-    elif channel.version() == 1:
-      raise RuntimeError('Expecting an RPC2 channel to create the stub')
-    stub = pywraprpc.RPC_GenericStub(service_name, channel)
-    super(_BlobstoreStubService_RPC2ClientStub, self).__init__(stub, rpc_factory=rpc_factory)
-
-
-class BlobstoreStubService(_server_stub_base_class):
-  """Base class for BlobstoreStubService Stubby servers."""
-
-  @classmethod
-  def _MethodSignatures(cls):
-    """Returns a dict of {<method-name>: (<request-type>, <response-type>)}."""
-    return {
-      'StoreBlob': (StoreBlobRequest, google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto),
-      'SetBlobStorageType': (SetBlobStorageTypeRequest, google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto),
-      }
-
-  @classmethod
-  def _StreamMethodSignatures(cls):
-    """Returns a dict of {<method-name>: (<request-type>, <stream-type>, <response-type>)}."""
-    return {
-      }
-
-  def __init__(self, *args, **kwargs):
-    """Creates a Stubby RPC server.
-
-    The arguments to this constructor are the same as the arguments to
-    BaseRpcServer.__init__ in rpcserver.py *MINUS* export_name. This
-    constructor passes its own value for export_name to
-    BaseRpcServer.__init__, so callers of this constructor should only
-    pass to this constructor values corresponding to
-    BaseRpcServer.__init__'s remaining arguments.
-    """
-    if _server_stub_base_class is object:
-      raise NotImplementedError('Add //net/rpc/python:rpcserver as a '
-                                'dependency for Stubby server support.')
-    _server_stub_base_class.__init__(self, 'apphosting.BlobstoreStubService', *args, **kwargs)
-
-  @staticmethod
-  def NewStub(rpc_stub_parameters, service_name=None, rpc_factory=None):
-    """USE NewRPC2Stub INSTEAD."""
-    if _client_stub_base_class is object:
-      raise RuntimeError('Add //net/rpc/python as a dependency to use Stubby')
-    return _BlobstoreStubService_ClientStub(
-        rpc_stub_parameters, service_name, rpc_factory=rpc_factory)
-
-  @staticmethod
-  def NewRPC2Stub(
-      server=None, channel=None, service_name=None, rpc_factory=None):
-    """Creates a new BlobstoreStubService Stubby2 client stub.
-
-    Args:
-      server: host:port or bns address (favor passing a channel instead).
-      channel: directly use a channel to create a stub. Will ignore server
-          argument if this is specified.
-      service_name: the service name used by the Stubby server.
-      rpc_factory: the rpc factory to use if no rpc argument is specified.
-
-    Returns:
-     A BlobstoreStubServiceStub to be used to invoke RPCs.
-    """
-
-    if _client_stub_base_class is object:
-      raise RuntimeError('Add //net/rpc/python:proto_python_api_2_stub (or maybe //net/rpc/python:proto_python_api_1_stub, but eww and b/67959631) as a dependency to create Stubby stubs')
-    return _BlobstoreStubService_RPC2ClientStub(
-        server, channel, service_name, rpc_factory=rpc_factory)
-
-  def StoreBlob(self, rpc, request, response):
-    """Handles a StoreBlob RPC call. You should override this.
-
-    Args:
-      rpc: a Stubby RPC object
-      request: a StoreBlobRequest that contains the client request
-      response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
-    """
-    raise NotImplementedError()
-
-
-  def SetBlobStorageType(self, rpc, request, response):
-    """Handles a SetBlobStorageType RPC call. You should override this.
-
-    Args:
-      rpc: a Stubby RPC object
-      request: a SetBlobStorageTypeRequest that contains the client request
-      response: a google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto that should be modified to send the response
-    """
-    raise NotImplementedError()
-
-  def _AddMethodAttributes(self):
-    """Sets attributes on Python RPC handlers.
-
-    See BaseRpcServer in rpcserver.py for details.
-    """
-    rpcserver._GetHandlerDecorator(
-        getattr(self.StoreBlob, '__func__'),
-        StoreBlobRequest,
-        google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto,
-        None,
-        'INTEGRITY')
-    rpcserver._GetHandlerDecorator(
-        getattr(self.SetBlobStorageType, '__func__'),
-        SetBlobStorageTypeRequest,
-        google_dot_apphosting_dot_api_dot_api__base__pb.VoidProto,
-        None,
-        'INTEGRITY')
-
 if _extension_runtime:
   pass
 
-__all__ = ['StoreBlobRequest','SetBlobStorageTypeRequest','BlobstoreStubService']
+__all__ = ['StoreBlobRequest','SetBlobStorageTypeRequest']

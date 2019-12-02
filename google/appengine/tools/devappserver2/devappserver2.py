@@ -18,11 +18,17 @@
 
 
 
+import importlib
 import logging
 import os
 import sys
 import time
 
+if 'DEVAPPSERVER_EXTRA_IMPORTS' in os.environ:
+  extras = os.environ['DEVAPPSERVER_EXTRA_IMPORTS'].split(':')
+  for extra in extras:
+    importlib.import_module(extra)
+# pylint: disable=g-import-not-at-top
 from google.appengine.api import request_info
 from google.appengine.tools.devappserver2 import api_server
 from google.appengine.tools.devappserver2 import application_configuration
@@ -38,6 +44,7 @@ from google.appengine.tools.devappserver2 import update_checker
 from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2.admin import admin_server
+# pylint: enable=g-import-not-at-top
 
 # Initialize logging early -- otherwise some library packages may
 # pre-empt our log formatting.  NOTE: the level is provisional; it may
@@ -346,7 +353,8 @@ class DevelopmentServer(object):
         options.external_port,
         options.specified_service_ports,
         options.enable_host_checking,
-        ssl_certificate_paths)
+        ssl_certificate_paths,
+        options.test_ssl_port)
 
     wsgi_request_info_ = wsgi_request_info.WSGIRequestInfo(self._dispatcher)
 

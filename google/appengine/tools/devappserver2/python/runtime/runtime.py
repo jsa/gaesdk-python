@@ -18,12 +18,19 @@
 
 
 
+import importlib
 import os
 import sys
 import time
 import traceback
 
 import google
+
+if 'PYTHON_RUNTIME_EXTRA_IMPORTS' in os.environ:
+  extras = os.environ['PYTHON_RUNTIME_EXTRA_IMPORTS'].split(':')
+  for extra in extras:
+    importlib.import_module(extra)
+# pylint: disable=g-import-not-at-top
 
 from google.appengine.api import rdbms_mysqldb
 from google.appengine.ext.remote_api import remote_api_stub

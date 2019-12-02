@@ -49,6 +49,7 @@ import StringIO
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
 import urllib
 import urllib2
@@ -65,7 +66,6 @@ from google.appengine.cron import groctimespecification
 
 from google.appengine.api import appinfo
 from google.appengine.api import appinfo_includes
-from google.appengine.api import backendinfo
 from google.appengine.api import client_deployinfo
 from google.appengine.api import croninfo
 from google.appengine.api import dispatchinfo
@@ -108,11 +108,6 @@ else:
 
 LIST_DELIMITER = '\n'
 TUPLE_DELIMITER = '|'
-BACKENDS_ACTION = 'backends'
-BACKENDS_MESSAGE = ('Warning: This application uses Backends, a deprecated '
-                    'feature that has been replaced by Modules, which '
-                    'offers additional functionality. Please convert your '
-                    'backends to modules as described at: ')
 _CONVERTING_URL = (
     'https://developers.google.com/appengine/docs/%s/modules/converting')
 
@@ -224,22 +219,6 @@ def PrintUpdate(msg, error_fh=sys.stderr):
 def StatusUpdate(msg, error_fh=sys.stderr):
   """Print a status message to stderr or the given file-like object."""
   PrintUpdate(msg, error_fh)
-
-
-def BackendsStatusUpdate(runtime, error_fh=sys.stderr):
-  """Print the Backends status message based on current runtime.
-
-  Args:
-    runtime: String name of current runtime.
-    error_fh: Where to send the message.
-  """
-  language = runtime
-  if language == 'python27':
-    language = 'python'
-  elif language == 'java7':
-    language = 'java'
-  if language == 'python' or language == 'java':
-    StatusUpdate(BACKENDS_MESSAGE + (_CONVERTING_URL % language), error_fh)
 
 
 def ErrorUpdate(msg, error_fh=sys.stderr):
@@ -1806,7 +1785,6 @@ class AppVersionUpload(object):
     config: The AppInfoExternal object derived from the app.yaml file.
     app_id: The application string from 'config'.
     version: The version string from 'config'.
-    backend: The backend to update, if any.
     files: A dictionary of files to upload to the rpcserver, mapping path to
       hash of the file contents.
     in_transaction: True iff a transaction with the server has started.
@@ -1820,7 +1798,6 @@ class AppVersionUpload(object):
   """
 
   def __init__(self, rpcserver, config, module_yaml_path='app.yaml',
-               backend=None,
                error_fh=None,
                usage_reporting=False, ignore_endpoints_failures=True):
     """Creates a new AppVersionUpload.
@@ -1832,8 +1809,6 @@ class AppVersionUpload(object):
         this application.
       module_yaml_path: The (string) path to the yaml file corresponding to
         <config>, relative to the bundle directory.
-      backend: If specified, indicates the update applies to the given backend.
-        The backend name must match an entry in the backends: stanza.
       error_fh: Unexpected HTTPErrors are printed to this file handle.
       usage_reporting: Whether or not to report usage.
       ignore_endpoints_failures: True to finish deployment even if there are
@@ -1846,7 +1821,6 @@ class AppVersionUpload(object):
 
 
     self.module = self.config.module or self.config.service
-    self.backend = backend
     self.error_fh = error_fh or sys.stderr
 
     self.version = self.config.version
@@ -1856,9 +1830,7 @@ class AppVersionUpload(object):
       self.params['app_id'] = self.app_id
     if self.module:
       self.params['module'] = self.module
-    if self.backend:
-      self.params['backend'] = self.backend
-    elif self.version:
+    if self.version:
       self.params['version'] = self.version
 
 
@@ -1913,9 +1885,7 @@ class AppVersionUpload(object):
     result = 'app: %s' % self.app_id
     if self.module is not None and self.module != appinfo.DEFAULT_MODULE:
       result += ', module: %s' % self.module
-    if self.backend:
-      result += ', backend: %s' % self.backend
-    elif self.version:
+    if self.version:
       result += ', version: %s' % self.version
     return result
 
@@ -2900,28 +2870,6 @@ class AppCfgApp(object):
             actionname.split(' ')[0])
       self.parser.error(error_desc)
 
-
-
-
-    if action == BACKENDS_ACTION:
-      if len(self.args) < 1:
-        RaiseParseError(action, self.actions[BACKENDS_ACTION])
-
-      backend_action_first = BACKENDS_ACTION + ' ' + self.args[0]
-      if backend_action_first in self.actions:
-        self.args.pop(0)
-        action = backend_action_first
-
-      elif len(self.args) > 1:
-        backend_directory_first = BACKENDS_ACTION + ' ' + self.args[1]
-        if backend_directory_first in self.actions:
-          self.args.pop(1)
-          action = backend_directory_first
-
-
-      if len(self.args) < 1 or action == BACKENDS_ACTION:
-        RaiseParseError(action, self.actions[action])
-
     if action not in self.actions:
       self.parser.error("Unknown action: '%s'\n%s" %
                         (action, self.parser.get_description()))
@@ -3506,18 +3454,6 @@ class AppCfgApp(object):
       return defns
     return None
 
-  def _ParseBackendsYaml(self, basepath):
-    """Parses the backends.yaml file.
-
-    Args:
-      basepath: the directory of the application.
-
-    Returns:
-      A BackendsInfoExternal object or None if the file does not exist.
-    """
-    return self._ParseYamlFile(basepath, 'backends',
-                               backendinfo.LoadBackendInfo)
-
   def _ParseIndexYaml(self, basepath, appyaml=None):
     """Parses the index.yaml file.
 
@@ -3690,8 +3626,7 @@ class AppCfgApp(object):
 
     DoDownloadApp(rpcserver, out_dir, app_id, module, app_version)
 
-  def UpdateVersion(self, rpcserver, basepath, appyaml, module_yaml_path,
-                    backend=None):
+  def UpdateVersion(self, rpcserver, basepath, appyaml, module_yaml_path):
     """Updates and deploys a new appversion.
 
     Args:
@@ -3700,7 +3635,6 @@ class AppCfgApp(object):
       appyaml: The AppInfoExternal object parsed from an app.yaml-like file.
       module_yaml_path: The (string) path to the yaml file, relative to the
         bundle directory.
-      backend: The name of the backend to update, if any.
 
     Returns:
       An appinfo.AppInfoSummary if one was returned from the Deploy, None
@@ -3830,7 +3764,6 @@ class AppCfgApp(object):
         rpcserver,
         appyaml,
         module_yaml_path=module_yaml_path,
-        backend=backend,
         error_fh=self.error_fh,
         usage_reporting=self.options.usage_reporting,
         ignore_endpoints_failures=self.options.ignore_endpoints_failures)
@@ -3955,10 +3888,6 @@ class AppCfgApp(object):
       MigratePython27Notice()
 
 
-    if self.options.backends:
-      self.BackendsUpdate()
-
-
 
 
 
@@ -4023,9 +3952,6 @@ class AppCfgApp(object):
                       dest='precompilation', default=True,
                       help='Disable automatic precompilation '
                       '(ignored for Go apps).')
-    parser.add_option('--backends', action='store_true',
-                      dest='backends', default=False,
-                      help='Update backends when performing appcfg update.')
     parser.add_option('--no_usage_reporting', action='store_false',
                       dest='usage_reporting', default=True,
                       help='Disable usage reporting.')
@@ -4143,169 +4069,6 @@ class AppCfgApp(object):
     else:
       print >>self.error_fh, (
           'Could not find dos configuration. No action taken.')
-
-  def BackendsAction(self):
-    """Placeholder; we never expect this action to be invoked."""
-    pass
-
-  def BackendsPhpCheck(self, appyaml):
-    """Don't support backends with the PHP runtime.
-
-    This should be used to prevent use of backends update/start/configure
-    with the PHP runtime.  We continue to allow backends
-    stop/delete/list/rollback just in case there are existing PHP backends.
-
-    Args:
-      appyaml: A parsed app.yaml file.
-    """
-    if appyaml.runtime.startswith('php'):
-      _PrintErrorAndExit(
-          self.error_fh,
-          'Error: Backends are not supported with the PHP runtime. '
-          'Please use Modules instead.\n')
-
-  def BackendsYamlCheck(self, basepath, appyaml, backend=None):
-    """Check the backends.yaml file is sane and which backends to update."""
-
-
-    if appyaml.backends:
-      self.parser.error('Backends are not allowed in app.yaml.')
-
-    backends_yaml = self._ParseBackendsYaml(basepath)
-    appyaml.backends = backends_yaml.backends
-
-    if not appyaml.backends:
-      self.parser.error('No backends found in backends.yaml.')
-
-    backends = []
-    for backend_entry in appyaml.backends:
-      entry = backendinfo.LoadBackendEntry(backend_entry.ToYAML())
-      if entry.name in backends:
-        self.parser.error('Duplicate entry for backend: %s.' % entry.name)
-      else:
-        backends.append(entry.name)
-
-    backends_to_update = []
-
-    if backend:
-
-      if backend in backends:
-        backends_to_update = [backend]
-      else:
-        self.parser.error("Backend '%s' not found in backends.yaml." %
-                          backend)
-    else:
-
-      backends_to_update = backends
-
-    return backends_to_update
-
-  def BackendsUpdate(self):
-    """Updates a backend."""
-    self.backend = None
-    if len(self.args) == 1:
-      self.backend = self.args[0]
-    elif len(self.args) > 1:
-      self.parser.error('Expected an optional <backend> argument.')
-    if JavaSupported() and appcfg_java.IsWarFileWithoutYaml(self.basepath):
-      java_app_update = appcfg_java.JavaAppUpdate(self.basepath, self.options)
-      self.options.compile_jsps = True
-      basepath = java_app_update.CreateStagingDirectory()
-    else:
-      basepath = self.basepath
-
-    yaml_file_basename = 'app'
-    appyaml = self._ParseAppInfoFromYaml(basepath,
-                                         basename=yaml_file_basename)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    self.BackendsPhpCheck(appyaml)
-    rpcserver = self._GetRpcServer()
-
-    backends_to_update = self.BackendsYamlCheck(basepath, appyaml, self.backend)
-    for backend in backends_to_update:
-      self.UpdateVersion(rpcserver, basepath, appyaml, yaml_file_basename,
-                         backend=backend)
-
-  def BackendsList(self):
-    """Lists all backends for an app."""
-    if self.args:
-      self.parser.error('Expected no arguments.')
-
-
-
-
-    appyaml = self._ParseAppInfoFromYaml(self.basepath)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    rpcserver = self._GetRpcServer()
-    response = rpcserver.Send('/api/backends/list', app_id=appyaml.application)
-    print >> self.out_fh, response
-
-  def BackendsRollback(self):
-    """Does a rollback of an existing transaction on this backend."""
-    if len(self.args) != 1:
-      self.parser.error('Expected a single <backend> argument.')
-
-    self._Rollback(self.args[0])
-
-  def BackendsStart(self):
-    """Starts a backend."""
-    if len(self.args) != 1:
-      self.parser.error('Expected a single <backend> argument.')
-
-    backend = self.args[0]
-    appyaml = self._ParseAppInfoFromYaml(self.basepath)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    self.BackendsPhpCheck(appyaml)
-    rpcserver = self._GetRpcServer()
-    response = rpcserver.Send('/api/backends/start',
-                              app_id=appyaml.application,
-                              backend=backend)
-    print >> self.out_fh, response
-
-  def BackendsStop(self):
-    """Stops a backend."""
-    if len(self.args) != 1:
-      self.parser.error('Expected a single <backend> argument.')
-
-    backend = self.args[0]
-    appyaml = self._ParseAppInfoFromYaml(self.basepath)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    rpcserver = self._GetRpcServer()
-    response = rpcserver.Send('/api/backends/stop',
-                              app_id=appyaml.application,
-                              backend=backend)
-    print >> self.out_fh, response
-
-  def BackendsDelete(self):
-    """Deletes a backend."""
-    if len(self.args) != 1:
-      self.parser.error('Expected a single <backend> argument.')
-
-    backend = self.args[0]
-    appyaml = self._ParseAppInfoFromYaml(self.basepath)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    rpcserver = self._GetRpcServer()
-    response = rpcserver.Send('/api/backends/delete',
-                              app_id=appyaml.application,
-                              backend=backend)
-    print >> self.out_fh, response
-
-  def BackendsConfigure(self):
-    """Changes the configuration of an existing backend."""
-    if len(self.args) != 1:
-      self.parser.error('Expected a single <backend> argument.')
-
-    backend = self.args[0]
-    appyaml = self._ParseAppInfoFromYaml(self.basepath)
-    BackendsStatusUpdate(appyaml.runtime, self.error_fh)
-    self.BackendsPhpCheck(appyaml)
-    backends_yaml = self._ParseBackendsYaml(self.basepath)
-    rpcserver = self._GetRpcServer()
-    response = rpcserver.Send('/api/backends/configure',
-                              app_id=appyaml.application,
-                              backend=backend,
-                              payload=backends_yaml.ToYAML())
-    print >> self.out_fh, response
 
   def ListVersions(self):
     """Lists all versions for an app."""
@@ -4528,14 +4291,10 @@ class AppCfgApp(object):
                       dest='force_rollback', default=False,
                       help='Force rollback.')
 
-  def _Rollback(self, backend=None):
+  def _Rollback(self):
     """Does a rollback of an existing transaction.
 
-    Args:
-      backend: name of a backend to rollback, or None
-
-    If a backend is specified the rollback will affect only that backend, if no
-    backend is specified the rollback will affect the current app version.
+    Rollback will affect the current app version.
     """
     if os.path.isdir(self.basepath):
       module_yaml = self._ParseAppInfoFromYaml(self.basepath)
@@ -4549,8 +4308,7 @@ class AppCfgApp(object):
                                                os.path.splitext(file_name)[0])
 
     appversion = AppVersionUpload(self._GetRpcServer(), module_yaml,
-                                  module_yaml_path='app.yaml',
-                                  backend=backend)
+                                  module_yaml_path='app.yaml')
 
     appversion.in_transaction = True
 
@@ -5248,73 +5006,6 @@ definitions from the optional dispatch.yaml file."""),
 The 'update_dos' command will update any new, removed or changed dos
 definitions from the optional dos.yaml file."""),
 
-      'backends': Action(
-          function='BackendsAction',
-          usage='%prog [options] backends <directory> <action>',
-          short_desc='Perform a backend action.',
-          long_desc="""
-The 'backends' command will perform a backends action.""",
-          error_desc="""\
-Expected a <directory> and <action> argument."""),
-
-      'backends list': Action(
-          function='BackendsList',
-          usage='%prog [options] backends <directory> list',
-          short_desc='List all backends configured for the app.',
-          long_desc="""
-The 'backends list' command will list all backends configured for the app."""),
-
-      'backends update': Action(
-          function='BackendsUpdate',
-          usage='%prog [options] backends <directory> update [<backend>]',
-          options=_UpdateOptions,
-          short_desc='Update one or more backends.',
-          long_desc="""
-The 'backends update' command updates one or more backends.  This command
-updates backend configuration settings and deploys new code to the server.  Any
-existing instances will stop and be restarted.  Updates all backends, or a
-single backend if the <backend> argument is provided."""),
-
-      'backends rollback': Action(
-          function='BackendsRollback',
-          usage='%prog [options] backends <directory> rollback <backend>',
-          short_desc='Roll back an update of a backend.',
-          long_desc="""
-The 'backends update' command requires a server-side transaction.
-Use 'backends rollback' if you experience an error during 'backends update'
-and want to start the update over again."""),
-
-      'backends start': Action(
-          function='BackendsStart',
-          usage='%prog [options] backends <directory> start <backend>',
-          short_desc='Start a backend.',
-          long_desc="""
-The 'backends start' command will put a backend into the START state."""),
-
-      'backends stop': Action(
-          function='BackendsStop',
-          usage='%prog [options] backends <directory> stop <backend>',
-          short_desc='Stop a backend.',
-          long_desc="""
-The 'backends start' command will put a backend into the STOP state."""),
-
-      'backends delete': Action(
-          function='BackendsDelete',
-          usage='%prog [options] backends <directory> delete <backend>',
-          short_desc='Delete a backend.',
-          long_desc="""
-The 'backends delete' command will delete a backend."""),
-
-      'backends configure': Action(
-          function='BackendsConfigure',
-          usage='%prog [options] backends <directory> configure <backend>',
-          short_desc='Reconfigure a backend without stopping it.',
-          long_desc="""
-The 'backends configure' command performs an online update of a backend, without
-stopping instances that are currently running.  No code or handlers are updated,
-only certain configuration settings specified in backends.yaml.  Valid settings
-are: instances, options: public, and options: failfast."""),
-
       'vacuum_indexes': Action(
           function='VacuumIndexes',
           usage='%prog [options] vacuum_indexes <directory>',
@@ -5514,6 +5205,11 @@ The 'prepare_vm_runtime' prepares an application for the VM runtime."""),
 def main(argv):
   logging.basicConfig(format=('%(asctime)s %(levelname)s %(filename)s:'
                               '%(lineno)s %(message)s '))
+  logging.warning(textwrap.dedent(
+      """\
+      The appcfg command is deprecated. Please download the Cloud SDK for
+      App Engine development. https://cloud.google.com/appengine/downloads
+      """))
   try:
     result = AppCfgApp(argv).Run()
     if result:

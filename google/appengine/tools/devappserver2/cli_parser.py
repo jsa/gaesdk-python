@@ -388,6 +388,8 @@ def create_command_line_parser(configuration=None):
       '--port', type=PortParser(), default=8080,
       help='lowest port to which application modules should bind')
   common_group.add_argument(
+      '--test_ssl_port', type=PortParser(), help=argparse.SUPPRESS)
+  common_group.add_argument(
       '--specified_service_ports', type=ServicePortParser(), default=None,
       help='A sequence of service-name:port-number to port number mapping. E.g:'
       ' service-a:22222,service-b:33333')

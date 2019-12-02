@@ -670,8 +670,9 @@ _SUPPORTED_LIBRARIES = [
         'six',
         'https://pypi.python.org/pypi/six',
         'Abstract differences between py2.x and py3',
-        ['1.9.0'],
-        latest_version='1.9.0',
+        ['1.9.0', '1.12.0'],
+        latest_version='1.12.0',
+        default_version='1.12.0',
         ),
     _VersionedLibrary(
         'ssl',
@@ -744,10 +745,10 @@ REQUIRED_LIBRARIES = {
     ('jinja2', 'latest'): [('markupsafe', 'latest'), ('setuptools', 'latest')],
     ('matplotlib', '1.2.0'): [('numpy', '1.6.1')],
     ('matplotlib', 'latest'): [('numpy', 'latest')],
-    ('protobuf', '3.0.0'): [('six', '1.9.0')],
+    ('protobuf', '3.0.0'): [('six', 'latest')],
     ('protobuf', 'latest'): [('six', 'latest')],
     ('grpcio', '1.0.0'): [('protobuf', '3.0.0'), ('enum', '0.9.23'),
-                          ('futures', '3.0.5'), ('six', '1.9.0'),
+                          ('futures', '3.0.5'), ('six', 'latest'),
                           ('setuptools', '36.6.0')],
     ('grpcio', 'latest'): [('protobuf', 'latest'), ('enum', 'latest'),
                            ('futures', 'latest'), ('six', 'latest'),
@@ -2100,19 +2101,20 @@ class AppInclude(validation.Validated):
             `manual_scaling.instances` sets.
 
       Returns:
-        The number of instances as an integer, or `None`.
+        The number of instances as an integer. If the value of
+        `manual_scaling.instances` evaluates to False (e.g. 0 or None), then
+        return 0.
       """
       if appinclude.manual_scaling:
         if appinclude.manual_scaling.instances:
           return int(appinclude.manual_scaling.instances)
-      return None
+      return 0
 
 
 
     if _Instances(appinclude_one) or _Instances(appinclude_two):
       instances = max(_Instances(appinclude_one), _Instances(appinclude_two))
-      if instances is not None:
-        appinclude_one.manual_scaling = ManualScaling(instances=str(instances))
+      appinclude_one.manual_scaling = ManualScaling(instances=str(instances))
     return appinclude_one
 
   @classmethod

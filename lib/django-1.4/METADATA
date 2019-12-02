@@ -16,6 +16,10 @@ third_party {
     month: 5
     day: 15
   }
+  multiple_versions {
+    type: PERMANENT
+    approval: "cl/22169881"
+  }
 
   # NOTE: The "local_modifications" field is entirely optional and may be
   # removed if it's not useful for the package.
