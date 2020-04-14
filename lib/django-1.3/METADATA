@@ -25,4 +25,7 @@ third_party {
   # removed if it's not useful for the package.
   #     See go/thirdparty-metadata-local-modifications
   local_modifications: "http://google3/third_party/apphosting/python/django/v1_3_1_vendor/README.google?cl=23904997"
+  security {
+    tag: "NVD-CPE2.3:cpe:/a:djangoproject:django"
+  }
 }

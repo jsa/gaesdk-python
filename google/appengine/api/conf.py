@@ -21,12 +21,18 @@
 """A library for managing flags-like configuration that update dynamically.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 
 
 import logging
 import os
 import re
 import time
+
+import six
 
 
 if os.environ.get('APPENGINE_RUNTIME') == 'python27':
@@ -105,7 +111,7 @@ class Config(db.Expando):
     Args:
       parse_config: A YAMLConfiguration.
     """
-    for key, value in parsed_config.parameters.iteritems():
+    for key, value in six.iteritems(parsed_config.parameters):
       setattr(self, key, value)
 
 
@@ -156,7 +162,7 @@ class _Scalar(validation.Validator):
   We only allow scalars that are well supported by both the datastore and YAML.
   """
   ALLOWED_PARAMETER_VALUE_TYPES = frozenset(
-      [bool, int, long, float, str, unicode])
+      [bool, int, int, float, str, six.text_type])
 
   def Validate(self, value, key):
     """Check that all parameters are scalar values.

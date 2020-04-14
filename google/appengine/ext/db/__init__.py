@@ -1209,7 +1209,7 @@ class Model(object):
     respective schemas. For more information, see:
 
       http://www.atomenabled.org/developers/syndication/
-      http://code.google.com/apis/gdata/common-elements.html
+      https://developers.google.com/gdata/docs/1.0/elements
     """
     entity = self._populate_entity(_entity_class)
     return entity.ToXml()

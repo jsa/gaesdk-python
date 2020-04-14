@@ -2922,6 +2922,8 @@ _DATASTORE_EXCEPTION_CLASSES = {
     datastore_pb.Error.COMMITTED_BUT_STILL_APPLYING: datastore_errors.CommittedButStillApplying,
     datastore_pb.Error.CAPABILITY_DISABLED: apiproxy_errors.CapabilityDisabledError,
     datastore_pb.Error.RESOURCE_EXHAUSTED: apiproxy_errors.OverQuotaError,
+    datastore_pb.Error.SNAPSHOT_VERSION_TOO_OLD:
+        datastore_errors.SnapshotVersionTooOldError
 }
 
 _CLOUD_DATASTORE_EXCEPTION_CLASSES = {}

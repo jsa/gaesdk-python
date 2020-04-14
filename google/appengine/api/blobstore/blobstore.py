@@ -244,7 +244,7 @@ def _get_result_hook(rpc):
   """If there was an exception, raise it now."""
   try:
     rpc.check_success()
-  except apiproxy_errors.ApplicationError, err:
+  except apiproxy_errors.ApplicationError as err:
     raise _ToBlobstoreError(err)
   hook = rpc.user_data
   return hook(rpc)

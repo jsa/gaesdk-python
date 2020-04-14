@@ -223,7 +223,7 @@ class DatastoreStatsProcessor(object):
           value = datastore_types.FromPropertyPb(prop)
           self.__AggregateProperty(kind_name, namespace, entity_key_size,
                                    prop, value)
-        except (AssertionError, AttributeError, TypeError, ValueError), e:
+        except (AssertionError, AttributeError, TypeError, ValueError) as e:
           logging.error('Cannot process property %r, exception %s' %
                         (prop, e))
 

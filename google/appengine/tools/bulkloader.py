@@ -92,25 +92,25 @@ Example:
 
 
 
+from __future__ import print_function
 import csv
 import errno
 import getopt
 import imp
 import logging
 import os
-import Queue
 import re
 import shutil
 import signal
-import StringIO
 import sys
 import threading
 import time
 import traceback
-import urllib2
-import urlparse
 
-from google.appengine.datastore import entity_pb
+import six
+from six.moves import urllib
+import six.moves.queue
+import six.moves.urllib.parse
 
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import datastore
@@ -128,6 +128,7 @@ from google.appengine.runtime import apiproxy_errors
 from google.appengine.tools import adaptive_thread_pool
 from google.appengine.tools import appengine_rpc
 from google.appengine.tools.requeue import ReQueue
+from google.appengine.datastore import entity_pb
 
 
 
@@ -580,7 +581,7 @@ class CSVGenerator(object):
 
       for record in reader:
         yield record
-    except csv.Error, e:
+    except csv.Error as e:
       if e.args and e.args[0].startswith('field larger than field limit'):
         raise FieldSizeLimitError(csv.field_size_limit())
       else:
@@ -763,14 +764,13 @@ class _WorkItem(adaptive_thread_pool.WorkItem):
           elif transfer_time <= MAXIMUM_HOLD_DURATION:
             instruction = adaptive_thread_pool.ThreadGate.HOLD
       except (db.InternalError, db.NotSavedError, db.Timeout,
-              db.TransactionFailedError,
-              apiproxy_errors.OverQuotaError,
+              db.TransactionFailedError, apiproxy_errors.OverQuotaError,
               apiproxy_errors.DeadlineExceededError,
-              apiproxy_errors.ApplicationError), e:
+              apiproxy_errors.ApplicationError) as e:
 
         status = adaptive_thread_pool.WorkItem.RETRY
         logger.exception('Retrying on non-fatal datastore error: %s', e)
-      except urllib2.HTTPError, e:
+      except urllib.error.HTTPError as e:
         http_status = e.code
         if http_status >= 500 and http_status < 600:
 
@@ -780,7 +780,7 @@ class _WorkItem(adaptive_thread_pool.WorkItem):
         else:
           self.SetError()
           status = adaptive_thread_pool.WorkItem.FAILURE
-      except urllib2.URLError, e:
+      except urllib.error.URLError as e:
         if IsURLErrorFatal(e):
           self.SetError()
           status = adaptive_thread_pool.WorkItem.FAILURE
@@ -1414,7 +1414,7 @@ class RequestManager(object):
         results += result_pb.result_list()
 
       return results
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       raise datastore._ToDatastoreError(e)
 
   def GetEntities(
@@ -1603,7 +1603,7 @@ def IsURLErrorFatal(error):
   Args:
     error: A urllib2.URLError instance.
   """
-  assert isinstance(error, urllib2.URLError)
+  assert isinstance(error, urllib.error.URLError)
   if not hasattr(error, 'reason'):
     return True
   if not isinstance(error.reason[0], int):
@@ -1688,7 +1688,7 @@ class DataSourceThread(_ThreadBase):
           self.thread_pool.SubmitItem(item, block=True, timeout=1.0)
           self.entity_count += item.count
           break
-        except Queue.Full:
+        except six.moves.queue.Full:
           pass
 
 
@@ -1755,7 +1755,7 @@ class _Database(object):
 
     try:
       self.primary_conn.execute(create_table)
-    except sqlite3.OperationalError, e:
+    except sqlite3.OperationalError as e:
 
       if 'already exists' not in e.message:
         raise
@@ -1763,7 +1763,7 @@ class _Database(object):
     if index:
       try:
         self.primary_conn.execute(index)
-      except sqlite3.OperationalError, e:
+      except sqlite3.OperationalError as e:
 
         if 'already exists' not in e.message:
           raise
@@ -1779,7 +1779,7 @@ class _Database(object):
       self.primary_conn.cursor().execute(
           'insert into %s (value) values (?)' % _Database.SIGNATURE_TABLE_NAME,
           (signature,))
-    except sqlite3.OperationalError, e:
+    except sqlite3.OperationalError as e:
       if 'already exists' not in e.message:
         logger.exception('Exception creating table:')
         raise
@@ -2373,7 +2373,7 @@ class _ProgressThreadBase(_ThreadBase):
     while not self.exit_flag:
       try:
         item = self.progress_queue.get(block=True, timeout=1.0)
-      except Queue.Empty:
+      except six.moves.queue.Empty:
 
         continue
       if item == _THREAD_SHOULD_EXIT:
@@ -2855,7 +2855,7 @@ class RestoreLoader(Loader):
 
   def initialize(self, filename, loader_opts):
     CheckFile(filename)
-    self.queue = Queue.Queue(1000)
+    self.queue = six.moves.queue.Queue(1000)
     restore_thread = RestoreThread(self.queue, filename)
     restore_thread.start()
     self.keys_to_reserve = self._find_keys_to_reserve(
@@ -3052,7 +3052,7 @@ class Exporter(object):
     Returns:
       A CSV string.
     """
-    output = StringIO.StringIO()
+    output = six.StringIO()
     writer = csv.writer(output)
     writer.writerow(self.__ExtractProperties(entity))
     return output.getvalue()
@@ -3195,7 +3195,7 @@ class Mapper(object):
     pass
 
   def apply(self, entity):
-    print 'Default map function doing nothing to %s' % entity
+    print('Default map function doing nothing to %s' % entity)
 
   def batch_apply(self, entities):
     for entity in entities:
@@ -3238,7 +3238,7 @@ class QueueJoinThread(threading.Thread):
     """
     threading.Thread.__init__(self)
     self.setDaemon(True)
-    assert isinstance(queue, (Queue.Queue, ReQueue))
+    assert isinstance(queue, (six.moves.queue.Queue, ReQueue))
     self.queue = queue
 
   def run(self):
@@ -3321,7 +3321,7 @@ class BulkTransporterApp(object):
                max_queue_size=DEFAULT_QUEUE_SIZE,
                request_manager_factory=RequestManager,
                datasourcethread_factory=DataSourceThread,
-               progress_queue_factory=Queue.Queue,
+               progress_queue_factory=six.moves.queue.Queue,
                thread_pool_factory=adaptive_thread_pool.AdaptiveThreadPool,
                throttle_class=None,
                server=None,
@@ -3368,9 +3368,8 @@ class BulkTransporterApp(object):
     self.thread_pool_factory = thread_pool_factory
     self.throttle_class = throttle_class
     self.server = server
-    (scheme,
-     self.host_port, self.url_path,
-     unused_query, unused_fragment) = urlparse.urlsplit(self.post_url)
+    (scheme, self.host_port, self.url_path, unused_query,
+     unused_fragment) = six.moves.urllib.parse.urlsplit(self.post_url)
     self.secure = (scheme == 'https')
     self.oauth2_parameters = oauth2_parameters
 
@@ -3410,12 +3409,12 @@ class BulkTransporterApp(object):
 
 
       self.request_manager.Authenticate()
-    except Exception, e:
+    except Exception as e:
       self.error = True
 
 
-      if not isinstance(e, urllib2.HTTPError) or (
-          e.code != 302 and e.code != 401):
+      if not isinstance(e, urllib.error.HTTPError) or (e.code != 302 and
+                                                       e.code != 401):
         logger.exception('Exception during authentication')
       raise AuthenticationError()
     if (self.request_manager.auth_called and
@@ -3499,7 +3498,7 @@ class BulkTransporterApp(object):
           logger.debug('Joining %s failed', ob)
         else:
           logger.debug('... done.')
-      elif isinstance(ob, (Queue.Queue, ReQueue)):
+      elif isinstance(ob, (six.moves.queue.Queue, ReQueue)):
         if not InterruptibleQueueJoin(ob, thread_local, thread_pool):
           ShutdownThreads(self.data_source_thread, thread_pool)
       else:
@@ -3517,7 +3516,7 @@ class BulkTransporterApp(object):
 
     thread_pool.JoinThreads()
     thread_pool.CheckErrors()
-    print ''
+    print('')
 
 
 
@@ -3650,7 +3649,7 @@ def PrintUsageExit(code):
   Args:
     code: Status code to pass to sys.exit() after displaying usage information.
   """
-  print __doc__ % {'arg0': sys.argv[0]}
+  print(__doc__ % {'arg0': sys.argv[0]})
   sys.stdout.flush()
   sys.stderr.flush()
   sys.exit(code)
@@ -3733,8 +3732,9 @@ def ParseArguments(argv, die_fn=lambda: PrintUsageExit(1)):
       continue
     option = option[2:]
     if option in DEPRECATED_OPTIONS:
-      print >> sys.stderr, ('--%s is deprecated, please use --%s.' %
-                           (option, DEPRECATED_OPTIONS[option]))
+      print(('--%s is deprecated, please use --%s.' %
+             (option, DEPRECATED_OPTIONS[option])),
+            file=sys.stderr)
       option = DEPRECATED_OPTIONS[option]
 
     if option in BOOL_ARGS:
@@ -3834,12 +3834,13 @@ def LoadConfig(config_file_name, exit_fn=sys.exit):
         for cls in bulkloader_config.mappers:
           Mapper.RegisterMapper(cls())
 
-    except NameError, e:
+    except NameError as e:
 
 
       m = re.search(r"[^']*'([^']*)'.*", str(e))
       if m.groups() and m.group(1) == 'Loader':
-        print >> sys.stderr, """
+        print(
+            """
 The config file format has changed and you appear to be using an old-style
 config file.  Please make the following changes:
 
@@ -3858,20 +3859,21 @@ loaders = [MyLoader1,...,MyLoaderN]
 
 Where MyLoader1,...,MyLoaderN are the Loader subclasses you want the bulkloader
 to have access to.
-"""
+""",
+            file=sys.stderr)
         exit_fn(1)
       else:
         raise
-    except Exception, e:
+    except Exception as e:
 
 
 
       if isinstance(e, NameClashError) or 'bulkloader_config' in vars() and (
           hasattr(bulkloader_config, 'bulkloader') and
           isinstance(e, bulkloader_config.bulkloader.NameClashError)):
-        print >> sys.stderr, (
-            'Found both %s and %s while aliasing old names on %s.' %
-            (e.old_name, e.new_name, e.klass))
+        print(('Found both %s and %s while aliasing old names on %s.' %
+               (e.old_name, e.new_name, e.klass)),
+              file=sys.stderr)
         exit_fn(1)
       else:
         raise
@@ -3890,7 +3892,7 @@ def GetArgument(kwargs, name, die_fn):
   if name in kwargs:
     return kwargs[name]
   else:
-    print >> sys.stderr, '%s argument required' % name
+    print('%s argument required' % name, file=sys.stderr)
     die_fn()
 
 
@@ -3999,7 +4001,7 @@ def ProcessArguments(arg_dict,
   if namespace:
     try:
       namespace_manager.validate_namespace(namespace)
-    except namespace_manager.BadValueError, msg:
+    except namespace_manager.BadValueError as msg:
       errors.append('namespace parameter %s' % msg)
 
 
@@ -4015,7 +4017,7 @@ def ProcessArguments(arg_dict,
 
 
   if errors:
-    print >> sys.stderr, '\n'.join(errors)
+    print('\n'.join(errors), file=sys.stderr)
     die_fn()
 
   return arg_dict
@@ -4023,7 +4025,7 @@ def ProcessArguments(arg_dict,
 
 def _GetRemoteAppId(url, throttle, oauth2_parameters, throttle_class=None):
   """Get the App ID from the remote server."""
-  scheme, host_port, url_path, _, _ = urlparse.urlsplit(url)
+  scheme, host_port, url_path, _, _ = six.moves.urllib.parse.urlsplit(url)
 
   secure = (scheme == 'https')
 
@@ -4191,18 +4193,19 @@ def _PerformBulkload(arg_dict,
       workitem_generator_factory = GetCSVGeneratorFactory(
           kind, filename, batch_size, has_header)
 
-      app = BulkUploaderApp(arg_dict,
-                            workitem_generator_factory,
-                            throttle,
-                            progress_db,
-                            ProgressTrackerThread,
-                            max_queue_size,
-                            RequestManager,
-                            DataSourceThread,
-                            Queue.Queue,
-                            throttle_class=throttle_class,
-                            server=server,
-                            oauth2_parameters=oauth2_parameters)
+      app = BulkUploaderApp(
+          arg_dict,
+          workitem_generator_factory,
+          throttle,
+          progress_db,
+          ProgressTrackerThread,
+          max_queue_size,
+          RequestManager,
+          DataSourceThread,
+          six.moves.queue.Queue,
+          throttle_class=throttle_class,
+          server=server,
+          oauth2_parameters=oauth2_parameters)
       try:
         return_code = app.Run()
       except AuthenticationError:
@@ -4227,17 +4230,18 @@ def _PerformBulkload(arg_dict,
                                     progress_db,
                                     result_db)
 
-      app = BulkDownloaderApp(arg_dict,
-                              KeyRangeGeneratorFactory,
-                              throttle,
-                              progress_db,
-                              ExportProgressThreadFactory,
-                              0,
-                              RequestManager,
-                              DataSourceThread,
-                              Queue.Queue,
-                              throttle_class=throttle_class,
-                              server=server)
+      app = BulkDownloaderApp(
+          arg_dict,
+          KeyRangeGeneratorFactory,
+          throttle,
+          progress_db,
+          ExportProgressThreadFactory,
+          0,
+          RequestManager,
+          DataSourceThread,
+          six.moves.queue.Queue,
+          throttle_class=throttle_class,
+          server=server)
       try:
         return_code = app.Run()
       except AuthenticationError:
@@ -4263,17 +4267,18 @@ def _PerformBulkload(arg_dict,
                                     progress_queue,
                                     progress_db)
 
-      app = BulkMapperApp(arg_dict,
-                          KeyRangeGeneratorFactory,
-                          throttle,
-                          progress_db,
-                          MapperProgressThreadFactory,
-                          0,
-                          RequestManager,
-                          DataSourceThread,
-                          Queue.Queue,
-                          throttle_class=throttle_class,
-                          server=server)
+      app = BulkMapperApp(
+          arg_dict,
+          KeyRangeGeneratorFactory,
+          throttle,
+          progress_db,
+          MapperProgressThreadFactory,
+          0,
+          RequestManager,
+          DataSourceThread,
+          six.moves.queue.Queue,
+          throttle_class=throttle_class,
+          server=server)
       try:
         return_code = app.Run()
       except AuthenticationError:
@@ -4360,7 +4365,7 @@ def main(argv):
             for (key, value) in arg_dict.iteritems()
             if value is REQUIRED_OPTION]
   if errors:
-    print >> sys.stderr, '\n'.join(errors)
+    print('\n'.join(errors), file=sys.stderr)
     PrintUsageExit(1)
 
   SetupLogging(arg_dict)

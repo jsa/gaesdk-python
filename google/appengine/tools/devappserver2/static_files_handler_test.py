@@ -438,7 +438,7 @@ class TestStaticContentHandlerHandlePath(wsgi_test_utils.WSGITestCase):
 
   def test_custom_expiration_set(self):
     static_files_handler.Now = self.mox.CreateMockAnything()
-    static_files_handler.Now().AndReturn(datetime.datetime(1990, 01, 01))
+    static_files_handler.Now().AndReturn(datetime.datetime(1990, 0o1, 0o1))
 
     url_map = appinfo.URLMap(url='/',
                              expiration='1d 2h 3m 4s',
@@ -471,7 +471,7 @@ class TestStaticContentHandlerHandlePath(wsgi_test_utils.WSGITestCase):
 
   def test_expiration_precedence(self):
     static_files_handler.Now = self.mox.CreateMockAnything()
-    static_files_handler.Now().AndReturn(datetime.datetime(1990, 01, 01))
+    static_files_handler.Now().AndReturn(datetime.datetime(1990, 0o1, 0o1))
 
     url_map = appinfo.URLMap(url='/',
                              expiration='1d 2h 3m 4s',

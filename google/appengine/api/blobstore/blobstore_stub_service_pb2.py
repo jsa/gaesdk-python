@@ -18,8 +18,6 @@
 
 
 
-import sys
-_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 import google
 from google.net.proto2.python.public import descriptor as _descriptor
 from google.net.proto2.python.public import message as _message
@@ -28,9 +26,11 @@ from google.net.proto2.python.public import symbol_database as _symbol_database
 import abc
 import sys
 try:
+  __import__('google.net.base.pywrapnetbase')
   __import__('google.net.rpc.python.proto_python_api_2_stub')
   __import__('google.net.rpc.python.pywraprpc')
   proto_python_api_2_stub = sys.modules.get('google.net.rpc.python.proto_python_api_2_stub')
+  pywrapnetbase = sys.modules.get('google.net.base.pywrapnetbase')
   pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc')
   _client_stub_base_class = proto_python_api_2_stub.Stub
 except ImportError:
@@ -53,8 +53,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='apphosting/api/blobstore/blobstore_stub_service.proto',
   package='apphosting',
   syntax='proto2',
-  serialized_options=_b('\n\"com.google.appengine.api.blobstoreB\026BlobstoreStubServicePb'),
-  serialized_pb=_b('\n5apphosting/api/blobstore/blobstore_stub_service.proto\x12\napphosting\x1a\x1d\x61pphosting/api/api_base.proto\"5\n\x10StoreBlobRequest\x12\x10\n\x08\x62lob_key\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\x0c\"\x89\x01\n\x19SetBlobStorageTypeRequest\x12G\n\x0cstorage_type\x18\x01 \x02(\x0e\x32\x31.apphosting.SetBlobStorageTypeRequest.StorageType\"#\n\x0bStorageType\x12\n\n\x06MEMORY\x10\x00\x12\x08\n\x04\x46ILE\x10\x01\x32\xba\x01\n\x14\x42lobstoreStubService\x12G\n\tStoreBlob\x12\x1c.apphosting.StoreBlobRequest\x1a\x1a.apphosting.base.VoidProto\"\x00\x12Y\n\x12SetBlobStorageType\x12%.apphosting.SetBlobStorageTypeRequest\x1a\x1a.apphosting.base.VoidProto\"\x00\x42<\n\"com.google.appengine.api.blobstoreB\x16\x42lobstoreStubServicePb')
+  serialized_options=b'\n\"com.google.appengine.api.blobstoreB\026BlobstoreStubServicePb',
+  create_key=_descriptor._internal_create_key,
+  serialized_pb=b'\n5apphosting/api/blobstore/blobstore_stub_service.proto\x12\napphosting\x1a\x1d\x61pphosting/api/api_base.proto\"5\n\x10StoreBlobRequest\x12\x10\n\x08\x62lob_key\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\x0c\"\x89\x01\n\x19SetBlobStorageTypeRequest\x12G\n\x0cstorage_type\x18\x01 \x02(\x0e\x32\x31.apphosting.SetBlobStorageTypeRequest.StorageType\"#\n\x0bStorageType\x12\n\n\x06MEMORY\x10\x00\x12\x08\n\x04\x46ILE\x10\x01\x32\xba\x01\n\x14\x42lobstoreStubService\x12G\n\tStoreBlob\x12\x1c.apphosting.StoreBlobRequest\x1a\x1a.apphosting.base.VoidProto\"\x00\x12Y\n\x12SetBlobStorageType\x12%.apphosting.SetBlobStorageTypeRequest\x1a\x1a.apphosting.base.VoidProto\"\x00\x42<\n\"com.google.appengine.api.blobstoreB\x16\x42lobstoreStubServicePb'
   ,
   dependencies=[google_dot_apphosting_dot_api_dot_api__base__pb2.DESCRIPTOR,])
 
@@ -65,15 +66,18 @@ _SETBLOBSTORAGETYPEREQUEST_STORAGETYPE = _descriptor.EnumDescriptor(
   full_name='apphosting.SetBlobStorageTypeRequest.StorageType',
   filename=None,
   file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
   values=[
     _descriptor.EnumValueDescriptor(
       name='MEMORY', index=0, number=0,
       serialized_options=None,
-      type=None),
+      type=None,
+      create_key=_descriptor._internal_create_key),
     _descriptor.EnumValueDescriptor(
       name='FILE', index=1, number=1,
       serialized_options=None,
-      type=None),
+      type=None,
+      create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
@@ -89,21 +93,22 @@ _STOREBLOBREQUEST = _descriptor.Descriptor(
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
+  create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
       name='blob_key', full_name='apphosting.StoreBlobRequest.blob_key', index=0,
       number=1, type=9, cpp_type=9, label=2,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
       name='content', full_name='apphosting.StoreBlobRequest.content', index=1,
       number=2, type=12, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b(""),
+      has_default_value=False, default_value=b"",
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -127,6 +132,7 @@ _SETBLOBSTORAGETYPEREQUEST = _descriptor.Descriptor(
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
+  create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
       name='storage_type', full_name='apphosting.SetBlobStorageTypeRequest.storage_type', index=0,
@@ -134,7 +140,7 @@ _SETBLOBSTORAGETYPEREQUEST = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -181,6 +187,7 @@ _BLOBSTORESTUBSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
+  create_key=_descriptor._internal_create_key,
   serialized_start=296,
   serialized_end=482,
   methods=[
@@ -192,6 +199,7 @@ _BLOBSTORESTUBSERVICE = _descriptor.ServiceDescriptor(
     input_type=_STOREBLOBREQUEST,
     output_type=google_dot_apphosting_dot_api_dot_api__base__pb2._VOIDPROTO,
     serialized_options=None,
+    create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
     name='SetBlobStorageType',
@@ -201,6 +209,7 @@ _BLOBSTORESTUBSERVICE = _descriptor.ServiceDescriptor(
     input_type=_SETBLOBSTORAGETYPEREQUEST,
     output_type=google_dot_apphosting_dot_api_dot_api__base__pb2._VOIDPROTO,
     serialized_options=None,
+    create_key=_descriptor._internal_create_key,
   ),
 ])
 _sym_db.RegisterServiceDescriptor(_BLOBSTORESTUBSERVICE)

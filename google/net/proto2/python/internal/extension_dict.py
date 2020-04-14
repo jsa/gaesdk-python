@@ -75,6 +75,10 @@ class _ExtensionDict(object):
     if extension_handle.label == FieldDescriptor.LABEL_REPEATED:
       result = extension_handle._default_constructor(self._extended_message)
     elif extension_handle.cpp_type == FieldDescriptor.CPPTYPE_MESSAGE:
+      message_type = extension_handle.message_type
+      if not hasattr(message_type, '_concrete_class'):
+
+        self._extended_message._FACTORY.GetPrototype(message_type)
       assert getattr(extension_handle.message_type, '_concrete_class', None), (
           'Uninitialized concrete class found for field %r (message type %r)'
           % (extension_handle.full_name,
@@ -149,6 +153,9 @@ class _ExtensionDict(object):
     self._extended_message._fields[extension_handle] = (
         type_checker.CheckValue(value))
     self._extended_message._Modified()
+
+  def __delitem__(self, extension_handle):
+    self._extended_message.ClearExtension(extension_handle)
 
   def _FindExtensionByName(self, name):
     """Tries to find a known extension with the specified name.

@@ -16,6 +16,7 @@
 #
 """Checks for SDK updates."""
 
+from __future__ import print_function
 import datetime
 import logging
 import os
@@ -23,9 +24,10 @@ import socket
 import ssl
 import sys
 import time
-import urllib2
 
 import google
+
+from six.moves import urllib
 import yaml
 
 from google.appengine.api import validation
@@ -243,7 +245,7 @@ class SDKUpdateChecker(object):
             timestamp=version['timestamp'],
             api_versions=version['api_versions'],
             runtime=runtime))
-    except (urllib2.URLError, socket.error, ssl.SSLError), e:
+    except (urllib.error.URLError, socket.error, ssl.SSLError) as e:
       logging.info('Update check failed: %s', e)
       return
 
@@ -341,7 +343,7 @@ class SDKUpdateChecker(object):
         fh.write(nag.ToYAML())
       finally:
         fh.close()
-    except (OSError, IOError), e:
+    except (OSError, IOError) as e:
       logging.error('Could not write nag file to %s. Error: %s', nagfilename, e)
 
   def _Nag(self, msg, latest, version, force=False):
@@ -370,18 +372,18 @@ class SDKUpdateChecker(object):
     nag.timestamp = time.time()
     self._WriteNagFile(nag)
 
-    print '****************************************************************'
-    print msg
-    print '-----------'
-    print 'Latest SDK:'
-    print yaml.dump(latest)
-    print '-----------'
-    print 'Your SDK:'
-    print yaml.dump(version)
-    print '-----------'
-    print 'Please visit https://developers.google.com/appengine/downloads'
-    print 'for the latest SDK'
-    print '****************************************************************'
+    print('****************************************************************')
+    print(msg)
+    print('-----------')
+    print('Latest SDK:')
+    print(yaml.dump(latest))
+    print('-----------')
+    print('Your SDK:')
+    print(yaml.dump(version))
+    print('-----------')
+    print('Please visit https://developers.google.com/appengine/downloads')
+    print('for the latest SDK')
+    print('****************************************************************')
 
   def AllowedToCheckForUpdates(self, input_fn=raw_input):
     """Determines if the user wants to check for updates.
@@ -411,14 +413,14 @@ class SDKUpdateChecker(object):
                         '(Y/n): ')
       answer = answer.strip().lower()
       if answer == 'n' or answer == 'no':
-        print ('dev_appserver will not check for updates on startup.  To '
+        print(('dev_appserver will not check for updates on startup.  To '
                'change this setting, edit %s' %
-               SDKUpdateChecker.MakeNagFilename())
+               SDKUpdateChecker.MakeNagFilename()))
         nag.opt_in = False
       else:
 
-        print ('dev_appserver will check for updates on startup.  To change '
-               'this setting, edit %s' % SDKUpdateChecker.MakeNagFilename())
+        print(('dev_appserver will check for updates on startup.  To change '
+               'this setting, edit %s' % SDKUpdateChecker.MakeNagFilename()))
         nag.opt_in = True
       self._WriteNagFile(nag)
     return nag.opt_in

@@ -44,6 +44,7 @@ from google.appengine.tools.devappserver2 import update_checker
 from google.appengine.tools.devappserver2 import util
 from google.appengine.tools.devappserver2 import wsgi_request_info
 from google.appengine.tools.devappserver2.admin import admin_server
+from google.appengine.tools.devappserver2.python import instance_factory
 # pylint: enable=g-import-not-at-top
 
 # Initialize logging early -- otherwise some library packages may
@@ -266,6 +267,9 @@ class DevelopmentServer(object):
         constants.LOG_LEVEL_TO_PYTHON_CONSTANT[options.dev_appserver_log_level])
 
     parsed_env_variables = dict(options.env_variables or [])
+    if options.python27_executable_path:
+      instance_factory.PythonRuntimeInstanceFactory.SetPython27ExecutablePath(
+          options.python27_executable_path)
     configuration = application_configuration.ApplicationConfiguration(
         config_paths=options.config_paths,
         app_id=options.app_id,
@@ -352,6 +356,7 @@ class DevelopmentServer(object):
             '--threadsafe_override'),
         options.external_port,
         options.specified_service_ports,
+        options.addn_host,
         options.enable_host_checking,
         ssl_certificate_paths,
         options.test_ssl_port)

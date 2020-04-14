@@ -72,7 +72,7 @@ class DistanceMatcher(object):
     if op == QueryParser.LESSTHAN or op == QueryParser.LE:
       return distance <= self._distance
     else:
-      raise AssertionError, 'unexpected op %s' % str(op)
+      raise AssertionError('unexpected op %s' % str(op))
 
   def IsMatch(self, field_values, op):
     self._CheckOp(op)

@@ -501,7 +501,7 @@ class UploadHandlerUnitTest(UploadTestBase):
                       self.storage.OpenBlob(expected_key).read())
 
     blob_info = blobstore.get(expected_key)
-    self.assertFalse(blob_info is None)
+    self.assertIsNot(blob_info, None)
     self.assertEquals(('image/png', {'a': 'b', 'm': 'n'}),
                       cgi.parse_header(blob_info.content_type))
     self.assertEquals(expected_creation, blob_info.creation)
@@ -604,7 +604,7 @@ class UploadHandlerUnitTest(UploadTestBase):
     blobkey = ('encoded_gs_file:bXktdGVzdC1idWNrZXQvZmFrZS1leHBlY3RlZGtleQ==')
     blobkey = blobstore_stub.BlobstoreServiceStub.ToDatastoreBlobKey(blobkey)
     blob1 = datastore.Get(blobkey)
-    self.assertTrue('my-test-bucket' in blob1['filename'])
+    self.assertIn('my-test-bucket', blob1['filename'])
 
   def test_store_and_build_forward_message_utf8_values(self):
     """Test store and build message method with UTF-8 values."""

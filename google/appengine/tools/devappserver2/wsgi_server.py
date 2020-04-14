@@ -299,7 +299,16 @@ class WsgiHostCheck(object):
   """WSGI middleware for whitelisting incoming Host HTTP header values."""
 
   def __init__(self, whitelisted_hosts, app):
-    self.whitelisted_hosts = set(whitelisted_hosts)
+    self.whitelisted_hosts = set()
+    self.whitelisted_wildcard_hosts = set()
+    self.whitelisted_deep_wildcard_hosts = set()
+    for host in whitelisted_hosts:
+      if host.startswith('**.'):
+        self.whitelisted_deep_wildcard_hosts.add(self._get_base_host_name(host))
+      elif host.startswith('*.'):
+        self.whitelisted_wildcard_hosts.add(self._get_base_host_name(host))
+      else:
+        self.whitelisted_hosts.add(host)
     self.app = app
 
   def __call__(self, environ, start_response):
@@ -317,7 +326,9 @@ class WsgiHostCheck(object):
     canonical_host = self._get_canonical_host_name(http_host)
 
     if (self._is_local_host(canonical_host) or
-        canonical_host in self.whitelisted_hosts):
+        self._is_whitelisted_host(canonical_host) or
+        self._is_whitelisted_wildcard_host(canonical_host) or
+        self._is_whitelisted_deep_wildcard_host(canonical_host)):
       return self.app(environ, start_response)
     else:
       logging.error(
@@ -347,6 +358,20 @@ class WsgiHostCheck(object):
     except ValueError:
       return False
 
+  def _is_whitelisted_host(self, host):
+    """Checks whether the provided host is whitelisted."""
+    return host in self.whitelisted_hosts
+
+  def _is_whitelisted_wildcard_host(self, host):
+    """Checks whether the provided host is whitelisted through wildcarding."""
+    base_host = self._get_base_host_name(host)
+    return base_host in self.whitelisted_wildcard_hosts if base_host else False
+
+  def _is_whitelisted_deep_wildcard_host(self, host):
+    """Checks the provided host for whitelisting through deep wildcarding."""
+    return any(host.endswith('.' + deep_wildcard_host) for
+               deep_wildcard_host in self.whitelisted_deep_wildcard_hosts)
+
   def _get_canonical_host_name(self, host):
     """Returns just the host name from a HTTP_HOST header value."""
     ipv6_match = _IPV6_HOST_RE.match(host)
@@ -354,6 +379,10 @@ class WsgiHostCheck(object):
       return ipv6_match.group(1)
     else:
       return host.rsplit(':', 1)[0]
+
+  def _get_base_host_name(self, host):
+    """Returns the host name without the lowest level domain part."""
+    return host.split('.', 1)[-1] if '.' in host else None
 
 
 class WsgiServer(object):

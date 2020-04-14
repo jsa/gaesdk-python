@@ -277,7 +277,7 @@ class _RpcOperationFuture(object):
     self._rpc.wait()
     try:
       self._rpc.check_success()
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       raise _ToSearchError(e)
     return self._get_result_hook()
 
@@ -294,7 +294,7 @@ class _PutOperationFuture(_RpcOperationFuture):
   def get_result(self):
     try:
       return super(_PutOperationFuture, self).get_result()
-    except apiproxy_errors.OverQuotaError, e:
+    except apiproxy_errors.OverQuotaError as e:
       message = e.message + '; index = ' + self._index.name
       if self._index.namespace:
         message = message + ' in namespace ' + self._index.namespace
@@ -705,7 +705,7 @@ def _CheckExpression(expression):
   expression = _ValidateString(expression, max_len=MAXIMUM_EXPRESSION_LENGTH)
   try:
     expression_parser.Parse(expression)
-  except expression_parser.ExpressionException, e:
+  except expression_parser.ExpressionException as e:
     raise ExpressionError('Failed to parse expression "%s"' % expression)
   return expression
 
@@ -1419,7 +1419,7 @@ class FacetRefinement(object):
 
     try:
       ref_pb.ParseFromString(base64.b64decode(token_string))
-    except (ProtocolBuffer.ProtocolBufferDecodeError, TypeError), e:
+    except (ProtocolBuffer.ProtocolBufferDecodeError, TypeError) as e:
 
 
       raise ValueError('Invalid refinement token %s' % token_string, e)
@@ -2847,7 +2847,7 @@ def _CheckQuery(query):
   if query.strip():
     try:
       query_parser.Parse(query)
-    except query_parser.QueryException, e:
+    except query_parser.QueryException as e:
       raise QueryError('Failed to parse query "%s"' % query)
   return query
 
@@ -4117,7 +4117,7 @@ def _MakeSyncSearchServiceCall(call, request, response, deadline):
       rpc.make_call(call, request, response)
       rpc.wait()
       rpc.check_success()
-  except apiproxy_errors.ApplicationError, e:
+  except apiproxy_errors.ApplicationError as e:
     raise _ToSearchError(e)
 
 def _ValidateDeadline(deadline):

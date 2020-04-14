@@ -1,15 +1,17 @@
+import functools
 import os
 import os.path
-import shutil
+import random
+import re
+import socket
 import tarfile
 import tempfile
-import unittest
+import time
 
 import docker
+import paramiko
+import pytest
 import six
-
-BUSYBOX = 'busybox:buildroot-2014.02'
-EXEC_DRIVER = []
 
 
 def make_tree(dirs, files):
@@ -45,80 +47,101 @@ def untar_file(tardata, filename):
     return result
 
 
-def exec_driver_is_native():
-    global EXEC_DRIVER
-    if not EXEC_DRIVER:
-        c = docker_client()
-        EXEC_DRIVER = c.info()['ExecutionDriver']
-        c.close()
-    return EXEC_DRIVER.startswith('native')
+def requires_api_version(version):
+    test_version = os.environ.get(
+        'DOCKER_TEST_API_VERSION', docker.constants.DEFAULT_DOCKER_API_VERSION
+    )
+
+    return pytest.mark.skipif(
+        docker.utils.version_lt(test_version, version),
+        reason="API version is too low (< {0})".format(version)
+    )
 
 
-def docker_client(**kwargs):
-    return docker.Client(**docker_client_kwargs(**kwargs))
+def requires_experimental(until=None):
+    test_version = os.environ.get(
+        'DOCKER_TEST_API_VERSION', docker.constants.DEFAULT_DOCKER_API_VERSION
+    )
+
+    def req_exp(f):
+        @functools.wraps(f)
+        def wrapped(self, *args, **kwargs):
+            if not self.client.info()['ExperimentalBuild']:
+                pytest.skip('Feature requires Docker Engine experimental mode')
+            return f(self, *args, **kwargs)
+
+        if until and docker.utils.version_gte(test_version, until):
+            return f
+        return wrapped
+
+    return req_exp
 
 
-def docker_client_kwargs(**kwargs):
-    client_kwargs = docker.utils.kwargs_from_env(assert_hostname=False)
-    client_kwargs.update(kwargs)
-    return client_kwargs
+def wait_on_condition(condition, delay=0.1, timeout=40):
+    start_time = time.time()
+    while not condition():
+        if time.time() - start_time > timeout:
+            raise AssertionError("Timeout: %s" % condition)
+        time.sleep(delay)
 
 
-class BaseTestCase(unittest.TestCase):
-    tmp_imgs = []
-    tmp_containers = []
-    tmp_folders = []
-    tmp_volumes = []
+def random_name():
+    return u'dockerpytest_{0:x}'.format(random.getrandbits(64))
 
-    def setUp(self):
-        if six.PY2:
-            self.assertRegex = self.assertRegexpMatches
-            self.assertCountEqual = self.assertItemsEqual
-        self.client = docker_client(timeout=60)
-        self.tmp_imgs = []
-        self.tmp_containers = []
-        self.tmp_folders = []
-        self.tmp_volumes = []
-        self.tmp_networks = []
 
-    def tearDown(self):
-        for img in self.tmp_imgs:
+def force_leave_swarm(client):
+    """Actually force leave a Swarm. There seems to be a bug in Swarm that
+    occasionally throws "context deadline exceeded" errors when leaving."""
+    while True:
+        try:
+            if isinstance(client, docker.DockerClient):
+                return client.swarm.leave(force=True)
+            return client.leave_swarm(force=True)  # elif APIClient
+        except docker.errors.APIError as e:
+            if e.explanation == "context deadline exceeded":
+                continue
+            else:
+                return
+
+
+def swarm_listen_addr():
+    return '0.0.0.0:{0}'.format(random.randrange(10000, 25000))
+
+
+def assert_cat_socket_detached_with_keys(sock, inputs):
+    if six.PY3 and hasattr(sock, '_sock'):
+        sock = sock._sock
+
+    for i in inputs:
+        sock.sendall(i)
+        time.sleep(0.5)
+
+    # If we're using a Unix socket, the sock.send call will fail with a
+    # BrokenPipeError ; INET sockets will just stop receiving / sending data
+    # but will not raise an error
+    if isinstance(sock, paramiko.Channel):
+        with pytest.raises(OSError):
+            sock.sendall(b'make sure the socket is closed\n')
+    else:
+        if getattr(sock, 'family', -9) == getattr(socket, 'AF_UNIX', -1):
+            # We do not want to use pytest.raises here because future versions
+            # of the daemon no longer cause this to raise an error.
             try:
-                self.client.remove_image(img)
-            except docker.errors.APIError:
-                pass
-        for container in self.tmp_containers:
-            try:
-                self.client.stop(container, timeout=1)
-                self.client.remove_container(container)
-            except docker.errors.APIError:
-                pass
-        for network in self.tmp_networks:
-            try:
-                self.client.remove_network(network)
-            except docker.errors.APIError:
-                pass
-        for folder in self.tmp_folders:
-            shutil.rmtree(folder)
+                sock.sendall(b'make sure the socket is closed\n')
+            except socket.error:
+                return
 
-        for volume in self.tmp_volumes:
-            try:
-                self.client.remove_volume(volume)
-            except docker.errors.APIError:
-                pass
+        sock.sendall(b"make sure the socket is closed\n")
+        data = sock.recv(128)
+        # New in 18.06: error message is broadcast over the socket when reading
+        # after detach
+        assert data == b'' or data.startswith(
+            b'exec attach failed: error on attach stdin: read escape sequence'
+        )
 
-        self.client.close()
 
-    def run_container(self, *args, **kwargs):
-        container = self.client.create_container(*args, **kwargs)
-        self.tmp_containers.append(container)
-        self.client.start(container)
-        exitcode = self.client.wait(container)
-
-        if exitcode != 0:
-            output = self.client.logs(container)
-            raise Exception(
-                "Container exited with code {}:\n{}"
-                .format(exitcode, output))
-
-        return container
+def ctrl_with(char):
+    if re.match('[a-z]', char):
+        return chr(ord(char) - ord('a') + 1).encode('ascii')
+    else:
+        raise(Exception('char must be [a-z]'))

@@ -44,6 +44,7 @@ Example:
 
 from __future__ import with_statement
 
+from __future__ import print_function
 
 
 import argparse
@@ -273,7 +274,7 @@ def _FetchDiscoveryDoc(config, doc_format):
   try:
     with contextlib.closing(urllib2.urlopen(request)) as response:
       return response.read()
-  except urllib2.HTTPError, error:
+  except urllib2.HTTPError as error:
     raise ServerRequestException(error)
 
 
@@ -362,7 +363,7 @@ def _GenClientLibFromContents(discovery_doc, language, output_path,
     with contextlib.closing(urllib2.urlopen(request)) as response:
       content = response.read()
       return _WriteFile(output_path, client_name, content)
-  except urllib2.HTTPError, error:
+  except urllib2.HTTPError as error:
     raise ServerRequestException(error)
 
 
@@ -426,7 +427,7 @@ def _GetClientLibCallback(args, client_func=_GetClientLib):
       hostname=args.hostname, application_path=args.application)
 
   for client_path in client_paths:
-    print 'API client library written to %s' % client_path
+    print('API client library written to %s' % client_path)
 
 
 def _GenDiscoveryDocCallback(args, discovery_func=_GenDiscoveryDoc):
@@ -442,7 +443,7 @@ def _GenDiscoveryDocCallback(args, discovery_func=_GenDiscoveryDoc):
                                    args.output, hostname=args.hostname,
                                    application_path=args.application)
   for discovery_path in discovery_paths:
-    print 'API discovery document written to %s' % discovery_path
+    print('API discovery document written to %s' % discovery_path)
 
 
 def _GenClientLibCallback(args, client_func=_GenClientLib):
@@ -456,7 +457,7 @@ def _GenClientLibCallback(args, client_func=_GenClientLib):
   """
   client_path = client_func(args.discovery_doc[0], args.language, args.output,
                             args.build_system)
-  print 'API client library written to %s' % client_path
+  print('API client library written to %s' % client_path)
 
 
 def MakeParser(prog):

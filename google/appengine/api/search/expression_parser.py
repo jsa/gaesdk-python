@@ -80,5 +80,5 @@ def Parse(expression):
   parser = CreateParser(expression)
   try:
     return parser.expression()
-  except Exception, e:
+  except Exception as e:
     raise ExpressionException(e.message)

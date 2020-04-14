@@ -224,13 +224,13 @@ class _DefinitionClass(type):
       type.__setattr__(cls, name, value)
 
   def __delattr__(cls, name):
-    """Overridden so that cannot delete varaibles on definition classes."""
+    """Overridden so that cannot delete variables on definition classes."""
     raise TypeError('May not delete attributes on definition class')
 
   def definition_name(cls):
     """Helper method for creating definition name.
 
-    Names will be generated to include the classes package name, scope (if the
+    Names will be generated to include the class's package name, scope (if the
     class is nested in another definition) and class name.
 
     By default, the package name for a definition is derived from its module
@@ -258,7 +258,7 @@ class _DefinitionClass(type):
     """Helper method for creating outer definition name.
 
     Returns:
-      If definition is nested, will return the outer definitions name, else the
+      If definition is nested, will return the outer definition's name, else the
       package name.
     """
     outer_definition = cls.message_definition()
@@ -268,7 +268,7 @@ class _DefinitionClass(type):
       return outer_definition.definition_name()
 
   def definition_package(cls):
-    """Helper method for creating creating the package of a definition.
+    """Helper method for creating the package of a definition.
 
     Returns:
       Name of package that definition belongs to.
@@ -411,14 +411,14 @@ class Enum(object):
     The purpose of overriding __new__ is to provide a way to treat
     Enum subclasses as casting types, similar to how the int type
     functions.  A program can pass a string or an integer and this
-    method with "convert" that value in to an appropriate Enum instance.
+    method will "convert" that value into an appropriate Enum instance.
 
     Args:
       index: Name or number to look up.  During initialization
         this is always the name of the new enum value.
 
     Raises:
-      TypeError: When an inappropriate index value is passed provided.
+      TypeError: When an inappropriate index value is provided.
     """
     # If is enum type of this class, return it.
     if isinstance(index, cls):
@@ -445,7 +445,7 @@ class Enum(object):
     """Initialize new Enum instance.
 
     Since this should only be called during class initialization any
-    calls that happen after the class is frozen raises an exception.
+    call that happens after the class is frozen raises an exception.
     """
     # Immediately return if __init__ was called after _Enum.__init__().
     # It means that casting operator version of the class constructor
@@ -553,10 +553,10 @@ class _MessageClass(_DefinitionClass):
   Information contained there may help understanding this class.
 
   Meta-class enables very specific behavior for any defined Message
-  class.  All attributes defined on an Message sub-class must be field
+  class.  All attributes defined on a Message sub-class must be field
   instances, Enum class definitions or other Message class definitions.  Each
-  field attribute defined on an Message sub-class is added to the set of
-  field definitions and the attribute is translated in to a slot.  It also
+  field attribute defined on a Message sub-class is added to the set of
+  field definitions and the attribute is translated into a slot.  It also
   ensures that only one level of Message class hierarchy is possible.  In other
   words it is not possible to declare sub-classes of sub-classes of
   Message.

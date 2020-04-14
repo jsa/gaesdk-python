@@ -244,7 +244,7 @@ class APIServer(wsgi_server.WsgiServer):
         try:
           api_response = _execute_request(request, use_proto3=True)
           response.response = api_response.Encode()
-        except apiproxy_errors.ApplicationError, e:
+        except apiproxy_errors.ApplicationError as e:
           response.application_error.code = e.application_error
           response.application_error.detail = e.error_detail
         return response
@@ -352,7 +352,7 @@ class APIServer(wsgi_server.WsgiServer):
             op(environ, request_id)
         api_response = _execute_request(request).Encode()
         response.set_response(api_response)
-    except Exception, e:
+    except Exception as e:
       if isinstance(e, apiproxy_errors.ApplicationError):
         level = logging.DEBUG
         application_error = response.mutable_application_error()
@@ -673,7 +673,7 @@ def _clear_datastore_storage(datastore_path):
   if os.path.lexists(datastore_path):
     try:
       os.remove(datastore_path)
-    except OSError, err:
+    except OSError as err:
       logging.warning(
           'Failed to remove datastore file %r: %s', datastore_path, err)
 
@@ -684,7 +684,7 @@ def _clear_search_indexes_storage(search_index_path):
   if os.path.lexists(search_index_path):
     try:
       os.remove(search_index_path)
-    except OSError, err:
+    except OSError as err:
       logging.warning(
           'Failed to remove search indexes file %r: %s', search_index_path, err)
 
@@ -695,8 +695,8 @@ def get_storage_path(path, app_id):
   if path is None:
     for path in _generate_storage_paths(app_id):
       try:
-        os.mkdir(path, 0700)
-      except OSError, err:
+        os.mkdir(path, 0o700)
+      except OSError as err:
         if err.errno == errno.EEXIST:
           # Check that the directory is only accessable by the current user to
           # protect against an attacker creating the directory in advance in
@@ -704,7 +704,7 @@ def get_storage_path(path, app_id):
           # directories and st_mode does not include per-user permission
           # information so assume that it is safe.
           if sys.platform == 'win32' or (
-              (os.stat(path).st_mode & 0777) == 0700 and os.path.isdir(path)):
+              (os.stat(path).st_mode & 0o777) == 0o700 and os.path.isdir(path)):
             return path
           else:
             continue

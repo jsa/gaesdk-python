@@ -113,10 +113,10 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
       self.__service_validator.validate_begin_transaction_req(req)
       v3_req = self.__service_converter.v1_to_v3_begin_transaction_req(
           self.__app_id, req)
-    except datastore_pbs.InvalidConversionError, e:
+    except datastore_pbs.InvalidConversionError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
-    except cloud_datastore_validator.ValidationError, e:
+    except cloud_datastore_validator.ValidationError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
     v3_resp = datastore_pb.Transaction()
@@ -125,7 +125,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
     try:
       v1_resp = self.__service_converter.v3_to_v1_begin_transaction_resp(
           v3_resp)
-    except datastore_pbs.InvalidConversionError, e:
+    except datastore_pbs.InvalidConversionError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.INTERNAL_ERROR,
                                              str(e))
     resp.CopyFrom(v1_resp)
@@ -136,10 +136,10 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
     try:
       self.__service_validator.validate_rollback_req(req)
       v3_req = self.__service_converter.v1_rollback_req_to_v3_txn(req)
-    except datastore_pbs.InvalidConversionError, e:
+    except datastore_pbs.InvalidConversionError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
-    except cloud_datastore_validator.ValidationError, e:
+    except cloud_datastore_validator.ValidationError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
 
@@ -150,7 +150,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
 
     try:
       self.__service_validator.validate_commit_req(req)
-    except cloud_datastore_validator.ValidationError, e:
+    except cloud_datastore_validator.ValidationError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
     single_use_txn = None
@@ -176,7 +176,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
             resp.index_updates += commit_resp.index_updates
             mutation_result = commit_resp.mutation_results[0]
             resp.mutation_results.add().CopyFrom(mutation_result)
-      except datastore_pbs.InvalidConversionError, e:
+      except datastore_pbs.InvalidConversionError as e:
 
 
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
@@ -220,10 +220,10 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
           txn_to_cleanup = txn
           v3_req.transaction = txn
 
-      except datastore_pbs.InvalidConversionError, e:
+      except datastore_pbs.InvalidConversionError as e:
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                                str(e))
-      except cloud_datastore_validator.ValidationError, e:
+      except cloud_datastore_validator.ValidationError as e:
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                                str(e))
 
@@ -259,7 +259,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
           v1_resp.batch.entity_result_type = result_type
         if snapshot_version:
           v1_resp.batch.snapshot_version = snapshot_version
-      except datastore_pbs.InvalidConversionError, e:
+      except datastore_pbs.InvalidConversionError as e:
         raise apiproxy_errors.ApplicationError(
             datastore_pb.Error.INTERNAL_ERROR, str(e))
     except:
@@ -279,7 +279,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
           new_txn = self.__begin_adhoc_txn(req)
         v3_req = self.__service_converter.v1_to_v3_get_req(req, new_txn=new_txn)
       except (cloud_datastore_validator.ValidationError,
-              datastore_pbs.InvalidConversionError), e:
+              datastore_pbs.InvalidConversionError) as e:
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                                str(e))
 
@@ -289,7 +289,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
       try:
         v1_resp = self.__service_converter.v3_to_v1_lookup_resp(v3_resp,
                                                                 new_txn=new_txn)
-      except datastore_pbs.InvalidConversionError, e:
+      except datastore_pbs.InvalidConversionError as e:
         raise apiproxy_errors.ApplicationError(datastore_pb.Error.INTERNAL_ERROR,
                                                str(e))
     except:
@@ -311,10 +311,10 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
       self.__service_validator.validate_allocate_ids_req(req)
       if req.keys:
         v3_refs = self.__entity_converter.v1_to_v3_references(req.keys)
-    except cloud_datastore_validator.ValidationError, e:
+    except cloud_datastore_validator.ValidationError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
-    except datastore_pbs.InvalidConversionError, e:
+    except datastore_pbs.InvalidConversionError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.BAD_REQUEST,
                                              str(e))
     if v3_refs:
@@ -322,7 +322,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
       try:
         resp.keys.extend(
             self.__entity_converter.v3_to_v1_keys(v3_full_refs))
-      except datastore_pbs.InvalidConversionError, e:
+      except datastore_pbs.InvalidConversionError as e:
         raise apiproxy_errors.ApplicationError(
             datastore_pb.Error.INTERNAL_ERROR, str(e))
 
@@ -358,7 +358,7 @@ class CloudDatastoreV1Stub(apiproxy_stub.APIProxyStub):
       v1_rollback_req.transaction = v1_transaction
       self._Dynamic_Rollback(v1_rollback_req,
                              googledatastore.RollbackResponse())
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       pass
 
   def __commit(self, v1_mutations, v1_txn, resp):

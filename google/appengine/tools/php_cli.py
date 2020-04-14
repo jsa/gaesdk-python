@@ -230,6 +230,8 @@ def main():
              APPLICATION_ROOT=os.path.dirname(php_script))
   if 'SYSTEMROOT' in os.environ:
     env['SYSTEMROOT'] = os.environ['SYSTEMROOT']
+  if 'LD_LIBRARY_PATH' in os.environ:
+    env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
 
   php_process = subprocess.Popen(php_args, env=env)
   script_return = php_process.wait()

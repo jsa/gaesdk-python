@@ -250,7 +250,7 @@ class FieldTypesDict(object):
     for f in self._field_types:
       if name == f.name():
         return f
-    raise KeyError, name
+    raise KeyError(name)
 
   def IsType(self, name, field_type):
     if name not in self:
@@ -413,6 +413,8 @@ class SimpleIndex(object):
 
   def _ValidateDocument(self, document):
     """Extra validations beyond search._NewDocumentFromPb."""
+    if document.field_size() == 0:
+      raise ValueError('Empty list of fields in document for indexing')
     for facet in document.facet_list():
       if not facet.value().string_value():
         raise ValueError('Facet value is empty')
@@ -434,7 +436,7 @@ class SimpleIndex(object):
       try:
         self._ValidateDocument(document)
         search._NewDocumentFromPb(document)
-      except ValueError, e:
+      except ValueError as e:
         new_status = response.add_status()
         new_status.set_code(search_service_pb.SearchServiceError.INVALID_REQUEST)
         new_status.set_error_detail(e.message)
@@ -593,7 +595,7 @@ class SimpleIndex(object):
                   default_value=default_numeric,
                   return_type=search_util.EXPRESSION_RETURN_TYPE_NUMERIC,
                   allow_rank=allow_rank)
-        except expression_evaluator.QueryExpressionEvaluationError, e:
+        except expression_evaluator.QueryExpressionEvaluationError as e:
           raise expression_evaluator.ExpressionEvaluationError(
               _FAILED_TO_PARSE_SEARCH_REQUEST % (query, e))
         if isinstance(num_val, datetime.datetime):
@@ -1042,15 +1044,15 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
     params = request.params()
     try:
       results = index.Search(params)
-    except query_parser.QueryException, e:
+    except query_parser.QueryException as e:
       self._InvalidRequest(response.mutable_status(), e)
       response.set_matched_count(0)
       return
-    except expression_evaluator.ExpressionEvaluationError, e:
+    except expression_evaluator.ExpressionEvaluationError as e:
       self._InvalidRequest(response.mutable_status(), e)
       response.set_matched_count(0)
       return
-    except document_matcher.ExpressionTreeException, e:
+    except document_matcher.ExpressionTreeException as e:
       self._InvalidRequest(response.mutable_status(), e)
       response.set_matched_count(0)
       return
@@ -1058,7 +1060,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
     facet_analyzer = simple_facet.SimpleFacet(params)
     try:
       results = facet_analyzer.RefineResults(results)
-    except ValueError, e:
+    except ValueError as e:
 
       self._InvalidRequest(response.mutable_status(), e)
       response.set_matched_count(0)
@@ -1070,7 +1072,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
     if params.has_cursor():
       try:
         doc_id = self._DecodeCursor(params.cursor(), params.query())
-      except _InvalidCursorException, e:
+      except _InvalidCursorException as e:
         self._InvalidRequest(response.mutable_status(), e)
         response.set_matched_count(0)
         return
@@ -1113,7 +1115,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
       response.mutable_status().set_code(
           search_service_pb.SearchServiceError.OK)
 
-    except ValueError, e:
+    except ValueError as e:
 
       self._InvalidRequest(response.mutable_status(), e)
       response.set_matched_count(0)
@@ -1195,7 +1197,7 @@ class SearchServiceStub(apiproxy_stub.APIProxyStub):
         logging.warning(
             'Could not read search indexes from %s', self.__index_file)
     except (AttributeError, LookupError, ImportError, NameError, TypeError,
-            ValueError, pickle.PickleError, IOError), e:
+            ValueError, pickle.PickleError, IOError) as e:
       logging.warning('Could not read indexes from %s. Try running with the '
                       '--clear_search_index flag. Cause:\n%r',
                       self.__index_file, e)

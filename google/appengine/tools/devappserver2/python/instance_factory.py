@@ -33,10 +33,6 @@ from google.appengine.tools.devappserver2 import errors
 from google.appengine.tools.devappserver2 import http_runtime
 from google.appengine.tools.devappserver2 import instance
 
-_RUNTIME_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(sys.argv[0]), '_python_runtime.py'))
-_RUNTIME_ARGS = [sys.executable, _RUNTIME_PATH]
-
 _MODERN_DEFAULT_ENTRYPOINT = 'gunicorn -b :${PORT} main:app'
 
 _DEFAULT_REQUIREMENT_FILE_NAME = 'requirements.txt'
@@ -49,8 +45,32 @@ _RECREATE_MODERN_INSTANCE_FACTORY_CONFIG_CHANGES = set([
 # TODO: Refactor this factory class for modern runtimes.
 class PythonRuntimeInstanceFactory(instance.InstanceFactory,
                                    instance.ModernInstanceFactoryMixin):
-  """A factory that creates new Python runtime Instances."""
+  """A factory that creates new Python runtime Instances.
 
+  This InstanceFactory supports 3 use cases:
+  o Running the python27 runtime as separate module with a __main__ method
+    (default).
+  o Running the python27 runtime as an executable.
+  o Running the python3 runtime as an executable.
+
+  When running the python27 runtime as a module with a __main__ method, this
+  InstanceFactory creates a separate python27 interpreter process:
+   - Defaults to running the python interpreter running this code,
+     (running the devappserver, See _python27_executable_path). To use a
+      different python interpreter call SetPython27ExecutablePath.
+   - Defaults to a runtime module packaged with the SDK (See
+     _python27_runtime_path). To use a different runtime module call
+     SetPython27RuntimePath with the path to the module..
+
+  When running the python27 runtime as an executable this InstanceFactory
+  creates a separate process running the executable. To enable this case:
+    - Call SetPython27RuntimeIsExecutable(True)
+    - Call SetPython27RuntimePath with the path to the executable.
+
+  When running the python3 runtime as an executable the behavior is
+  specified in the applications configuration (app.yaml file. See
+  _is_modern).
+  """
   START_URL_MAP = appinfo.URLMap(
       url='/_ah/start',
       script='$PYTHON_LIB/default_start_handler.py',
@@ -61,6 +81,36 @@ class PythonRuntimeInstanceFactory(instance.InstanceFactory,
       login='admin')
   SUPPORTS_INTERACTIVE_REQUESTS = True
   FILE_CHANGE_INSTANCE_RESTART_POLICY = instance.AFTER_FIRST_REQUEST
+
+  _python27_executable_path = sys.executable
+  _python27_runtime_path = os.path.abspath(
+      os.path.join(os.path.dirname(sys.argv[0]), '_python_runtime.py'))
+  _python27_runtime_is_executable = False
+
+  @classmethod
+  def SetPython27RuntimeIsExecutable(cls, value):
+    """Sets if the Python27Runtime is executable."""
+    PythonRuntimeInstanceFactory._python27_runtime_is_executable = value
+
+  @classmethod
+  def SetPython27ExecutablePath(cls, path):
+    """Set path to the Python27Executable for python27 instances."""
+    PythonRuntimeInstanceFactory._python27_executable_path = path
+
+  @classmethod
+  def SetPython27RuntimePath(cls, path):
+    """Set path to the python 27 runtime."""
+    PythonRuntimeInstanceFactory._python27_runtime_path = path
+
+  @classmethod
+  def GetPython27RuntimeArgs(cls):
+    """Get subprocess args for a python27 instance."""
+    if PythonRuntimeInstanceFactory._python27_runtime_is_executable:
+      return [PythonRuntimeInstanceFactory._python27_runtime_path]
+    else:
+      return [
+          PythonRuntimeInstanceFactory._python27_executable_path,
+          PythonRuntimeInstanceFactory._python27_runtime_path]
 
   def _is_modern(self):
     return self._module_configuration.runtime.startswith('python3')
@@ -177,7 +227,7 @@ class PythonRuntimeInstanceFactory(instance.InstanceFactory,
     if self._is_modern():
       return (self._entrypoint or _MODERN_DEFAULT_ENTRYPOINT).split()
     else:
-      return _RUNTIME_ARGS
+      return PythonRuntimeInstanceFactory.GetPython27RuntimeArgs()
 
   @classmethod
   def _WaitForProcWithLastLineStreamed(cls, proc, proc_stdout):

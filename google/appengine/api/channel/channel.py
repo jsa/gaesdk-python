@@ -195,7 +195,7 @@ def create_channel(client_id, duration_minutes=None):
                                    'CreateChannel',
                                    request,
                                    response)
-  except apiproxy_errors.ApplicationError, e:
+  except apiproxy_errors.ApplicationError as e:
     raise _ToChannelError(e)
 
   return response.token()
@@ -238,5 +238,5 @@ def send_message(client_id, message):
                                    'SendChannelMessage',
                                    request,
                                    response)
-  except apiproxy_errors.ApplicationError, e:
+  except apiproxy_errors.ApplicationError as e:
     raise _ToChannelError(e)

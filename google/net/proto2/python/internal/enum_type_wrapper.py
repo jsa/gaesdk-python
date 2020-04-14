@@ -25,6 +25,8 @@ on proto classes.  For usage, see:
 
 
 
+from google.appengine._internal import six
+
 
 class EnumTypeWrapper(object):
   """A utility for finding the names of enum values."""
@@ -40,8 +42,14 @@ class EnumTypeWrapper(object):
     """Returns a string containing the name of an enum value."""
     if number in self._enum_type.values_by_number:
       return self._enum_type.values_by_number[number].name
-    raise ValueError('Enum %s has no name defined for value %d' % (
-        self._enum_type.name, number))
+
+    if not isinstance(number, six.integer_types):
+      raise TypeError('Enum value for %s must be an int, but got %r.' % (
+          self._enum_type.name, number))
+    else:
+
+      raise ValueError('Enum %s has no name defined for value %r' % (
+          self._enum_type.name, number))
 
   def Value(self, name):
     """Returns the value corresponding to the given enum name."""

@@ -160,7 +160,7 @@ def main():
     global_vars = {'config': config}
     try:
       execfile(config.python_config.startup_script, global_vars)
-    except Exception, e:
+    except Exception as e:
       debugging_app = StartupScriptFailureApplication(config,
                                                       str(e),
                                                       traceback.format_exc())

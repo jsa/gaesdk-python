@@ -144,7 +144,7 @@ def _CheckAsyncResult(rpc,
                       ignored_application_errors):
   try:
     rpc.check_success()
-  except apiproxy_errors.ApplicationError, e:
+  except apiproxy_errors.ApplicationError as e:
     if e.application_error in ignored_application_errors:
       logging.info(ignored_application_errors.get(e.application_error))
       return
@@ -464,4 +464,3 @@ def get_hostname(module=None,
                         request,
                         response,
                         _ResultHook).get_result()
-

@@ -73,6 +73,7 @@ _WHITE_LIST_C_MODULES = [
     '_codecs_tw',
     '_collections',  # Python 2.6 compatibility
     'crypt',
+] + (['_ctypes'] if sys.platform == 'linux2' else []) + [
     'cPickle',
     'cStringIO',
     '_csv',
@@ -128,9 +129,9 @@ _WHITE_LIST_C_MODULES = [
     'zlib',
 ]
 
-WIN_ONLY_WHITELISTS = ['_winreg', '_ctypes', 'msvcrt']
+WIN_ONLY_WHITELISTS = ['_winreg', 'msvcrt']
 if sys.platform.startswith('win'):
-  # platform.system() dependes on _winreg and _ctypes on windows.
+  # platform.system() dependes on _winreg on windows.
   # Click (a Flask dependency) depends on msvcrt on windows.
 
 
@@ -959,8 +960,8 @@ _MODULE_OVERRIDE_POLICIES = {
                    'environ', 'error', 'execv', 'fchmod', 'fchown', 'fdopen',
                    'fork', 'fstat', 'ftruncate', 'getcwd', 'getcwdu', 'getenv',
                    '_get_exports_list', 'kill', 'lchown', 'name',
-                   'open', 'pardir', 'path', 'pathsep', 'readline', 'sep',
-                   'setuid', 'stat_float_times', 'stat_result',
+                   'open', 'pardir', 'path', 'pathsep', 'popen', 'readline',
+                   'sep', 'setuid', 'stat_float_times', 'stat_result',
                    'strerror', 'sys', 'waitpid', 'walk', 'readlink'],
         overrides={
             'access': stubs.fake_access,
@@ -1069,8 +1070,8 @@ class CModuleImportHook(object):
   # Stores the model basenames that could be warned about. There are corner
   # cases that a module is disabled in prod but have to be whitelisted in local
   # dev. Example:
-  # platform.system() depends on _ctypes only on windows. In prod system() does
-  # not call _ctypes.
+  # platform.system() depends on _winreg only on windows. In prod system() does
+  # not call _winreg.
 
 
 
@@ -1092,7 +1093,7 @@ class CModuleImportHook(object):
     return file_type
 
   def find_module(self, fullname, path=None):
-    """Per PEP-333, an import hook should have a find_module() method."""
+    """Per PEP-302, an import hook should have a find_module() method."""
     if (fullname in _WHITE_LIST_C_MODULES or
         any(regex.match(fullname) for regex in self._enabled_regexes)):
       basename = fullname.split('.')[-1]

@@ -223,6 +223,9 @@ class PHPRuntimeInstanceFactory(instance.InstanceFactory):
     if 'SYSTEMROOT' in os.environ:
       env['SYSTEMROOT'] = os.environ['SYSTEMROOT']
 
+    if 'LD_LIBRARY_PATH' in os.environ:
+      env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
+
     cls._check_php_version(php_executable_path, env)
     cls._check_environment(php_executable_path, env)
     if gae_extension_path:

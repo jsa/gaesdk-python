@@ -165,7 +165,7 @@ class _ScriptHandler(url_handler.UserConfiguredURLHandler):
     """
     try:
       url_pattern = re.compile('%s$' % url_map.url)
-    except re.error, e:
+    except re.error as e:
       raise errors.InvalidAppConfigError(
           'invalid url %r in script handler: %s' % (url_map.url, e))
 
@@ -289,9 +289,7 @@ class Module(object):
     for url_map in self._module_configuration.handlers:
       handler_type = url_map.GetHandlerType()
       if handler_type == appinfo.HANDLER_SCRIPT:
-        if not self._is_modern():
-          # Handle script only for traditional runtimes.
-          handlers.append(_ScriptHandler(url_map))
+        handlers.append(_ScriptHandler(url_map))
         if not found_start_handler and re.match('%s$' % url_map.url,
                                                 '/_ah/start'):
           found_start_handler = True
@@ -484,6 +482,7 @@ class Module(object):
       automatic_restarts,
       allow_skipped_files,
       threadsafe_override,
+      addn_host=None,
       enable_host_checking=True,
       ssl_certificate_paths=None,
       ssl_port=None):
@@ -540,6 +539,8 @@ class Module(object):
           directive.
       threadsafe_override: If not None, ignore the YAML file value of threadsafe
           and use this value instead.
+      addn_host: A list whitelisting additional HTTP Hosts when
+          enable_host_checking is enabled
       enable_host_checking: A bool indicating that HTTP Host checking should
           be enforced for incoming requests.
       ssl_certificate_paths: A ssl_utils.SSLCertificatePaths instance. If
@@ -611,7 +612,10 @@ class Module(object):
     self._handlers = self._create_url_handlers()
 
     if enable_host_checking:
-      wsgi_module = wsgi_server.WsgiHostCheck([self._host], self)
+      whitelisted_hosts = [self._host]
+      if addn_host:
+        whitelisted_hosts.extend(addn_host)
+      wsgi_module = wsgi_server.WsgiHostCheck(whitelisted_hosts, self)
     else:
       wsgi_module = self
 
@@ -967,7 +971,7 @@ class Module(object):
                 return ret
         return self._no_handler_for_request(environ, wrapped_start_response,
                                             request_id)
-      except StandardError, e:
+      except StandardError as e:
         if logging.getLogger('').isEnabledFor(logging.DEBUG):
           logging.exception('Request to %r failed', path_info)
         else:
@@ -1920,7 +1924,7 @@ class ManualScalingModule(Module):
       logging.debug('Sent start request: %s', inst)
       with self._condition:
         self._condition.notify(self.max_instance_concurrent_requests)
-    except Exception, e:  # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
       logging.exception('Internal error while handling start request: %s', e)
 
   def _choose_instance(self, timeout_time):

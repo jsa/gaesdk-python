@@ -72,6 +72,8 @@ class MessageFactory(object):
           (message.Message,),
           {'DESCRIPTOR': descriptor, '__module__': None})
 
+      result_class._FACTORY = self
+
       self._classes[descriptor] = result_class
       for field in descriptor.fields:
         if field.message_type:

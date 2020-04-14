@@ -131,7 +131,8 @@ def HandleRequest(environ, handler_name, url, post_data, application_root,
     del sys.modules['ctypes']
 
   try:
-    error = logservice.LogsBuffer()
+    error = logservice.LogsBuffer(force_var_log=environ.get(
+        'WRITE_LOGS_TO_VAR_LOG') == '1')
     runtime_stats = {
 
 

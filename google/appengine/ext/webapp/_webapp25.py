@@ -272,7 +272,7 @@ class Response(object):
 
 
         body.decode('utf-8')
-      except UnicodeError, e:
+      except UnicodeError as e:
         logging.warning('Response written is not UTF-8: %s', e)
 
     if (self.headers.get('Cache-Control') == 'no-cache' and
@@ -659,7 +659,7 @@ class WSGIApplication(object):
 
 
           handler.initialize(request, response)
-        except Exception, e:
+        except Exception as e:
           if handler is None:
             handler = RequestHandler()
           handler.response = response
@@ -692,7 +692,7 @@ class WSGIApplication(object):
           handler.trace(*groups)
         else:
           handler.error(501)
-      except Exception, e:
+      except Exception as e:
         handler.handle_exception(e, self.__debug)
     else:
       response.set_status(404)

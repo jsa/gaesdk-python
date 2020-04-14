@@ -17,11 +17,8 @@ third_party {
 
 # Runs the TAP tests.
 presubmit: {
-  check_tests: {
+  check_local_tests: {
     failure_status: ERROR
-    send_email_on_success: false  # Only email on failure.
-    # Don't run tests that are likely to pass (see go/ef-presubmit).
-    skip_probably_passing_targets: true
 
     # Make sure the tests run first.
     test_target_pattern: "//third_party/py/websocket/..."

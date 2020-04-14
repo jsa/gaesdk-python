@@ -267,7 +267,7 @@ def create(filename,
     filename: Google Storage object name (/gs/bucket/object)
     mime_type: Blob content MIME type as string.
     acl: Canned acl to apply to the object as per:
-      http://code.google.com/apis/storage/docs/reference-headers.html#xgoogacl
+      https://cloud.google.com/storage/docs/xml-api/reference-headers#xgoogacl
       If not specified (or set to None), default object acl is used.
     cache_control: Cache control header to set when serving through Google
       storage. If not specified, default of 3600 seconds is used.

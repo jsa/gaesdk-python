@@ -1,17 +1,3 @@
-# Copyright 2013 dotCloud inc.
-
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-
-#        http://www.apache.org/licenses/LICENSE-2.0
-
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
 from . import fake_stat
 from docker import constants
 
@@ -20,6 +6,7 @@ CURRENT_VERSION = 'v{0}'.format(constants.DEFAULT_DOCKER_API_VERSION)
 FAKE_CONTAINER_ID = '3cc2351ab11b'
 FAKE_IMAGE_ID = 'e9aa60c60128'
 FAKE_EXEC_ID = 'd5d177f121dc'
+FAKE_NETWORK_ID = '33fb6a3462b8'
 FAKE_IMAGE_NAME = 'test_image'
 FAKE_TARBALL_PATH = '/path/to/tarball'
 FAKE_REPO_NAME = 'repo'
@@ -28,26 +15,42 @@ FAKE_FILE_NAME = 'file'
 FAKE_URL = 'myurl'
 FAKE_PATH = '/path'
 FAKE_VOLUME_NAME = 'perfectcherryblossom'
+FAKE_NODE_ID = '24ifsmvkjbyhk'
 
 # Each method is prefixed with HTTP method (get, post...)
 # for clarity and readability
 
 
-def get_fake_raw_version():
-    status_code = 200
-    response = {
-        "ApiVersion": "1.18",
-        "GitCommit": "fake-commit",
-        "GoVersion": "go1.3.3",
-        "Version": "1.5.0"
-    }
-    return status_code, response
-
-
 def get_fake_version():
     status_code = 200
-    response = {'GoVersion': '1', 'Version': '1.1.1',
-                'GitCommit': 'deadbeef+CHANGES'}
+    response = {
+        'ApiVersion': '1.35',
+        'Arch': 'amd64',
+        'BuildTime': '2018-01-10T20:09:37.000000000+00:00',
+        'Components': [{
+            'Details': {
+                'ApiVersion': '1.35',
+                'Arch': 'amd64',
+                'BuildTime': '2018-01-10T20:09:37.000000000+00:00',
+                'Experimental': 'false',
+                'GitCommit': '03596f5',
+                'GoVersion': 'go1.9.2',
+                'KernelVersion': '4.4.0-112-generic',
+                'MinAPIVersion': '1.12',
+                'Os': 'linux'
+            },
+            'Name': 'Engine',
+            'Version': '18.01.0-ce'
+        }],
+        'GitCommit': '03596f5',
+        'GoVersion': 'go1.9.2',
+        'KernelVersion': '4.4.0-112-generic',
+        'MinAPIVersion': '1.12',
+        'Os': 'linux',
+        'Platform': {'Name': ''},
+        'Version': '18.01.0-ce'
+    }
+
     return status_code, response
 
 
@@ -57,6 +60,17 @@ def get_fake_info():
                 'MemoryLimit': False, 'SwapLimit': False,
                 'IPv4Forwarding': True}
     return status_code, response
+
+
+def post_fake_auth():
+    status_code = 200
+    response = {'Status': 'Login Succeeded',
+                'IdentityToken': '9cbaf023786cd7'}
+    return status_code, response
+
+
+def get_fake_ping():
+    return 200, "OK"
 
 
 def get_fake_search():
@@ -135,15 +149,23 @@ def get_fake_inspect_container(tty=False):
     status_code = 200
     response = {
         'Id': FAKE_CONTAINER_ID,
-        'Config': {'Privileged': True, 'Tty': tty},
+        'Config': {'Labels': {'foo': 'bar'}, 'Privileged': True, 'Tty': tty},
         'ID': FAKE_CONTAINER_ID,
         'Image': 'busybox:latest',
+        'Name': 'foobar',
         "State": {
+            "Status": "running",
             "Running": True,
             "Pid": 0,
             "ExitCode": 0,
             "StartedAt": "2013-09-25T14:01:18.869545111+02:00",
             "Ghost": False
+        },
+        "HostConfig": {
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
         },
         "MacAddress": "02:42:ac:11:00:0a"
     }
@@ -153,11 +175,12 @@ def get_fake_inspect_container(tty=False):
 def get_fake_inspect_image():
     status_code = 200
     response = {
-        'id': FAKE_IMAGE_ID,
-        'parent': "27cf784147099545",
-        'created': "2013-03-23T22:24:18.818426-07:00",
-        'container': FAKE_CONTAINER_ID,
-        'container_config':
+        'Id': FAKE_IMAGE_ID,
+        'Parent': "27cf784147099545",
+        'Created': "2013-03-23T22:24:18.818426-07:00",
+        'Container': FAKE_CONTAINER_ID,
+        'Config': {'Labels': {'bar': 'foo'}},
+        'ContainerConfig':
         {
             "Hostname": "",
             "User": "",
@@ -183,35 +206,6 @@ def get_fake_inspect_image():
     return status_code, response
 
 
-def get_fake_port():
-    status_code = 200
-    response = {
-        'HostConfig': {
-            'Binds': None,
-            'ContainerIDFile': '',
-            'Links': None,
-            'LxcConf': None,
-            'PortBindings': {
-                '1111': None,
-                '1111/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4567'}],
-                '2222': None
-            },
-            'Privileged': False,
-            'PublishAllPorts': False
-        },
-        'NetworkSettings': {
-            'Bridge': 'docker0',
-            'PortMapping': None,
-            'Ports': {
-                '1111': None,
-                '1111/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4567'}],
-                '2222': None},
-            'MacAddress': '02:42:ac:11:00:0a'
-        }
-    }
-    return status_code, response
-
-
 def get_fake_insert_image():
     status_code = 200
     response = {'StatusCode': 0}
@@ -226,7 +220,9 @@ def get_fake_wait():
 
 def get_fake_logs():
     status_code = 200
-    response = (b'\x01\x00\x00\x00\x00\x00\x00\x11Flowering Nights\n'
+    response = (b'\x01\x00\x00\x00\x00\x00\x00\x00'
+                b'\x02\x00\x00\x00\x00\x00\x00\x00'
+                b'\x01\x00\x00\x00\x00\x00\x00\x11Flowering Nights\n'
                 b'\x01\x00\x00\x00\x00\x00\x00\x10(Sakuya Iyazoi)\n')
     return status_code, response
 
@@ -417,11 +413,13 @@ def get_fake_volume_list():
             {
                 'Name': 'perfectcherryblossom',
                 'Driver': 'local',
-                'Mountpoint': '/var/lib/docker/volumes/perfectcherryblossom'
+                'Mountpoint': '/var/lib/docker/volumes/perfectcherryblossom',
+                'Scope': 'local'
             }, {
                 'Name': 'subterraneananimism',
                 'Driver': 'local',
-                'Mountpoint': '/var/lib/docker/volumes/subterraneananimism'
+                'Mountpoint': '/var/lib/docker/volumes/subterraneananimism',
+                'Scope': 'local'
             }
         ]
     }
@@ -433,7 +431,11 @@ def get_fake_volume():
     response = {
         'Name': 'perfectcherryblossom',
         'Driver': 'local',
-        'Mountpoint': '/var/lib/docker/volumes/perfectcherryblossom'
+        'Mountpoint': '/var/lib/docker/volumes/perfectcherryblossom',
+        'Labels': {
+            'com.example.some-label': 'some-value'
+        },
+        'Scope': 'local'
     }
     return status_code, response
 
@@ -441,15 +443,90 @@ def get_fake_volume():
 def fake_remove_volume():
     return 204, None
 
+
+def post_fake_update_container():
+    return 200, {'Warnings': []}
+
+
+def post_fake_update_node():
+    return 200, None
+
+
+def post_fake_join_swarm():
+    return 200, None
+
+
+def get_fake_network_list():
+    return 200, [{
+        "Name": "bridge",
+        "Id": FAKE_NETWORK_ID,
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": False,
+        "Internal": False,
+        "IPAM": {
+            "Driver": "default",
+            "Config": [
+                {
+                    "Subnet": "172.17.0.0/16"
+                }
+            ]
+        },
+        "Containers": {
+            FAKE_CONTAINER_ID: {
+                "EndpointID": "ed2419a97c1d99",
+                "MacAddress": "02:42:ac:11:00:02",
+                "IPv4Address": "172.17.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.bridge.default_bridge": "true",
+            "com.docker.network.bridge.enable_icc": "true",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+            "com.docker.network.bridge.name": "docker0",
+            "com.docker.network.driver.mtu": "1500"
+        }
+    }]
+
+
+def get_fake_network():
+    return 200, get_fake_network_list()[1][0]
+
+
+def post_fake_network():
+    return 201, {"Id": FAKE_NETWORK_ID, "Warnings": []}
+
+
+def delete_fake_network():
+    return 204, None
+
+
+def post_fake_network_connect():
+    return 200, None
+
+
+def post_fake_network_disconnect():
+    return 200, None
+
+
 # Maps real api url to fake response callback
-prefix = 'http+docker://localunixsocket'
+prefix = 'http+docker://localhost'
+if constants.IS_WINDOWS_PLATFORM:
+    prefix = 'http+docker://localnpipe'
+
 fake_responses = {
     '{0}/version'.format(prefix):
-    get_fake_raw_version,
+    get_fake_version,
     '{1}/{0}/version'.format(CURRENT_VERSION, prefix):
     get_fake_version,
     '{1}/{0}/info'.format(CURRENT_VERSION, prefix):
     get_fake_info,
+    '{1}/{0}/auth'.format(CURRENT_VERSION, prefix):
+    post_fake_auth,
+    '{1}/{0}/_ping'.format(CURRENT_VERSION, prefix):
+    get_fake_ping,
     '{1}/{0}/images/search'.format(CURRENT_VERSION, prefix):
     get_fake_search,
     '{1}/{0}/images/json'.format(CURRENT_VERSION, prefix):
@@ -478,6 +555,8 @@ fake_responses = {
     get_fake_diff,
     '{1}/{0}/containers/3cc2351ab11b/export'.format(CURRENT_VERSION, prefix):
     get_fake_export,
+    '{1}/{0}/containers/3cc2351ab11b/update'.format(CURRENT_VERSION, prefix):
+    post_fake_update_container,
     '{1}/{0}/containers/3cc2351ab11b/exec'.format(CURRENT_VERSION, prefix):
     post_fake_exec_create,
     '{1}/{0}/exec/d5d177f121dc/start'.format(CURRENT_VERSION, prefix):
@@ -499,8 +578,6 @@ fake_responses = {
     post_fake_pause_container,
     '{1}/{0}/containers/3cc2351ab11b/unpause'.format(CURRENT_VERSION, prefix):
     post_fake_unpause_container,
-    '{1}/{0}/containers/3cc2351ab11b/json'.format(CURRENT_VERSION, prefix):
-    get_fake_port,
     '{1}/{0}/containers/3cc2351ab11b/restart'.format(CURRENT_VERSION, prefix):
     post_fake_restart_container,
     '{1}/{0}/containers/3cc2351ab11b'.format(CURRENT_VERSION, prefix):
@@ -539,4 +616,30 @@ fake_responses = {
         CURRENT_VERSION, prefix, FAKE_VOLUME_NAME
     ), 'DELETE'):
     fake_remove_volume,
+    ('{1}/{0}/nodes/{2}/update?version=1'.format(
+        CURRENT_VERSION, prefix, FAKE_NODE_ID
+    ), 'POST'):
+    post_fake_update_node,
+    ('{1}/{0}/swarm/join'.format(CURRENT_VERSION, prefix), 'POST'):
+    post_fake_join_swarm,
+    ('{1}/{0}/networks'.format(CURRENT_VERSION, prefix), 'GET'):
+    get_fake_network_list,
+    ('{1}/{0}/networks/create'.format(CURRENT_VERSION, prefix), 'POST'):
+    post_fake_network,
+    ('{1}/{0}/networks/{2}'.format(
+        CURRENT_VERSION, prefix, FAKE_NETWORK_ID
+    ), 'GET'):
+    get_fake_network,
+    ('{1}/{0}/networks/{2}'.format(
+        CURRENT_VERSION, prefix, FAKE_NETWORK_ID
+    ), 'DELETE'):
+    delete_fake_network,
+    ('{1}/{0}/networks/{2}/connect'.format(
+        CURRENT_VERSION, prefix, FAKE_NETWORK_ID
+    ), 'POST'):
+    post_fake_network_connect,
+    ('{1}/{0}/networks/{2}/disconnect'.format(
+        CURRENT_VERSION, prefix, FAKE_NETWORK_ID
+    ), 'POST'):
+    post_fake_network_disconnect,
 }

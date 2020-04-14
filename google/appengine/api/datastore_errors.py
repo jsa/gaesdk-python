@@ -95,6 +95,12 @@ class BadQueryError(Error):
   """Raised by Query when a query or query string is invalid.
   """
 
+
+class SnapshotVersionTooOldError(Error):
+  """Raised by Query when a snapshot is too old and no longer exists. Internal.
+  """
+
+
 class BadKeyError(Error):
   """Raised by Key.__str__ when the key is invalid.
   """

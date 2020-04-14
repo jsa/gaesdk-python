@@ -91,11 +91,11 @@ class TestInstance(unittest.TestCase):
                          instance.NORMAL_REQUEST)))
     self.mox.VerifyAll()
 
-    self.assertEqual(1, len(inst._request_history))
+    self.assertLen(inst._request_history, 1)
     self.assertEqual(1, inst.total_requests)
     self.assertEqual(5, inst.remaining_request_capacity)
     self.assertEqual(0, inst.num_outstanding_requests)
-    self.assertTrue(0 < inst.get_qps_60s())
+    self.assertLess(0, inst.get_qps_60s())
 
   def test_handle_ready_request(self):
     inst = instance.Instance(self.request_data, 'name', self.proxy,
@@ -137,7 +137,7 @@ class TestInstance(unittest.TestCase):
     self.assertEqual(1, inst.total_requests)
     self.assertEqual(5, inst.remaining_request_capacity)
     self.assertEqual(0, inst.num_outstanding_requests)
-    self.assertTrue(0 < inst.get_qps_60s())
+    self.assertLess(0, inst.get_qps_60s())
     self.assertFalse(inst.handling_ready_request)
 
   def test_handle_background_request(self):
@@ -173,7 +173,7 @@ class TestInstance(unittest.TestCase):
     self.assertEqual(1, inst.total_requests)
     self.assertEqual(5, inst.remaining_request_capacity)
     self.assertEqual(0, inst.num_outstanding_requests)
-    self.assertTrue(0 < inst.get_qps_60s())
+    self.assertLess(0, inst.get_qps_60s())
     self.assertEqual(2, inst.remaining_background_thread_capacity)
     self.assertFalse(inst.handling_ready_request)
 
@@ -214,7 +214,7 @@ class TestInstance(unittest.TestCase):
     self.assertEqual(1, inst.total_requests)
     self.assertEqual(1, inst.remaining_request_capacity)
     self.assertEqual(0, inst.num_outstanding_requests)
-    self.assertTrue(0 < inst.get_qps_60s())
+    self.assertLess(0, inst.get_qps_60s())
     self.assertFalse(inst._quitting)
     self.assertTrue(inst._quit)
 
@@ -254,7 +254,7 @@ class TestInstance(unittest.TestCase):
     self.assertEqual(0, inst.remaining_request_capacity)
     self.assertEqual(1, inst.num_outstanding_requests)
     self.assertEqual(0, inst.idle_seconds)
-    self.assertTrue(0 < inst.get_qps_60s())
+    self.assertLess(0, inst.get_qps_60s())
     self.assertTrue(inst._quitting)
     self.assertFalse(inst._quit)
 

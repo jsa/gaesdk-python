@@ -13,4 +13,7 @@ third_party {
   version: "0.9.2-4-ge7f6e62"
   last_upgrade_date { year: 2017 month: 4 day: 24 }
   local_modifications: "http://google3/third_party/apphosting/python/httplib2/README"
+  security {
+    tag: "NVD-CPE2.3:cpe:/a:httplib2_project:httplib2:0.9.2"
+  }
 }

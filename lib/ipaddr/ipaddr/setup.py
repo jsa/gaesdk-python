@@ -18,18 +18,21 @@ from distutils.core import setup
 
 import ipaddr
 
-
 setup(name='ipaddr',
+      description="Google's IP address manipulation library",
+      long_description=open('README').read(),
       maintainer='Google',
       maintainer_email='ipaddr-py-dev@googlegroups.com',
       version=ipaddr.__version__,
       url='https://github.com/google/ipaddr-py',
       license='Apache License, Version 2.0',
       classifiers=[
-          'Development Status :: 5 - Production/Stable',
+          'Development Status :: 6 - Mature',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: OS Independent',
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 2',
           'Topic :: Internet',
           'Topic :: Software Development :: Libraries',
           'Topic :: System :: Networking'],

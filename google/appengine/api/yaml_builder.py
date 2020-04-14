@@ -16,8 +16,6 @@
 #
 
 
-
-
 """PyYAML event builder handler
 
 Receives events from YAML listener and forwards them to a builder

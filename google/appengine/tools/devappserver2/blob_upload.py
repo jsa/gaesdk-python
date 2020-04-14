@@ -371,7 +371,7 @@ class Application(object):
 
         try:
           main_type, sub_type = _split_mime_type(form_item.type)
-        except _InvalidMIMETypeFormatError, ex:
+        except _InvalidMIMETypeFormatError as ex:
           mime_type_error = str(ex)
           break
 
@@ -596,7 +596,7 @@ class Application(object):
     # the user's application.
     try:
       self.store_blob_and_transform_request(environ)
-    except webob.exc.HTTPException, e:
+    except webob.exc.HTTPException as e:
 
       def start_response_with_exc_info(status, headers,
                                        exc_info=sys.exc_info()):

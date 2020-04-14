@@ -245,10 +245,6 @@ class JavaAppUpdate(object):
       raise ConfigurationError('API jars have inconsistent versions: %s' %
                                api_jar_dict)
 
-
-    for staged_api_jar in api_jar_dict:
-      os.remove(staged_api_jar)
-
     appengine_generated = os.path.join(
         stage_dir, 'WEB-INF', 'appengine-generated')
     self._GenerateAppYaml(stage_dir, api_version, appengine_generated)

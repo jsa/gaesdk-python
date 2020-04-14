@@ -26,13 +26,18 @@ TYPE_TO_BYTE_SIZE_FN: A dictionary with field types and a size computing
 TYPE_TO_SERIALIZE_METHOD: A dictionary with field types and serialization
   function.
 FIELD_TYPE_TO_WIRE_TYPE: A dictionary with field typed and their
-  coresponding wire types.
+  corresponding wire types.
 TYPE_TO_DESERIALIZE_METHOD: A dictionary with field types and deserialization
   function.
 """
 
 
 
+try:
+  import ctypes
+except Exception:
+  ctypes = None
+  import struct
 import numbers
 from google.appengine._internal import six
 
@@ -46,6 +51,14 @@ from google.net.proto2.python.internal import wire_format
 from google.net.proto2.python.public import descriptor
 
 _FieldDescriptor = descriptor.FieldDescriptor
+
+
+def TruncateToFourByteFloat(original):
+  if ctypes:
+    return ctypes.c_float(original).value
+  else:
+    return struct.unpack('<f', struct.pack('<f', original))[0]
+
 
 def SupportsOpenEnums(field_descriptor):
   return field_descriptor.containing_type.syntax == "proto3"
@@ -251,9 +264,7 @@ class FloatValueChecker(object):
     if converted_value < _FLOAT_MIN:
       return _NEG_INF
 
-    return converted_value
-
-
+    return TruncateToFourByteFloat(converted_value)
 
   def DefaultValue(self):
     return 0.0

@@ -14,10 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Lint as: python2, python3
 """Utility methods for operating on appengine service local stubs."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import logging
 import os
+import sys
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.api import mail_stub
 from google.appengine.api import urlfetch_stub
@@ -26,44 +32,52 @@ from google.appengine.api.app_identity import app_identity_stub
 from google.appengine.api.blobstore import blobstore_stub
 from google.appengine.api.blobstore import file_blob_storage
 from google.appengine.api.capabilities import capability_stub
-from google.appengine.api.channel import channel_service_stub
 from google.appengine.api.logservice import logservice_stub
 from google.appengine.api.memcache import memcache_stub
 from google.appengine.api.modules import modules_stub
-from google.appengine.api.remote_socket import _remote_socket_stub
 from google.appengine.api.search import simple_search_stub
 from google.appengine.api.system import system_stub
 from google.appengine.api.taskqueue import taskqueue_stub
-from google.appengine.api.xmpp import xmpp_service_stub
-from google.appengine.datastore import datastore_sqlite_stub
 from google.appengine.datastore import datastore_stub_util
-from google.appengine.datastore import datastore_v4_pb
 from google.appengine.datastore import datastore_v4_stub
 
-# We don't want to support datastore_v4 everywhere, because users are supposed
-# to use the Cloud Datastore API going forward, so we don't want to put these
-# entries in remote_api_servers.SERVICE_PB_MAP. But for our own implementation
-# of the Cloud Datastore API we need those methods to work when an instance
-# issues them, specifically the DatstoreApiServlet running as a module inside
-# the app we are running. The consequence is that other app code can also
-# issue datastore_v4 API requests, but since we don't document these requests
-# or export them through any language bindings this is unlikely in practice.
-DATASTORE_V4_METHODS = {
-    'AllocateIds': (datastore_v4_pb.AllocateIdsRequest,
-                    datastore_v4_pb.AllocateIdsResponse),
-    'BeginTransaction': (datastore_v4_pb.BeginTransactionRequest,
-                         datastore_v4_pb.BeginTransactionResponse),
-    'Commit': (datastore_v4_pb.CommitRequest,
-               datastore_v4_pb.CommitResponse),
-    'ContinueQuery': (datastore_v4_pb.ContinueQueryRequest,
-                      datastore_v4_pb.ContinueQueryResponse),
-    'Lookup': (datastore_v4_pb.LookupRequest,
-               datastore_v4_pb.LookupResponse),
-    'Rollback': (datastore_v4_pb.RollbackRequest,
-                 datastore_v4_pb.RollbackResponse),
-    'RunQuery': (datastore_v4_pb.RunQueryRequest,
-                 datastore_v4_pb.RunQueryResponse),
-}
+PY2 = sys.version_info[0] == 2
+
+# pylint: disable=g-import-not-at-top
+if PY2:
+  from google.appengine.api.channel import channel_service_stub  # deprecated
+  from google.appengine.api.remote_socket import _remote_socket_stub  # deprecated pylint: disable=g-line-too-long
+  from google.appengine.api.xmpp import xmpp_service_stub  # deprecated
+  from google.appengine.datastore import datastore_sqlite_stub
+  from google.appengine.datastore import datastore_v4_pb
+
+  # We don't want to support datastore_v4 everywhere, because users are supposed
+  # to use the Cloud Datastore API going forward, so we don't want to put these
+  # entries in remote_api_servers.SERVICE_PB_MAP. But for our own implementation
+  # of the Cloud Datastore API we need those methods to work when an instance
+  # issues them, specifically the DatstoreApiServlet running as a module inside
+  # the app we are running. The consequence is that other app code can also
+  # issue datastore_v4 API requests, but since we don't document these requests
+  # or export them through any language bindings this is unlikely in practice.
+  DATASTORE_V4_METHODS = {
+      'AllocateIds': (datastore_v4_pb.AllocateIdsRequest,
+                      datastore_v4_pb.AllocateIdsResponse),
+      'BeginTransaction': (datastore_v4_pb.BeginTransactionRequest,
+                           datastore_v4_pb.BeginTransactionResponse),
+      'Commit': (datastore_v4_pb.CommitRequest,
+                 datastore_v4_pb.CommitResponse),
+      'ContinueQuery': (datastore_v4_pb.ContinueQueryRequest,
+                        datastore_v4_pb.ContinueQueryResponse),
+      'Lookup': (datastore_v4_pb.LookupRequest,
+                 datastore_v4_pb.LookupResponse),
+      'Rollback': (datastore_v4_pb.RollbackRequest,
+                   datastore_v4_pb.RollbackResponse),
+      'RunQuery': (datastore_v4_pb.RunQueryRequest,
+                   datastore_v4_pb.RunQueryResponse),
+  }
+else:
+  from google.appengine.api import datastore_file_stub
+# pylint: enable=import-not-at-top
 
 
 def setup_stubs(
@@ -94,7 +108,8 @@ def setup_stubs(
     user_logout_url,
     default_gcs_bucket_name,
     appidentity_oauth_url=None,
-    datastore_grpc_stub_class=None):
+    datastore_grpc_stub_class=None,
+    datastore_local_stub_class=None):
   """Configures the APIs hosted by this server.
 
   Args:
@@ -159,6 +174,10 @@ def setup_stubs(
         google oauth2 server is used.
     datastore_grpc_stub_class: A type object which could be the class
         datastore_grpc_stub.DatastoreGrpcStub.
+    datastore_local_stub_class: A type object which could be the class
+        datastore_file_stub.DatastoreFileStub (by default for python 3 and
+        titanoboa) or datastore_sqlite_stub.DatastoreSqliteStub (by default
+        for python 2). Has no effect if datastore_grpc_stub_class is set.
   """
   identity_stub = app_identity_stub.AppIdentityServiceStub.Create(
       email_address=appidentity_email_address,
@@ -180,18 +199,24 @@ def setup_stubs(
       'capability_service',
       capability_stub.CapabilityServiceStub())
 
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'channel',
-      channel_service_stub.ChannelServiceStub(request_data=request_data))
+  if PY2:
+    apiproxy_stub_map.apiproxy.RegisterStub(
+        'channel',
+        channel_service_stub.ChannelServiceStub(request_data=request_data))
 
   if datastore_grpc_stub_class:
     apiproxy_stub_map.apiproxy.ReplaceStub(
         'datastore_v3',
         datastore_grpc_stub_class(os.environ['DATASTORE_EMULATOR_HOST']))
   else:
+    if datastore_local_stub_class is None:
+      if PY2:
+        datastore_local_stub_class = datastore_sqlite_stub.DatastoreSqliteStub
+      else:
+        datastore_local_stub_class = datastore_file_stub.DatastoreFileStub
     apiproxy_stub_map.apiproxy.ReplaceStub(
         'datastore_v3',
-        datastore_sqlite_stub.DatastoreSqliteStub(
+        datastore_local_stub_class(
             app_id,
             datastore_path,
             datastore_require_indexes,
@@ -246,9 +271,9 @@ def setup_stubs(
       'modules',
       modules_stub.ModulesServiceStub(request_data))
 
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'remote_socket',
-      _remote_socket_stub.RemoteSocketServiceStub())
+  if PY2:
+    apiproxy_stub_map.apiproxy.RegisterStub(
+        'remote_socket', _remote_socket_stub.RemoteSocketServiceStub())
 
   apiproxy_stub_map.apiproxy.RegisterStub(
       'search',
@@ -277,9 +302,9 @@ def setup_stubs(
                                         logout_url=user_logout_url,
                                         request_data=request_data))
 
-  apiproxy_stub_map.apiproxy.RegisterStub(
-      'xmpp',
-      xmpp_service_stub.XmppServiceStub())
+  if PY2:
+    apiproxy_stub_map.apiproxy.RegisterStub('xmpp',
+                                            xmpp_service_stub.XmppServiceStub())
 
 
 def setup_test_stubs(

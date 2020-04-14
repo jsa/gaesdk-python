@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Protocol buffer support for message types.
 
 For more details about protocol buffer encoding and decoding please see:
@@ -31,27 +30,24 @@ Public Functions:
 
 __author__ = 'rafek@google.com (Rafe Kaplan)'
 
-
 import array
 
-from . import message_types
 from . import messages
-from . import util
-from .google_imports import ProtocolBuffer
+from . import protobuf_base
 
-
-__all__ = ['ALTERNATIVE_CONTENT_TYPES',
-           'CONTENT_TYPE',
-           'encode_message',
-           'decode_message',
-          ]
+__all__ = [
+    'ALTERNATIVE_CONTENT_TYPES',
+    'CONTENT_TYPE',
+    'encode_message',
+    'decode_message',
+]
 
 CONTENT_TYPE = 'application/octet-stream'
 
 ALTERNATIVE_CONTENT_TYPES = ['application/x-google-protobuf']
 
 
-class _Encoder(ProtocolBuffer.Encoder):
+class _Encoder(protobuf_base.Encoder):
   """Extension of protocol buffer encoder.
 
   Original protocol buffer encoder does not have complete set of methods
@@ -86,7 +82,6 @@ class _Encoder(ProtocolBuffer.Encoder):
     """
     self.putPrefixedString(encode_message(value))
 
-
   def encode_unicode_string(self, value):
     """Helper to properly pb encode unicode strings to UTF-8.
 
@@ -98,7 +93,7 @@ class _Encoder(ProtocolBuffer.Encoder):
     self.putPrefixedString(value)
 
 
-class _Decoder(ProtocolBuffer.Decoder):
+class _Decoder(protobuf_base.Decoder):
   """Extension of protocol buffer decoder.
 
   Original protocol buffer decoder does not have complete set of methods
@@ -135,24 +130,22 @@ class _Decoder(ProtocolBuffer.Decoder):
 _WIRE_TYPE_BITS = 3
 _WIRE_TYPE_MASK = 7
 
-
 # Maps variant to underlying wire type.  Many variants map to same type.
 _VARIANT_TO_WIRE_TYPE = {
     messages.Variant.DOUBLE: _Encoder.DOUBLE,
     messages.Variant.FLOAT: _Encoder.FLOAT,
     messages.Variant.INT64: _Encoder.NUMERIC,
     messages.Variant.UINT64: _Encoder.NUMERIC,
-    messages.Variant.INT32:  _Encoder.NUMERIC,
+    messages.Variant.INT32: _Encoder.NUMERIC,
     messages.Variant.BOOL: _Encoder.NUMERIC,
     messages.Variant.STRING: _Encoder.STRING,
     messages.Variant.MESSAGE: _Encoder.STRING,
     messages.Variant.BYTES: _Encoder.STRING,
     messages.Variant.UINT32: _Encoder.NUMERIC,
-    messages.Variant.ENUM:  _Encoder.NUMERIC,
+    messages.Variant.ENUM: _Encoder.NUMERIC,
     messages.Variant.SINT32: _Encoder.NUMERIC,
     messages.Variant.SINT64: _Encoder.NUMERIC,
 }
-
 
 # Maps variant to encoder method.
 _VARIANT_TO_ENCODER_MAP = {
@@ -171,33 +164,29 @@ _VARIANT_TO_ENCODER_MAP = {
     messages.Variant.SINT64: _Encoder.no_encoding,
 }
 
-
 # Basic wire format decoders.  Used for reading unknown values.
 _WIRE_TYPE_TO_DECODER_MAP = {
-  _Encoder.NUMERIC: _Decoder.getVarInt64,
-  _Encoder.DOUBLE: _Decoder.getDouble,
-  _Encoder.STRING: _Decoder.getPrefixedString,
-  _Encoder.FLOAT: _Decoder.getFloat,
+    _Encoder.NUMERIC: _Decoder.getVarInt64,
+    _Encoder.DOUBLE: _Decoder.getDouble,
+    _Encoder.STRING: _Decoder.getPrefixedString,
+    _Encoder.FLOAT: _Decoder.getFloat,
 }
-
 
 # Map wire type to variant.  Used to find a variant for unknown values.
 _WIRE_TYPE_TO_VARIANT_MAP = {
-  _Encoder.NUMERIC: messages.Variant.INT64,
-  _Encoder.DOUBLE: messages.Variant.DOUBLE,
-  _Encoder.STRING: messages.Variant.STRING,
-  _Encoder.FLOAT: messages.Variant.FLOAT,
+    _Encoder.NUMERIC: messages.Variant.INT64,
+    _Encoder.DOUBLE: messages.Variant.DOUBLE,
+    _Encoder.STRING: messages.Variant.STRING,
+    _Encoder.FLOAT: messages.Variant.FLOAT,
 }
-
 
 # Wire type to name mapping for error messages.
 _WIRE_TYPE_NAME = {
-  _Encoder.NUMERIC: 'NUMERIC',
-  _Encoder.DOUBLE: 'DOUBLE',
-  _Encoder.STRING: 'STRING',
-  _Encoder.FLOAT: 'FLOAT',
+    _Encoder.NUMERIC: 'NUMERIC',
+    _Encoder.DOUBLE: 'DOUBLE',
+    _Encoder.STRING: 'STRING',
+    _Encoder.FLOAT: 'FLOAT',
 }
-
 
 # Maps variant to decoder method.
 _VARIANT_TO_DECODER_MAP = {
@@ -205,13 +194,13 @@ _VARIANT_TO_DECODER_MAP = {
     messages.Variant.FLOAT: _Decoder.getFloat,
     messages.Variant.INT64: _Decoder.getVarInt64,
     messages.Variant.UINT64: _Decoder.getVarUint64,
-    messages.Variant.INT32:  _Decoder.getVarInt32,
+    messages.Variant.INT32: _Decoder.getVarInt32,
     messages.Variant.BOOL: _Decoder.decode_boolean,
     messages.Variant.STRING: _Decoder.decode_string,
     messages.Variant.MESSAGE: _Decoder.getPrefixedString,
     messages.Variant.BYTES: _Decoder.getPrefixedString,
     messages.Variant.UINT32: _Decoder.no_decoding,
-    messages.Variant.ENUM:  _Decoder.getVarInt32,
+    messages.Variant.ENUM: _Decoder.getVarInt32,
     messages.Variant.SINT32: _Decoder.no_decoding,
     messages.Variant.SINT64: _Decoder.no_decoding,
 }
@@ -221,7 +210,7 @@ def encode_message(message):
   """Encode Message instance to protocol buffer.
 
   Args:
-    Message instance to encode in to protocol buffer.
+    message: Message instance to encode in to protocol buffer.
 
   Returns:
     String encoding of Message instance in protocol buffer format.
@@ -261,12 +250,12 @@ def encode_message(message):
       values = value
     else:
       values = [value]
-    for next in values:
+    for val in values:
       encoder.putVarInt32(tag)
       if isinstance(field, messages.MessageField):
-        next = field.value_to_message(next)
+        val = field.value_to_message(val)
       field_encoder = _VARIANT_TO_ENCODER_MAP[variant]
-      field_encoder(encoder, next)
+      field_encoder(encoder, val)
 
   return encoder.buffer().tostring()
 
@@ -314,9 +303,9 @@ def decode_message(message_type, encoded_message):
       else:
         expected_wire_type = _VARIANT_TO_WIRE_TYPE[field.variant]
         if expected_wire_type != wire_type:
-          raise messages.DecodeError('Expected wire type %s but found %s' % (
-              _WIRE_TYPE_NAME[expected_wire_type],
-              _WIRE_TYPE_NAME[wire_type]))
+          raise messages.DecodeError(
+              'Expected wire type %s but found %s' %
+              (_WIRE_TYPE_NAME[expected_wire_type], _WIRE_TYPE_NAME[wire_type]))
 
         wire_type_decoder = _VARIANT_TO_DECODER_MAP[field.variant]
 
@@ -351,7 +340,7 @@ def decode_message(message_type, encoded_message):
           values.append(value)
       else:
         setattr(message, field.name, value)
-  except ProtocolBuffer.ProtocolBufferDecodeError, err:
+  except protobuf_base.ProtocolBufferDecodeError as err:
     raise messages.DecodeError('Decoding error: %s' % str(err))
 
   message.check_initialized()

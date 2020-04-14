@@ -323,7 +323,7 @@ class MailServiceStub(apiproxy_stub.APIProxyStub):
                       shell=True,
                       stdin=subprocess.PIPE,
                       stdout=subprocess.PIPE)
-      except (IOError, OSError), e:
+      except (IOError, OSError) as e:
         logging.error('Unable to open pipe to sendmail')
         raise
       try:
@@ -335,7 +335,7 @@ class MailServiceStub(apiproxy_stub.APIProxyStub):
         while child.poll() is None:
           child.stdout.read(100)
         child.stdout.close()
-    except (IOError, OSError), e:
+    except (IOError, OSError) as e:
       logging.error('Error sending mail using sendmail: ' + str(e))
 
   def _Send(self, request, response, log=None,

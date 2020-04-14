@@ -361,7 +361,7 @@ class ApiCallHandler(webapp.RequestHandler):
         }
 
     self.response.headers['Content-Type'] = 'text/plain'
-    self.response.out.write(yaml.safe_dump(app_info))
+    self.response.out.write(yaml.safe_dump(app_info, default_flow_style=True))
 
   def post(self):
     """Handle POST requests by executing the API call."""

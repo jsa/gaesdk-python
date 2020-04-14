@@ -28,6 +28,9 @@ import time
 REQUEST_LOG_ID = 'REQUEST_LOG_ID'
 
 
+TRACE_CONTEXT = 'HTTP_X_CLOUD_TRACE_CONTEXT'
+
+
 _U_SEC = 1000000
 
 
@@ -40,12 +43,18 @@ LOG_LEVEL_WARNING = 2
 LOG_LEVEL_ERROR = 3
 LOG_LEVEL_CRITICAL = 4
 
-LOG_LEVELS = [LOG_LEVEL_DEBUG,
-              LOG_LEVEL_INFO,
-              LOG_LEVEL_WARNING,
-              LOG_LEVEL_ERROR,
-              LOG_LEVEL_CRITICAL]
+LOG_LEVELS = [
+    LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR,
+    LOG_LEVEL_CRITICAL
+]
 
+LOG_LEVEL_STR = {
+    LOG_LEVEL_DEBUG: 'DEBUG',
+    LOG_LEVEL_INFO: 'INFO',
+    LOG_LEVEL_WARNING: 'WARNING',
+    LOG_LEVEL_ERROR: 'ERROR',
+    LOG_LEVEL_CRITICAL: 'CRITICAL'
+}
 
 
 _DEFAULT_LEVEL = LOG_LEVEL_ERROR
@@ -68,6 +77,19 @@ def Stripnl(message):
 def RequestID():
   """Returns the ID of the current request assigned by App Engine."""
   return os.environ.get(REQUEST_LOG_ID, None)
+
+
+def TraceID():
+  """Returns the trace ID of the current request assigned by App Engine."""
+  trace_context = os.environ.get(TRACE_CONTEXT, None)
+  if trace_context is None:
+    return ''
+  return trace_context.split('/')[0]
+
+
+def LogLevelString(level):
+  """Returns the string correlating to the integer level in range [0, 4]."""
+  return LOG_LEVEL_STR[level]
 
 
 def _StrictParseLogEntry(entry, clean_message=True):

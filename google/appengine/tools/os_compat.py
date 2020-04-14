@@ -37,14 +37,14 @@ import time
 if hasattr(time, 'tzset'):
   time.tzset()
 
-import __builtin__
+import six.moves.builtins
 
 
 
 
 
 
-if 'WindowsError' in __builtin__.__dict__:
+if 'WindowsError' in six.moves.builtins.__dict__:
   WindowsError = WindowsError
 else:
   class WindowsError(Exception):

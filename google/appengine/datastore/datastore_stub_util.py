@@ -1763,7 +1763,7 @@ class LiveTxn(object):
         try:
           apiproxy_stub_map.MakeSyncCall(
               'taskqueue', 'Add', action, api_base_pb.VoidProto())
-        except apiproxy_errors.ApplicationError, e:
+        except apiproxy_errors.ApplicationError as e:
           logging.warning('Transactional task %s has been dropped, %s',
                           action, e)
       self._actions = []
@@ -2887,7 +2887,7 @@ class BaseDatastore(BaseTransactionManager, BaseIndexManager):
           op(txn, value)
         txn.Commit()
         return txn
-      except apiproxy_errors.ApplicationError, e:
+      except apiproxy_errors.ApplicationError as e:
         try:
           txn.Rollback()
         except Exception:

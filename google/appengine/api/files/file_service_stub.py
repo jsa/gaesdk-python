@@ -429,7 +429,7 @@ class BlobstoreStorage(object):
             namespace=''))
     if file_info == None:
       raise raise_error(
-          file_service_pb.FileServiceErrors.EXISTENCE_ERROR_MEATADATA_NOT_FOUND,
+          file_service_pb.FileServiceErrors.EXISTENCE_ERROR_METADATA_NOT_FOUND,
           filename)
     return file_info
 

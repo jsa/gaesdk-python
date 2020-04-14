@@ -17,4 +17,7 @@ third_party {
     type: PERMANENT
     approval: "cl/22169881"
   }
+  security {
+    tag: "NVD-CPE2.3:cpe:/a:pocoo:jinja2"
+  }
 }

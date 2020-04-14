@@ -77,7 +77,8 @@ Specializing JSON object encoding::
     >>> def encode_complex(obj):
     ...     if isinstance(obj, complex):
     ...         return [obj.real, obj.imag]
-    ...     raise TypeError(repr(o) + " is not JSON serializable")
+    ...     raise TypeError('Object of type %s is not JSON serializable' %
+    ...                     obj.__class__.__name__)
     ...
     >>> json.dumps(2 + 1j, default=encode_complex)
     '[2.0, 1.0]'
@@ -85,7 +86,6 @@ Specializing JSON object encoding::
     '[2.0, 1.0]'
     >>> ''.join(json.JSONEncoder(default=encode_complex).iterencode(2 + 1j))
     '[2.0, 1.0]'
-
 
 Using simplejson.tool from the shell to validate and pretty-print::
 
@@ -95,20 +95,42 @@ Using simplejson.tool from the shell to validate and pretty-print::
     }
     $ echo '{ 1.2:3.4}' | python -m simplejson.tool
     Expecting property name: line 1 column 3 (char 2)
+
+Parsing multiple documents serialized as JSON lines (newline-delimited JSON)::
+
+    >>> import simplejson as json
+    >>> def loads_lines(docs):
+    ...     for doc in docs.splitlines():
+    ...         yield json.loads(doc)
+    ...
+    >>> sum(doc["count"] for doc in loads_lines('{"count":1}\n{"count":2}\n{"count":3}\n'))
+    6
+
+Serializing multiple objects to JSON lines (newline-delimited JSON)::
+
+    >>> import simplejson as json
+    >>> def dumps_lines(objs):
+    ...     for obj in objs:
+    ...         yield json.dumps(obj, separators=(',',':')) + '\n'
+    ...
+    >>> ''.join(dumps_lines([{'count': 1}, {'count': 2}, {'count': 3}]))
+    '{"count":1}\n{"count":2}\n{"count":3}\n'
+
 """
 from __future__ import absolute_import
-__version__ = '3.8.2'
+__version__ = '3.16.1'
 __all__ = [
     'dump', 'dumps', 'load', 'loads',
     'JSONDecoder', 'JSONDecodeError', 'JSONEncoder',
-    'OrderedDict', 'simple_first',
+    'OrderedDict', 'simple_first', 'RawJSON'
 ]
 
 __author__ = 'Bob Ippolito <bob@redivi.com>'
 
 from decimal import Decimal
 
-from .scanner import JSONDecodeError
+from .errors import JSONDecodeError
+from .raw_json import RawJSON
 from .decoder import JSONDecoder
 from .encoder import JSONEncoder, JSONEncoderForHTML
 def _import_OrderedDict():

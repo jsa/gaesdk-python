@@ -409,12 +409,19 @@ def EnumDecoder(field_number, is_repeated, is_packed, key, new_default):
 
           message._unknown_fields.append(
               (tag_bytes, buffer[value_start_pos:pos].tobytes()))
+          if message._unknown_field_set is None:
+            message._unknown_field_set = containers.UnknownFieldSet()
+          message._unknown_field_set._add(
+              field_number, wire_format.WIRETYPE_VARINT, element)
 
       if pos > endpoint:
         if element in enum_type.values_by_number:
           del value[-1]
         else:
           del message._unknown_fields[-1]
+
+          del message._unknown_field_set._values[-1]
+
         raise _DecodeError('Packed element was truncated.')
       return pos
     return DecodePackedField
@@ -447,6 +454,10 @@ def EnumDecoder(field_number, is_repeated, is_packed, key, new_default):
             message._unknown_fields = []
           message._unknown_fields.append(
               (tag_bytes, buffer[pos:new_pos].tobytes()))
+          if message._unknown_field_set is None:
+            message._unknown_field_set = containers.UnknownFieldSet()
+          message._unknown_field_set._add(
+              field_number, wire_format.WIRETYPE_VARINT, element)
 
 
 
@@ -485,6 +496,10 @@ def EnumDecoder(field_number, is_repeated, is_packed, key, new_default):
                                      wire_format.WIRETYPE_VARINT)
         message._unknown_fields.append(
             (tag_bytes, buffer[value_start_pos:pos].tobytes()))
+        if message._unknown_field_set is None:
+          message._unknown_field_set = containers.UnknownFieldSet()
+        message._unknown_field_set._add(
+            field_number, wire_format.WIRETYPE_VARINT, enum_value)
 
       return pos
     return DecodeField
@@ -789,8 +804,12 @@ def MessageSetItemDecoder(descriptor):
     if extension is not None:
       value = field_dict.get(extension)
       if value is None:
+        message_type = extension.message_type
+        if not hasattr(message_type, '_concrete_class'):
+
+          message._FACTORY.GetPrototype(message_type)
         value = field_dict.setdefault(
-            extension, extension.message_type._concrete_class())
+            extension, message_type._concrete_class())
       if value._InternalParse(buffer, message_start,message_end) != message_end:
 
 
@@ -800,6 +819,12 @@ def MessageSetItemDecoder(descriptor):
         message._unknown_fields = []
       message._unknown_fields.append(
           (MESSAGE_SET_ITEM_TAG, buffer[message_set_item_start:pos].tobytes()))
+      if message._unknown_field_set is None:
+        message._unknown_field_set = containers.UnknownFieldSet()
+      message._unknown_field_set._add(
+          type_id,
+          wire_format.WIRETYPE_LENGTH_DELIMITED,
+          buffer[message_start:message_end].tobytes())
 
 
     return pos
@@ -838,7 +863,7 @@ def MapDecoder(field_descriptor, new_default, is_message_map):
         raise _DecodeError('Unexpected end-group tag.')
 
       if is_message_map:
-        value[submsg.key].MergeFrom(submsg.value)
+        value[submsg.key].CopyFrom(submsg.value)
       else:
         value[submsg.key] = submsg.value
 
@@ -930,7 +955,7 @@ def _DecodeUnknownField(buffer, pos, wire_type):
     (data, pos) = _DecodeFixed32(buffer, pos)
   elif wire_type == wire_format.WIRETYPE_LENGTH_DELIMITED:
     (size, pos) = _DecodeVarint(buffer, pos)
-    data = buffer[pos:pos+size]
+    data = buffer[pos:pos+size].tobytes()
     pos += size
   elif wire_type == wire_format.WIRETYPE_START_GROUP:
     (data, pos) = _DecodeUnknownFieldSet(buffer, pos)

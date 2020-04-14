@@ -509,11 +509,11 @@ class ExpressionEvaluator(object):
     try:
       result = self._Eval(
           expression_tree, return_type=return_type, allow_rank=allow_rank)
-    except _ExpressionError, e:
+    except _ExpressionError as e:
 
 
       logging.debug('Skipping expression %s: %s', expression, e)
-    except search_util.UnsupportedOnDevError, e:
+    except search_util.UnsupportedOnDevError as e:
 
 
       logging.warning(e.args[0])

@@ -328,7 +328,7 @@ class StaticFilesHandler(StaticContentHandler):
     """
     try:
       url_pattern = re.compile('%s$' % url_map.url)
-    except re.error, e:
+    except re.error as e:
       raise errors.InvalidAppConfigError(
           'invalid url %r in static_files handler: %s' % (url_map.url, e))
 
@@ -388,7 +388,7 @@ class StaticDirHandler(StaticContentHandler):
 
     try:
       url_pattern = re.compile('%s(?P<file>.*)$' % url)
-    except re.error, e:
+    except re.error as e:
       raise errors.InvalidAppConfigError(
           'invalid url %r in static_dir handler: %s' % (url, e))
 

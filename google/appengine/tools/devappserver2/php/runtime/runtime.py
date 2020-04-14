@@ -16,6 +16,7 @@
 #
 """A PHP devappserver2 runtime."""
 
+from __future__ import print_function
 
 
 import base64
@@ -139,6 +140,9 @@ class PHPRuntime(object):
     # must include a valid SystemRoot.
     if 'SYSTEMROOT' in os.environ:
       user_environ['SYSTEMROOT'] = os.environ['SYSTEMROOT']
+
+    if 'LD_LIBRARY_PATH' in os.environ:
+      user_environ['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
 
     # On Windows, TMP & TEMP environmental variables are used by GetTempPath
     # http://msdn.microsoft.com/library/windows/desktop/aa364992(v=vs.85).aspx
@@ -264,7 +268,7 @@ def main():
       ('localhost', 0),
       request_rewriter.runtime_rewriter_middleware(PHPRuntime(config)))
   server.start()
-  print server.port
+  print(server.port)
   sys.stdout.close()
   sys.stdout = sys.stderr
   try:

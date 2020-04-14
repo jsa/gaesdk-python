@@ -1882,7 +1882,8 @@ class Query(_BaseQuery):
 
   @datastore_rpc._positional(1)
   def __init__(self, app=None, namespace=None, kind=None, ancestor=None,
-               filter_predicate=None, group_by=None, order=None):
+               filter_predicate=None, group_by=None, order=None,
+               read_time_us=None):
     """Constructor.
 
     Args:
@@ -1892,8 +1893,10 @@ class Query(_BaseQuery):
       kind: Optional kind to query.
       ancestor: Optional ancestor to query, an entity_pb.Reference.
       filter_predicate: Optional FilterPredicate by which to restrict the query.
-      order: Optional Order in which to return results.
       group_by: Optional list of properties to group the results by.
+      order: Optional Order in which to return results.
+      read_time_us: Optional timestamp to read the storage from. Internal use
+        only.
 
     Raises:
       datastore_errors.BadArgumentError if any argument is invalid.
@@ -1938,6 +1941,7 @@ class Query(_BaseQuery):
     self._order = order
     self._filter_predicate = filter_predicate
     self._group_by = group_by
+    self._read_time_us = read_time_us
 
   @property
   def app(self):
@@ -1967,6 +1971,10 @@ class Query(_BaseQuery):
   def group_by(self):
     return self._group_by
 
+  @property
+  def read_time_us(self):
+    return self._read_time_us
+
   def __repr__(self):
     args = []
     args.append('app=%r' % self.app)
@@ -1989,6 +1997,9 @@ class Query(_BaseQuery):
     group_by = self.group_by
     if group_by is not None:
       args.append('group_by=%r' % (group_by,))
+    read_time_us = self.read_time_us
+    if read_time_us is not None:
+      args.append('read_time_us=%r' % (read_time_us,))
     return '%s(%s)' % (self.__class__.__name__, ', '.join(args))
 
   def run_async(self, conn, query_options=None):
@@ -2035,13 +2046,19 @@ class Query(_BaseQuery):
       group_by = tuple(name.decode('utf-8')
                        for name in query_pb.group_by_property_name_list())
 
-    return Query(app=query_pb.app().decode('utf-8'),
-                 namespace=query_pb.name_space().decode('utf-8'),
-                 kind=kind,
-                 ancestor=ancestor,
-                 filter_predicate=filter_predicate,
-                 order=order,
-                 group_by=group_by)
+    read_time_us = None
+    if query_pb.has_read_time_us():
+      read_time_us = query_pb.read_time_us()
+
+    return Query(
+        app=query_pb.app().decode('utf-8'),
+        namespace=query_pb.name_space().decode('utf-8'),
+        kind=kind,
+        ancestor=ancestor,
+        filter_predicate=filter_predicate,
+        order=order,
+        group_by=group_by,
+        read_time_us=read_time_us)
 
   def _to_pb_v1(self, conn, query_options):
     """Returns a googledatastore.RunQueryRequest."""
@@ -2187,6 +2204,9 @@ class Query(_BaseQuery):
         (query_options.hint == QueryOptions.FILTER_FIRST and
          pb.filter_size() > 0)):
       pb.set_hint(query_options.hint)
+
+    if self.read_time_us is not None:
+      pb.set_read_time_us(self.read_time_us)
 
 
     conn._set_request_read_policy(pb, query_options)

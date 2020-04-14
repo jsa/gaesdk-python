@@ -16,8 +16,6 @@
 #
 
 
-
-
 """PyYAML event listener
 
 Contains class which interprets YAML events and forwards them to

@@ -312,6 +312,7 @@ class Query_Filter(ProtocolBuffer.ProtocolMessage):
   IN           =    6
   EXISTS       =    7
   CONTAINED_IN_REGION =    8
+  NOT_EQUAL    =    9
 
   _Operator_NAMES = {
     1: "LESS_THAN",
@@ -322,6 +323,7 @@ class Query_Filter(ProtocolBuffer.ProtocolMessage):
     6: "IN",
     7: "EXISTS",
     8: "CONTAINED_IN_REGION",
+    9: "NOT_EQUAL",
   }
 
   def Operator_Name(cls, x): return cls._Operator_NAMES.get(x, "")
@@ -689,6 +691,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
   min_safe_time_seconds_ = 0
   has_persist_offset_ = 0
   persist_offset_ = 1
+  has_read_time_us_ = 0
+  read_time_us_ = 0
 
   def __init__(self, contents=None):
     self.filter_ = []
@@ -1103,6 +1107,19 @@ class Query(ProtocolBuffer.ProtocolMessage):
 
   def has_persist_offset(self): return self.has_persist_offset_
 
+  def read_time_us(self): return self.read_time_us_
+
+  def set_read_time_us(self, x):
+    self.has_read_time_us_ = 1
+    self.read_time_us_ = x
+
+  def clear_read_time_us(self):
+    if self.has_read_time_us_:
+      self.has_read_time_us_ = 0
+      self.read_time_us_ = 0
+
+  def has_read_time_us(self): return self.has_read_time_us_
+
 
   def MergeFrom(self, x):
     assert x is not self
@@ -1134,6 +1151,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     if (x.has_min_safe_time_seconds()): self.set_min_safe_time_seconds(x.min_safe_time_seconds())
     for i in range(x.safe_replica_name_size()): self.add_safe_replica_name(x.safe_replica_name(i))
     if (x.has_persist_offset()): self.set_persist_offset(x.persist_offset())
+    if (x.has_read_time_us()): self.set_read_time_us(x.read_time_us())
 
   def Equals(self, x):
     if x is self: return 1
@@ -1199,6 +1217,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
       if e1 != e2: return 0
     if self.has_persist_offset_ != x.has_persist_offset_: return 0
     if self.has_persist_offset_ and self.persist_offset_ != x.persist_offset_: return 0
+    if self.has_read_time_us_ != x.has_read_time_us_: return 0
+    if self.has_read_time_us_ and self.read_time_us_ != x.read_time_us_: return 0
     return 1
 
   def IsInitialized(self, debug_strs=None):
@@ -1255,6 +1275,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     n += 2 * len(self.safe_replica_name_)
     for i in range(len(self.safe_replica_name_)): n += self.lengthString(len(self.safe_replica_name_[i]))
     if (self.has_persist_offset_): n += 3
+    if (self.has_read_time_us_): n += 2 + self.lengthVarInt64(self.read_time_us_)
     return n + 1
 
   def ByteSizePartial(self):
@@ -1295,6 +1316,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     n += 2 * len(self.safe_replica_name_)
     for i in range(len(self.safe_replica_name_)): n += self.lengthString(len(self.safe_replica_name_[i]))
     if (self.has_persist_offset_): n += 3
+    if (self.has_read_time_us_): n += 2 + self.lengthVarInt64(self.read_time_us_)
     return n
 
   def Clear(self):
@@ -1326,6 +1348,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
     self.clear_min_safe_time_seconds()
     self.clear_safe_replica_name()
     self.clear_persist_offset()
+    self.clear_read_time_us()
 
   def OutputUnchecked(self, out):
     out.putVarInt32(10)
@@ -1418,6 +1441,9 @@ class Query(ProtocolBuffer.ProtocolMessage):
     if (self.has_shallow_):
       out.putVarInt32(344)
       out.putBoolean(self.shallow_)
+    if (self.has_read_time_us_):
+      out.putVarInt32(352)
+      out.putVarInt64(self.read_time_us_)
 
   def OutputPartial(self, out):
     if (self.has_app_):
@@ -1511,6 +1537,9 @@ class Query(ProtocolBuffer.ProtocolMessage):
     if (self.has_shallow_):
       out.putVarInt32(344)
       out.putBoolean(self.shallow_)
+    if (self.has_read_time_us_):
+      out.putVarInt32(352)
+      out.putVarInt64(self.read_time_us_)
 
   def TryMerge(self, d):
     while d.avail() > 0:
@@ -1614,6 +1643,9 @@ class Query(ProtocolBuffer.ProtocolMessage):
       if tt == 344:
         self.set_shallow(d.getBoolean())
         continue
+      if tt == 352:
+        self.set_read_time_us(d.getVarInt64())
+        continue
 
 
       if (tt == 0): raise ProtocolBuffer.ProtocolBufferDecodeError()
@@ -1698,6 +1730,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
       res+=prefix+("safe_replica_name%s: %s\n" % (elm, self.DebugFormatString(e)))
       cnt+=1
     if self.has_persist_offset_: res+=prefix+("persist_offset: %s\n" % self.DebugFormatBool(self.persist_offset_))
+    if self.has_read_time_us_: res+=prefix+("read_time_us: %s\n" % self.DebugFormatInt64(self.read_time_us_))
     return res
 
 
@@ -1737,6 +1770,7 @@ class Query(ProtocolBuffer.ProtocolMessage):
   kmin_safe_time_seconds = 35
   ksafe_replica_name = 36
   kpersist_offset = 37
+  kread_time_us = 44
 
   _TEXT = _BuildTagLookupTable({
     0: "ErrorCode",
@@ -1773,7 +1807,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
     40: "geo_region",
     42: "database_id",
     43: "shallow",
-  }, 43)
+    44: "read_time_us",
+  }, 44)
 
   _TYPES = _BuildTagLookupTable({
     0: ProtocolBuffer.Encoder.NUMERIC,
@@ -1810,7 +1845,8 @@ class Query(ProtocolBuffer.ProtocolMessage):
     40: ProtocolBuffer.Encoder.STRING,
     42: ProtocolBuffer.Encoder.STRING,
     43: ProtocolBuffer.Encoder.NUMERIC,
-  }, 43, ProtocolBuffer.Encoder.MAX_TYPE)
+    44: ProtocolBuffer.Encoder.NUMERIC,
+  }, 44, ProtocolBuffer.Encoder.MAX_TYPE)
 
 
   _STYLE = """"""
@@ -4311,6 +4347,7 @@ class Error(ProtocolBuffer.ProtocolMessage):
   TRY_ALTERNATE_BACKEND =   10
   SAFE_TIME_TOO_OLD =   11
   RESOURCE_EXHAUSTED =   12
+  SNAPSHOT_VERSION_TOO_OLD =   18
   NOT_FOUND    =   13
   ALREADY_EXISTS =   14
   FAILED_PRECONDITION =   15
@@ -4330,6 +4367,7 @@ class Error(ProtocolBuffer.ProtocolMessage):
     10: "TRY_ALTERNATE_BACKEND",
     11: "SAFE_TIME_TOO_OLD",
     12: "RESOURCE_EXHAUSTED",
+    18: "SNAPSHOT_VERSION_TOO_OLD",
     13: "NOT_FOUND",
     14: "ALREADY_EXISTS",
     15: "FAILED_PRECONDITION",

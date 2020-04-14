@@ -21,6 +21,10 @@
 Contains the implementation for BackendService as defined in api_backend.py.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 
 
 
@@ -35,6 +39,7 @@ from endpoints import api_backend
 from endpoints import api_config
 from endpoints import api_exceptions
 from protorpc import message_types
+import six
 
 
 __all__ = [
@@ -83,7 +88,7 @@ class ApiConfigRegistry(object):
 
 
     service_classes = set()
-    for method in methods.itervalues():
+    for method in six.itervalues(methods):
       rosy_method = method.get('rosyMethod')
       if rosy_method and '.' in rosy_method:
         method_class = rosy_method.split('.', 1)[0]
@@ -109,7 +114,7 @@ class ApiConfigRegistry(object):
     if not methods:
       return
 
-    for method_name, method in methods.iteritems():
+    for method_name, method in six.iteritems(methods):
       self.__api_methods[method_name] = method.get('rosyMethod')
 
   def lookup_api_method(self, api_method_name):

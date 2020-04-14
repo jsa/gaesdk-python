@@ -91,7 +91,7 @@ class ApiConfigManager(object):
 
     try:
       response_obj = json.loads(body)
-    except ValueError, unused_err:
+    except ValueError as unused_err:
       logging.error('Cannot parse BackendService.getApiConfigs response: %s',
                     body)
     else:
@@ -100,7 +100,7 @@ class ApiConfigManager(object):
         for api_config_json in response_obj.get('items', []):
           try:
             config = json.loads(api_config_json)
-          except ValueError, unused_err:
+          except ValueError as unused_err:
             logging.error('Can not parse API config: %s',
                           api_config_json)
           else:

@@ -20,9 +20,6 @@
 
 
 
-
-
-
 """Implementation of scheduling for Groc format schedules.
 
 A Groc schedule looks like '1st,2nd monday 9:00', or 'every 20 mins'. This
@@ -45,7 +42,6 @@ import calendar
 import datetime
 
 from . import groc
-
 
 
 
@@ -81,9 +77,10 @@ def GrocTimeSpecification(schedule, timezone=None):
 
   Arguments:
     schedule: the schedule specification, as a string
-    timezone: the optional timezone as a string for this specification.
-        Defaults to 'UTC' - valid entries are things like 'Australia/Victoria'
-        or 'PST8PDT'.
+    timezone: the optional timezone as a string for this specification. Defaults
+      to 'UTC' - valid entries are things like 'Australia/Victoria' or
+      'PST8PDT'.
+
   Returns:
     a TimeSpecification instance
   """
@@ -91,18 +88,14 @@ def GrocTimeSpecification(schedule, timezone=None):
   parser.timespec()
 
   if parser.period_string:
-    return IntervalTimeSpecification(parser.interval_mins,
-                                     parser.period_string,
+    return IntervalTimeSpecification(parser.interval_mins, parser.period_string,
                                      parser.synchronized,
                                      parser.start_time_string,
-                                     parser.end_time_string,
-                                     timezone)
+                                     parser.end_time_string, timezone)
   else:
     return SpecificTimeSpecification(parser.ordinal_set, parser.weekday_set,
-                                     parser.month_set,
-                                     parser.monthday_set,
-                                     parser.time_string,
-                                     timezone)
+                                     parser.month_set, parser.monthday_set,
+                                     parser.time_string, timezone)
 
 
 class TimeSpecification(object):
@@ -131,8 +124,8 @@ class TimeSpecification(object):
 
     Arguments:
       start: a datetime to start from. Matches will start from after this time.
-          This may be in any pytz time zone, or it may be timezone-naive
-          (interpreted as UTC).
+        This may be in any pytz time zone, or it may be timezone-naive
+        (interpreted as UTC).
 
     Returns:
       a datetime object in the timezone of the input 'start'
@@ -169,7 +162,7 @@ def _ToTimeZone(t, tzinfo):
 
   Arguments:
     t: a datetime object.  It may be in any pytz time zone, or it may be
-        timezone-naive (interpreted as UTC).
+      timezone-naive (interpreted as UTC).
     tzinfo: a pytz timezone object, or None.
 
   Returns:
@@ -220,8 +213,13 @@ class IntervalTimeSpecification(TimeSpecification):
       interpreted, or None (defaults to UTC).  This is a pytz timezone object.
   """
 
-  def __init__(self, interval, period, synchronized=False,
-               start_time_string='', end_time_string='', timezone=None):
+  def __init__(self,
+               interval,
+               period,
+               synchronized=False,
+               start_time_string='',
+               end_time_string='',
+               timezone=None):
     super(IntervalTimeSpecification, self).__init__()
     if interval < 1:
       raise groc.GrocException('interval must be greater than zero')
@@ -267,8 +265,8 @@ class IntervalTimeSpecification(TimeSpecification):
 
     Arguments:
       start: a datetime to start from. Matches will start from after this time.
-          This may be in any pytz time zone, or it may be timezone-naive
-          (interpreted as UTC).
+        This may be in any pytz time zone, or it may be timezone-naive
+        (interpreted as UTC).
 
     Returns:
       a datetime object in the timezone of the input 'start'
@@ -299,8 +297,7 @@ class IntervalTimeSpecification(TimeSpecification):
 
 
     next_start_time = self._GetNextDateTime(t, self.start_time, self.timezone)
-    if (self._TimeIsInRange(t) and
-        self._TimeIsInRange(interval_time) and
+    if (self._TimeIsInRange(t) and self._TimeIsInRange(interval_time) and
         interval_time < next_start_time):
       result = interval_time
     else:
@@ -320,10 +317,10 @@ class IntervalTimeSpecification(TimeSpecification):
     """
 
 
-    previous_start_time = self._GetPreviousDateTime(
-        t, self.start_time, self.timezone)
-    previous_end_time = self._GetPreviousDateTime(
-        t, self.end_time, self.timezone)
+    previous_start_time = self._GetPreviousDateTime(t, self.start_time,
+                                                    self.timezone)
+    previous_end_time = self._GetPreviousDateTime(t, self.end_time,
+                                                  self.timezone)
     if previous_start_time > previous_end_time:
       return True
     else:
@@ -386,8 +383,8 @@ class IntervalTimeSpecification(TimeSpecification):
     Returns:
       a datetime.datetime object, in the timezone 'tzinfo'
     """
-    naive_result = datetime.datetime(
-        date.year, date.month, date.day, time.hour, time.minute, time.second)
+    naive_result = datetime.datetime(date.year, date.month, date.day, time.hour,
+                                     time.minute, time.second)
     if tzinfo is None:
       return naive_result
 
@@ -396,8 +393,9 @@ class IntervalTimeSpecification(TimeSpecification):
     except AmbiguousTimeError:
 
 
-      return min(tzinfo.localize(naive_result, is_dst=True),
-                 tzinfo.localize(naive_result, is_dst=False))
+      return min(
+          tzinfo.localize(naive_result, is_dst=True),
+          tzinfo.localize(naive_result, is_dst=False))
     except NonExistentTimeError:
 
 
@@ -433,8 +431,13 @@ class SpecificTimeSpecification(TimeSpecification):
   time would be '09:15'.
   """
 
-  def __init__(self, ordinals=None, weekdays=None, months=None, monthdays=None,
-               timestr='00:00', timezone=None):
+  def __init__(self,
+               ordinals=None,
+               weekdays=None,
+               months=None,
+               monthdays=None,
+               timestr='00:00',
+               timezone=None):
     super(SpecificTimeSpecification, self).__init__()
     if weekdays and monthdays:
       raise ValueError('cannot supply both monthdays and weekdays')
@@ -552,8 +555,8 @@ class SpecificTimeSpecification(TimeSpecification):
 
     Arguments:
       start: a datetime to start from. Matches will start from after this time.
-          This may be in any pytz time zone, or it may be timezone-naive
-          (interpreted as UTC).
+        This may be in any pytz time zone, or it may be timezone-naive
+        (interpreted as UTC).
 
     Returns:
       a datetime object in the timezone of the input 'start'
@@ -570,21 +573,24 @@ class SpecificTimeSpecification(TimeSpecification):
     while True:
 
       month, yearwraps = next(months)
-      candidate_month = start_time.replace(day=1, month=month,
-                                           year=start_time.year + yearwraps)
+      candidate_month = start_time.replace(
+          day=1, month=month, year=start_time.year + yearwraps)
 
 
       day_matches = self._MatchingDays(candidate_month.year, month)
 
-      if ((candidate_month.year, candidate_month.month)
-          == (start_time.year, start_time.month)):
+      if ((candidate_month.year, candidate_month.month) == (start_time.year,
+                                                            start_time.month)):
 
         day_matches = [x for x in day_matches if x >= start_time.day]
       while day_matches:
 
-        out = candidate_month.replace(day=day_matches[0], hour=self.time.hour,
-                                      minute=self.time.minute, second=0,
-                                      microsecond=0)
+        out = candidate_month.replace(
+            day=day_matches[0],
+            hour=self.time.hour,
+            minute=self.time.minute,
+            second=0,
+            microsecond=0)
 
         if self.timezone and pytz is not None:
 

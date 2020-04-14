@@ -197,7 +197,7 @@ class ImageHandler(webapp.RequestHandler):
     path = os.path.join(directory, 'templates', 'images', image_name)
     try:
       image_stream = open(path, 'rb')
-    except IOError, e:
+    except IOError as e:
       logging.error('Cannot open image %s: %s', image_name, e)
       self.error(404)
       return
@@ -361,7 +361,7 @@ class InteractiveExecuteHandler(BaseRequestHandler):
           try:
             compiled_code = compile(code, '<string>', 'exec')
             exec(compiled_code, globals())
-          except Exception, e:
+          except Exception as e:
             traceback.print_exc(file=results_io)
         finally:
           sys.stdout = save_stdout
@@ -956,7 +956,7 @@ class MemcachePageHandler(BaseRequestHandler):
     try:
       value = memcache.get(key)
     except (pickle.UnpicklingError, AttributeError, EOFError, ImportError,
-            IndexError), e:
+            IndexError) as e:
 
 
       msg = 'Failed to retrieve value from cache: %s' % e
@@ -1108,7 +1108,7 @@ class MemcachePageHandler(BaseRequestHandler):
           next_param['message'] = 'Key "%s" saved.' % key
         else:
           next_param['message'] = 'ERROR: Failed to save key "%s".' % key
-      except ValueError, e:
+      except ValueError as e:
         next_param['message'] = 'ERROR: Unable to encode value: %s' % e
 
     elif self.request.get('action:cancel'):

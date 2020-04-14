@@ -128,8 +128,8 @@ class ModuleOverrideImportHookTest(unittest.TestCase):
     self.test_policies['thread'] = sandbox.ModuleOverridePolicy(
         None, [], {}, default_pass_through=True)
     thread = self.hook.load_module('thread')
-    self.assertTrue(isinstance(thread, types.ModuleType))
-    self.assertTrue(isinstance(thread.__doc__, str))
+    self.assertIsInstance(thread, types.ModuleType)
+    self.assertIsInstance(thread.__doc__, str)
     self.assertItemsEqual(symbols + ['__loader__'], dir(thread))
     self.assertEqual(self.hook, thread.__loader__)
 
@@ -137,7 +137,7 @@ class ModuleOverrideImportHookTest(unittest.TestCase):
     self.test_policies['thread'] = sandbox.ModuleOverridePolicy(
         None, [], {}, default_pass_through=False)
     thread = self.hook.load_module('thread')
-    self.assertTrue(isinstance(thread, types.ModuleType))
+    self.assertIsInstance(thread, types.ModuleType)
     self.assertItemsEqual(
         ['__doc__', '__name__', '__package__', '__loader__'], dir(thread))
     self.assertEqual(self.hook, thread.__loader__)

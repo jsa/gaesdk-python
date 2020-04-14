@@ -162,6 +162,6 @@ class FileBlobStorage(blob_storage.BlobStorage):
     """
     try:
       os.remove(self._FileForBlob(blob_key))
-    except OSError, e:
+    except OSError as e:
       if e.errno != errno.ENOENT:
         raise e

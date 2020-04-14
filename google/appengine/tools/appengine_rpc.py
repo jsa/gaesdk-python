@@ -14,9 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tool for performing authenticated RPCs against App Engine."""
 
-
+from __future__ import print_function
 
 import gzip
 import hashlib
@@ -80,6 +81,8 @@ else:
   urlencode_fn = urllib.urlencode
 
 
+
+
 try:
   import ssl
   _CAN_VALIDATE_CERTS = True
@@ -91,6 +94,20 @@ def can_validate_certs():
   """Return True if we have the SSL package and can validate certificates."""
   return _CAN_VALIDATE_CERTS
 
+
+
+
+def eprint(*args, **kwargs):
+  """Print to stderr.
+
+  Args:
+    *args: Positional arguments to print.
+    **kwargs: Keyword arguments to print.
+
+  Returns:
+    None
+  """
+  print(*args, file=sys.stderr, **kwargs)
 
 
 logger = logging.getLogger('google.appengine.tools.appengine_rpc')
@@ -373,29 +390,28 @@ class AbstractRpcServer(object):
 
 
         if e.reason == "CaptchaRequired":
-          print >>sys.stderr, (
-              "Please go to\n"
-              "https://www.google.com/accounts/DisplayUnlockCaptcha\n"
-              "and verify you are a human.  Then try again.")
+          eprint("Please go to\n"
+                 "https://www.google.com/accounts/DisplayUnlockCaptcha\n"
+                 "and verify you are a human.  Then try again.")
           break
         if e.reason == "NotVerified":
-          print >>sys.stderr, "Account not verified."
+          eprint("Account not verified.")
           break
         if e.reason == "TermsNotAgreed":
-          print >>sys.stderr, "User has not agreed to TOS."
+          eprint("User has not agreed to TOS.")
           break
         if e.reason == "AccountDeleted":
-          print >>sys.stderr, "The user account has been deleted."
+          eprint("The user account has been deleted.")
           break
         if e.reason == "AccountDisabled":
-          print >>sys.stderr, "The user account has been disabled."
+          eprint("The user account has been disabled.")
           break
         if e.reason == "ServiceDisabled":
-          print >>sys.stderr, ("The user's access to the service has been "
-                               "disabled.")
+          eprint("The user's access to the service has been "
+                 "disabled.")
           break
         if e.reason == "ServiceUnavailable":
-          print >>sys.stderr, "The service is not available; try again later."
+          eprint("The service is not available; try again later.")
           break
         raise
       self._GetAuthCookie(auth_token)
@@ -415,7 +431,8 @@ class AbstractRpcServer(object):
     """
     if email:
       user_id_digest = hashlib.md5(email.lower()).digest()
-      user_id = "1" + "".join(["%02d" % ord(x) for x in user_id_digest])[:20]
+      user_id = "1" + "".join(
+          ["%02d" % x for x in six_subset.iterbytes(user_id_digest)])[:20]
     else:
       user_id = ""
     return "%s:%s:%s" % (email, bool(admin), user_id)
@@ -426,7 +443,7 @@ class AbstractRpcServer(object):
     value = self._CreateDevAppServerCookieData(credentials[0], True)
     self.extra_headers["Cookie"] = ('dev_appserver_login="%s"; Path=/;' % value)
 
-  def Send(self, request_path, payload="",
+  def Send(self, request_path, payload=b"",
            content_type="application/octet-stream",
            timeout=None,
            **kwargs):
@@ -615,7 +632,7 @@ class HttpRpcServer(AbstractRpcServer):
       if cookie.domain == self.host and not cookie.is_expired(min_expire):
         break
     else:
-      print >>sys.stderr, "\nError: Machine system clock is incorrect.\n"
+      eprint("\nError: Machine system clock is incorrect.\n")
 
 
   def _Authenticate(self):
@@ -623,7 +640,7 @@ class HttpRpcServer(AbstractRpcServer):
     if self.cert_file_available and not can_validate_certs():
 
 
-      logger.warn("""ssl module not found.
+      logger.warning("""ssl module not found.
 Without the ssl module, the identity of the remote host cannot be verified, and
 connections may NOT be secure. To fix this, please install the ssl module from
 http://pypi.python.org/pypi/ssl .

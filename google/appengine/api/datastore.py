@@ -943,7 +943,7 @@ class Entity(dict):
     more information, see:
 
       http://www.atomenabled.org/developers/syndication/
-      http://code.google.com/apis/gdata/common-elements.html
+      https://developers.google.com/gdata/docs/1.0/elements
 
     This is *not* optimized. It shouldn't be used anywhere near code that's
     performance-critical.
@@ -1168,7 +1168,7 @@ class Entity(dict):
           e.__projection = True
         try:
           value = datastore_types.FromPropertyPb(prop)
-        except (AssertionError, AttributeError, TypeError, ValueError), e:
+        except (AssertionError, AttributeError, TypeError, ValueError) as e:
           raise datastore_errors.Error(
             'Property %s is corrupt in the datastore:\n%s' %
             (prop.name(), traceback.format_exc()))
@@ -1324,7 +1324,8 @@ class Query(dict):
 
   def __init__(self, kind=None, filters={}, _app=None, keys_only=False,
                compile=True, cursor=None, namespace=None, end_cursor=None,
-               projection=None, distinct=None, _namespace=None):
+               projection=None, distinct=None, _namespace=None,
+               _read_time_us=None):
     """Constructor.
 
     Raises BadArgumentError if kind is not a string. Raises BadValueError or
@@ -1350,6 +1351,10 @@ class Query(dict):
 
 
 
+
+
+
+
     if namespace is None:
       namespace = _namespace
     elif _namespace is not None:
@@ -1367,6 +1372,8 @@ class Query(dict):
 
     self.__app = datastore_types.ResolveAppId(_app)
     self.__namespace = datastore_types.ResolveNamespace(namespace)
+
+    self.__read_time_us = _read_time_us
 
 
     self.__query_options = datastore_query.QueryOptions(
@@ -1548,7 +1555,8 @@ class Query(dict):
                                  ancestor=self.__ancestor_pb,
                                  filter_predicate=self.GetFilterPredicate(),
                                  order=self.GetOrder(),
-                                 group_by=self.__group_by)
+                                 group_by=self.__group_by,
+                                 read_time_us=self.__read_time_us)
 
   def GetOrder(self):
     """Gets a datastore_query.Order for the current instance.

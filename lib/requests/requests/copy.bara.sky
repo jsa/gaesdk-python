@@ -29,6 +29,7 @@ destination_files = glob(
 )
 
 transformations = [
+    patch.apply(series='patches/series'),
     core.move("", "google3/third_party/py/requests"),
     core.move(
         "google3/third_party/py/requests/requests",

@@ -59,7 +59,7 @@ class ConsoleRequestHandler(admin_request_handler.AdminRequestHandler):
     self.response.content_type = 'text/plain'
     try:
       response = modul.send_interactive_command(self.request.get('code'))
-    except module.InteractiveCommandError, e:
+    except module.InteractiveCommandError as e:
       response = str(e)
 
     self.response.write(response)

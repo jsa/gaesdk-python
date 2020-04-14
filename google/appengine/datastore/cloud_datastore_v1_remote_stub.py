@@ -42,10 +42,10 @@ class CloudDatastoreV1RemoteStub(object):
     try:
       response.CopyFrom(
           self._datastore._call_method(call, request, response.__class__))
-    except datastore_pbs.googledatastore.RPCError, e:
+    except datastore_pbs.googledatastore.RPCError as e:
       raise datastore_rpc._DatastoreExceptionFromCanonicalErrorCodeAndDetail(
           e.code, e.message)
-    except Exception, e:
+    except Exception as e:
       raise datastore_errors.InternalError(e)
 
   def CreateRPC(self):

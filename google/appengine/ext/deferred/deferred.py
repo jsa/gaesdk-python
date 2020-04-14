@@ -149,7 +149,7 @@ def run(data):
   """
   try:
     func, args, kwds = pickle.loads(data)
-  except Exception, e:
+  except Exception as e:
     raise PermanentTaskFailure(e)
   else:
     return func(*args, **kwds)
@@ -322,7 +322,7 @@ class TaskHandler(webapp.RequestHandler):
       logging.debug("Failure executing task, task retry forced")
       self.response.set_status(408)
       return
-    except PermanentTaskFailure, e:
+    except PermanentTaskFailure as e:
 
       logging.exception("Permanent failure attempting to execute task")
 

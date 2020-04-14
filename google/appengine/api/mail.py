@@ -826,7 +826,7 @@ class EncodedPayload(object):
         payload = payload.decode(self.encoding)
       except LookupError:
         raise UnknownEncodingError('Unknown decoding %s.' % self.encoding)
-      except (Exception, Error), e:
+      except (Exception, Error) as e:
         raise PayloadEncodingError('Could not decode payload: %s' % e)
 
 
@@ -835,7 +835,7 @@ class EncodedPayload(object):
         payload = payload.decode(str(self.charset))
       except LookupError:
         raise UnknownCharsetError('Unknown charset %s.' % self.charset)
-      except (Exception, Error), e:
+      except (Exception, Error) as e:
         raise PayloadEncodingError('Could read characters: %s' % e)
 
     return payload
@@ -1159,7 +1159,7 @@ class _EmailMessageBase(object):
 
     try:
       make_sync_call('mail', self._API_CALL, message, response)
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       if e.application_error in ERROR_MAP:
         raise ERROR_MAP[e.application_error](e.error_detail)
       raise e

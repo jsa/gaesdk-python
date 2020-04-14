@@ -4,18 +4,17 @@ import random
 import docker
 import six
 
-from .. import helpers
+from .base import BaseAPIIntegrationTest, BUSYBOX
+import pytest
 
-BUSYBOX = helpers.BUSYBOX
 
-
-class TestRegressions(helpers.BaseTestCase):
+class TestRegressions(BaseAPIIntegrationTest):
     def test_443_handle_nonchunked_response_in_stream(self):
         dfile = io.BytesIO()
-        with self.assertRaises(docker.errors.APIError) as exc:
+        with pytest.raises(docker.errors.APIError) as exc:
             for line in self.client.build(fileobj=dfile, tag="a/b/c"):
                 pass
-        self.assertEqual(exc.exception.response.status_code, 500)
+        assert exc.value.is_error()
         dfile.close()
 
     def test_542_truncate_ids_client_side(self):
@@ -23,10 +22,10 @@ class TestRegressions(helpers.BaseTestCase):
             self.client.create_container(BUSYBOX, ['true'])
         )
         result = self.client.containers(all=True, trunc=True)
-        self.assertEqual(len(result[0]['Id']), 12)
+        assert len(result[0]['Id']) == 12
 
     def test_647_support_doubleslash_in_image_names(self):
-        with self.assertRaises(docker.errors.APIError):
+        with pytest.raises(docker.errors.APIError):
             self.client.inspect_image('gensokyo.jp//kirisame')
 
     def test_649_handle_timeout_value_none(self):
@@ -55,15 +54,12 @@ class TestRegressions(helpers.BaseTestCase):
         )
         self.tmp_containers.append(ctnr)
         self.client.start(ctnr)
-        self.assertEqual(
-            self.client.port(ctnr, 2000)[0]['HostPort'],
-            six.text_type(tcp_port)
-        )
-        self.assertEqual(
-            self.client.port(ctnr, '2000/tcp')[0]['HostPort'],
-            six.text_type(tcp_port)
-        )
-        self.assertEqual(
-            self.client.port(ctnr, '2000/udp')[0]['HostPort'],
-            six.text_type(udp_port)
-        )
+        assert self.client.port(
+            ctnr, 2000
+        )[0]['HostPort'] == six.text_type(tcp_port)
+        assert self.client.port(
+            ctnr, '2000/tcp'
+        )[0]['HostPort'] == six.text_type(tcp_port)
+        assert self.client.port(
+            ctnr, '2000/udp'
+        )[0]['HostPort'] == six.text_type(udp_port)

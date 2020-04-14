@@ -837,7 +837,7 @@ class _Group(object):
 
       apiproxy_stub_map.MakeSyncCall(
           'datastore_v3', 'AddActions', request, api_base_pb.VoidProto())
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       raise apiproxy_errors.ApplicationError(
           e.application_error +
           taskqueue_service_pb.TaskQueueServiceError.DATASTORE_ERROR,
@@ -868,7 +868,7 @@ class _Group(object):
                                         response.taskresult_list()):
       try:
         store.Add(add_request, now)
-      except apiproxy_errors.ApplicationError, e:
+      except apiproxy_errors.ApplicationError as e:
         task_result.set_result(e.application_error)
       else:
         task_result.set_result(taskqueue_service_pb.TaskQueueServiceError.OK)

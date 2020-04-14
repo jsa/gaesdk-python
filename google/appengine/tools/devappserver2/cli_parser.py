@@ -31,6 +31,7 @@ The create_command_line_parser accepts a configuration argument:
 import argparse
 import os
 import re
+import subprocess
 
 from google.appengine.api import appinfo
 from google.appengine.datastore import datastore_stub_util
@@ -215,6 +216,29 @@ def parse_threadsafe_override(value):
       'Expected "module:threadsafe_override": %r',
       None,
       'Duplicate threadsafe override value for module %s')
+
+
+def parse_python27_executable_path(value):
+  """Returns the parsed value for the --python27_executable_path flag.
+
+  Args:
+    value: A str containing the path to a python27 interpreter.
+
+  Returns:
+    The passed value if it is a path to a python27 intepreter.
+
+  Raises:
+    argparse.ArgumentTypeError: the value is invalid.
+  """
+  try:
+    version_str = subprocess.check_output(
+        [value, '-c', 'import sys;print(sys.version_info[0])'])
+    if 2 == int(version_str.strip()):
+      return value
+  except (OSError, ValueError):
+    pass
+  raise argparse.ArgumentTypeError(
+      'Invalid python27_executable_path: %s' % value)
 
 
 def parse_path(value):
@@ -447,6 +471,20 @@ def create_command_line_parser(configuration=None):
                             const=True,
                             default=False,
                             help=argparse.SUPPRESS)
+  addn_host_help = ('This argument allows to whitelist additional HTTP '
+                    'Host header values, so that the server might be made '
+                    'accessible e.g. behind a proxy, without having to '
+                    'disable host checking (see --enable_host_checking).'
+                    'Additional hosts starting with "*." allow all subdomains '
+                    '(e.g. "*.example.org" allows "host.example.org" but '
+                    'neither "sub.host.example.org" nor "example.org"), those '
+                    'starting with "**." allow subdomains of any depth '
+                    '(e.g. "**.example.com" allows "host.example.com" and '
+                    '"sub.host.example.com", but not "example.com").')
+  common_group.add_argument('--addn_host',
+                            action='append',
+                            default=[],
+                            help=addn_host_help)
   enable_host_checking_help = ('determines whether to enforce HTTP Host '
                                'checking for application modules, API server, '
                                'and admin server. host checking protects '
@@ -539,6 +577,13 @@ def create_command_line_parser(configuration=None):
       restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
       help='the arguments made available to the script specified in '
       '--python_startup_script.')
+
+  python_group.add_argument(
+      '--python27_executable_path',
+      type=parse_python27_executable_path,
+      restrict_configuration=[DEV_APPSERVER_CONFIGURATION],
+      help='the path to the python27 executable for python27 runtime '
+      'instances.')
 
   # Java
   java_group = parser.add_argument_group('Java')

@@ -31,8 +31,10 @@ except ImportError:
   _net_proto___parse__python = None
 import sys
 try:
+  __import__('google.net.base.pywrapnetbase')
   __import__('google.net.rpc.python.proto_python_api_1_stub')
   __import__('google.net.rpc.python.pywraprpc')
+  pywrapnetbase = sys.modules.get('google.net.base.pywrapnetbase')
   proto_python_api_1_stub = sys.modules.get('google.net.rpc.python.proto_python_api_1_stub')
   pywraprpc = sys.modules.get('google.net.rpc.python.pywraprpc')
   _client_stub_base_class = proto_python_api_1_stub.Stub

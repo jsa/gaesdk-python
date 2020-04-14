@@ -637,7 +637,7 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
 
     try:
       self.__Init()
-    except sqlite3.DatabaseError, e:
+    except sqlite3.DatabaseError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.INTERNAL_ERROR,
                                              self.READ_ERROR_MSG %
                                                  (self.__datastore_file, e))
@@ -972,7 +972,7 @@ class DatastoreSqliteStub(datastore_stub_util.BaseDatastore,
     try:
       apiproxy_stub.APIProxyStub.MakeSyncCall(self, service, call, request,
                                               response, request_id)
-    except sqlite3.OperationalError, e:
+    except sqlite3.OperationalError as e:
       raise apiproxy_errors.ApplicationError(datastore_pb.Error.INTERNAL_ERROR,
                                              e.args[0])
     self.AssertPbIsInitialized(response)

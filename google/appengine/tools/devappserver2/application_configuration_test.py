@@ -354,9 +354,6 @@ class TestModuleConfiguration(unittest.TestCase):
     self.assertRegexpMatches(config.version_id, r'module1:1\.\d+')
     self.assertEqual('vm', config.runtime)
     self.assertEqual(vm_settings['vm_runtime'], config.effective_runtime)
-    self.assertItemsEqual(
-        {49111: 49111, 5002: 49112, 8000: 8000},
-        config.forwarded_ports)
     self.assertFalse(config.threadsafe)
     self.assertEqual(manual_scaling, config.manual_scaling_config)
     self.assertFalse(config.is_automatic_scaling)
@@ -408,9 +405,6 @@ class TestModuleConfiguration(unittest.TestCase):
     self.assertRegexpMatches(config.version_id, r'module1:1\.\d+')
     self.assertEqual('vm', config.runtime)
     self.assertEqual(vm_settings['vm_runtime'], config.effective_runtime)
-    self.assertItemsEqual(
-        {49111: 49111, 5002: 49112, 8000: 8000},
-        config.forwarded_ports)
     self.assertFalse(config.threadsafe)
     self.assertEqual(manual_scaling, config.manual_scaling_config)
     self.assertFalse(config.is_automatic_scaling)

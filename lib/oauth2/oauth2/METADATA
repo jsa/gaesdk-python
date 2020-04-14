@@ -15,4 +15,7 @@ third_party {
   # removed if it's not useful for the package.
   #     See go/thirdparty-metadata-local-modifications
   local_modifications: "http://google3/third_party/py/oauth2/README.google?cl=22089979"
+  security {
+    tag: "NVD-CPE2.3:cpe:/a:urbanairship:python-oauth2"
+  }
 }

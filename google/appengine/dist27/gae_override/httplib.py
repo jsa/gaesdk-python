@@ -520,17 +520,18 @@ class HTTPConnection:
                                    self._follow_redirects,
                                    deadline,
                                    **extra_kwargs)
-    except urlfetch.InvalidURLError, e:
+    except urlfetch.InvalidURLError as e:
       raise InvalidURL(str(e))
-    except (urlfetch.ResponseTooLargeError, urlfetch.DeadlineExceededError), e:
+    except (urlfetch.ResponseTooLargeError,
+            urlfetch.DeadlineExceededError) as e:
       raise HTTPException(str(e))
-    except urlfetch.SSLCertificateError, e:
+    except urlfetch.SSLCertificateError as e:
       # Should be ssl.SSLError but the ssl module isn't available.
       # Continue to support this exception for versions of _fetch that do not
       # support validate_certificates. Also, in production App Engine defers
       # specific semantics so leaving this in just in case.
       raise HTTPException(str(e))
-    except urlfetch.DownloadError, e:
+    except urlfetch.DownloadError as e:
       # One of the following occured: UNSPECIFIED_ERROR, FETCH_ERROR
       raise socket.error(
           'An error occured while connecting to the server: %s' % e)

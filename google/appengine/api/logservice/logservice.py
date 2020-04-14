@@ -27,10 +27,12 @@ programmatically access their request and application logs.
 
 
 
+from __future__ import print_function
 from __future__ import with_statement
 import base64
 import collections
 import cStringIO
+import json
 import logging
 import os
 import re
@@ -42,6 +44,7 @@ import warnings
 from google.net.proto import ProtocolBuffer
 from google.appengine.api import api_base_pb
 from google.appengine.api import apiproxy_stub_map
+from google.appengine.api.app_identity import app_identity
 from google.appengine.api.logservice import log_service_pb
 from google.appengine.api.logservice import logsutil
 from google.appengine.datastore import datastore_rpc
@@ -92,6 +95,8 @@ _NEWLINE_REPLACEMENT = '\0'
 
 
 _sys_stderr = sys.stderr
+
+LOGFILE = '/var/log/app'
 
 
 class Error(Exception):
@@ -392,7 +397,7 @@ class _LogsDequeBuffer(object):
 
       records_to_be_flushed.reverse()
       self._buffer.extendleft(records_to_be_flushed)
-    except Exception, e:
+    except Exception as e:
       records_to_be_flushed.reverse()
       self._buffer.extendleft(records_to_be_flushed)
       line = '-' * 80
@@ -558,7 +563,7 @@ class _LogQueryResult(object):
     try:
       apiproxy_stub_map.MakeSyncCall('logservice', 'Read', self._request,
                                      response)
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       if e.application_error == log_service_pb.LogServiceError.INVALID_REQUEST:
         raise InvalidArgumentError(e.error_detail)
       raise Error(e.error_detail)
@@ -1350,11 +1355,134 @@ class _LogsStreamBuffer(object):
     return AUTOFLUSH_ENABLED
 
 
+class _LogsFileBuffer(object):
+  """Writes app logs to loggingfs gofer.
 
-def LogsBuffer(stream=None, stderr=False):
+  This version that works with streams and writes directly to logfile to be
+  picked
+  up by the loggingfs gofer.
+  """
+
+  _MAX_LINE_SIZE = 1000 * 1000
+
+  def __init__(self, stream=None, stderr=False):
+    """Initializes the buffer, which wraps the given stream or sys.stderr and assigns output file.
+
+    Args:
+      stream: A file-like object to store logs. Defaults to the log output file.
+      stderr: If specified, use sys.stderr as the underlying stream.
+    """
+    self._stderr = stderr
+    if self._stderr:
+      assert stream is None
+    else:
+      self._stream = stream or open(LOGFILE, 'w')
+
+  def stream(self):
+    """Returns the underlying file-like object representing the output file."""
+    if self._stderr:
 
 
-  if stream or stderr or not features.IsEnabled('LogsDequeBuffer'):
+      return sys.stderr
+    else:
+      return self._stream
+
+  def lines(self):
+    """Returns the number of log lines currently buffered."""
+    return 0
+
+  def bytes(self):
+    """Returns the size of the log buffer, in bytes."""
+    return 0
+
+  def age(self):
+    """Returns the number of seconds since the log buffer was flushed."""
+    return 0
+
+  def flush_time(self):
+    """Returns last time that the log buffer was flushed."""
+    return time.time()
+
+  def contents(self):
+    """Returns the contents of the logs buffer."""
+    return ''
+
+  def clear(self):
+    """Clears the contents of the logs buffer, and resets autoflush state."""
+    pass
+
+  def close(self):
+    """Closes the underlying stream, flushing the current contents."""
+    self.stream().close()
+
+  def parse_logs(self):
+    """Parse the contents of the buffer and return an array of log lines."""
+    pass
+
+  def write_record(self, level, created, message, unused_source_location=None):
+
+
+    message = cleanup_message(message)
+
+
+
+
+    self.write('LOG %d %d %s\n' % (level, long(created * 1000 * 1000), message))
+
+  def writelines(self, seq):
+    """Writes each line in the given sequence to the logs buffer."""
+    for line in seq:
+      self.write(line)
+
+  def write(self, line):
+    """Writes a line to the logs buffer."""
+    logs = logsutil.ParseLogs(line)
+    for log in logs:
+      entry = self.outputjson(log)
+      self.stream().write(entry + '\n')
+
+  @staticmethod
+  def _truncate(line, max_length=_MAX_LINE_SIZE):
+    """Truncates a potentially long log down to a specified maximum length."""
+    if len(line) > max_length:
+      original_length = len(line)
+      suffix = '...(length %d)' % original_length
+      line = line[:max_length - len(suffix)] + suffix
+    return line
+
+  def outputjson(self, log):
+    """Convert log entry into json to be written to loggingfs gofer."""
+    _, level, message, _ = log
+    message = self._truncate(message, self._MAX_LINE_SIZE)
+    trace = logsutil.TraceID()
+    severity = logsutil.LogLevelString(level)
+    entry = {'severity': severity, 'message': message}
+    project = app_identity.get_application_id()
+
+    entry['logging.googleapis.com/trace'] = ('projects/%s/traces/%s' %
+                                             (project, trace))
+    return json.dumps(entry)
+
+  def flush(self):
+    """Flushes the contents of the logs buffer."""
+    pass
+
+  def autoflush(self):
+    """Flushes the buffer if certain conditions have been met."""
+    pass
+
+  def autoflush_enabled(self):
+    """Indicates if the buffer will periodically flush logs during a request."""
+    return AUTOFLUSH_ENABLED
+
+
+
+def LogsBuffer(stream=None, stderr=False, force_var_log=False):
+
+
+  if features.IsEnabled('LogsFileBuffer') or force_var_log:
+    return _LogsFileBuffer()
+  elif stream or stderr or not features.IsEnabled('LogsDequeBuffer'):
     return _LogsStreamBuffer(stream, stderr)
   else:
     return _LogsDequeBuffer()

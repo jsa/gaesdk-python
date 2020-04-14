@@ -6,10 +6,10 @@ description: "Python HTTP Client"
 third_party {
   url {
     type: GIT
-    value: "https://github.com/kennethreitz/requests/"
+    value: "https://github.com/psf/requests/"
   }
-  version: "5a1e738ea9c399c3f59977f2f98b083986d6037a"
-  last_upgrade_date { year: 2019 month: 4 day: 16 }
+  version: "v2.22.0"
+  last_upgrade_date { year: 2019 month: 12 day: 2 }
 
   # NOTE: The "local_modifications" field is entirely optional and may be
   # removed if it's not useful for the package.

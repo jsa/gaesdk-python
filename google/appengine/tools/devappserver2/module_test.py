@@ -454,27 +454,27 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'.*',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 1, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 1)
 
   def test_match_start_only(self):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/_ah/start',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 2, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 2)
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
 
   def test_match_warmup_only(self):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/_ah/warmup',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 2, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 2)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
   def test_match_neither_warmup_nor_start(self):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 3, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 3)
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[1].url_map)
 
@@ -483,7 +483,7 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
         appinfo.URLMap(url=r'/_ah/start', static_dir='foo'),
         appinfo.URLMap(url=r'/_ah/warmup', static_files='foo', upload='foo')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 4, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 4)
     self.assertEqual(self.instance_factory.WARMUP_URL_MAP, handlers[0].url_map)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[1].url_map)
 
@@ -492,14 +492,14 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/_ah/start',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 1, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 1)
 
   def test_match_warmup_only_no_inbound_warmup(self):
     self.module_configuration.inbound_services = None
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/_ah/warmup',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 2, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 2)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
   def test_match_neither_warmup_nor_start_no_inbound_warmup(self):
@@ -507,7 +507,7 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
     self.module_configuration.handlers = [appinfo.URLMap(url=r'/',
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
-    self.assertEqual(self.num_builtin_handlers + 2, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 2)
     self.assertEqual(self.instance_factory.START_URL_MAP, handlers[0].url_map)
 
   def test_endpoints_handler(self):
@@ -515,7 +515,7 @@ class TestModuleCreateUrlHandlers(googletest.TestCase):
                                                          script=r'foo.py')]
     handlers = self.servr._create_url_handlers()
     # The script handler, /_ah/start, and /_ah/api/.* handler are added.
-    self.assertEqual(self.num_builtin_handlers + 3, len(handlers))
+    self.assertLen(handlers, self.num_builtin_handlers + 3)
 
 
 class TestModuleGetRuntimeConfig(parameterized.TestCase):
@@ -797,7 +797,7 @@ class TestAutoScalingModuleAddInstance(googletest.TestCase):
     self.assertEqual(inst, s._add_instance(permit_warmup=True))
     self.mox.VerifyAll()
 
-    self.assertEqual(1, len(s._instances))
+    self.assertLen(s._instances, 1)
 
   def test_no_permit_warmup(self):
     s = AutoScalingModuleFacade(instance_factory=self.factory)
@@ -829,7 +829,7 @@ class TestAutoScalingModuleAddInstance(googletest.TestCase):
     self.assertIsNone(s._add_instance(permit_warmup=True))
     self.mox.VerifyAll()
 
-    self.assertEqual(1, len(s._instances))
+    self.assertLen(s._instances, 1)
 
   def test_max_instances(self):
     s = AutoScalingModuleFacade(instance_factory=self.factory,
@@ -847,7 +847,7 @@ class TestAutoScalingModuleAddInstance(googletest.TestCase):
     self.assertEqual(None, s._add_instance(permit_warmup=False))
     self.mox.VerifyAll()
 
-    self.assertEqual(1, len(s._instances))
+    self.assertLen(s._instances, 1)
 
 
 class TestAutoScalingInstancePoolHandleScriptRequest(googletest.TestCase):

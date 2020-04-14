@@ -122,7 +122,7 @@ class RequestTest(unittest.TestCase):
     request = test_utils.build_request(
         '/_ah/api/rpc', '[{"method": "foo", "apiVersion": "v1"}]')
     self.assertTrue(request.is_batch())
-    self.assertFalse(isinstance(request.body_json, list))
+    self.assertNotIsInstance(request.body_json, list)
 
   def test_batch_too_large(self):
     """Verify that additional items are dropped if the batch size is > 1."""

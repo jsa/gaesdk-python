@@ -332,7 +332,7 @@ class ParameterizedPathTest(unittest.TestCase):
     """
     config_manager = api_config_manager.ApiConfigManager
     match = config_manager._compile_path_pattern(param_path).match(path)
-    self.assertTrue(match is not None)   # Will be None if path was not matched
+    self.assertIsNot(match, None)  # Will be None if path was not matched
     params = config_manager._get_path_params(match)
     self.assertEquals(param_count, len(params))
     return params

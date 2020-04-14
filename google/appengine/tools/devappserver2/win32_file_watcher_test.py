@@ -62,11 +62,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.CreateFileW(
-        mox_c('/tmp'),
-        mox_c(1L),
-        mox_c(3L),
-        None,
-        mox_c(3L),
+        mox_c('/tmp'), mox_c(1), mox_c(3), None, mox_c(3),
         mox_c(win32_file_watcher._FILE_FLAG_BACKUP_SEMANTICS),
         None).AndReturn(31415)
     # pylint: disable=unused-argument
@@ -121,11 +117,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.CreateFileW(
-        mox_c('/tmp'),
-        mox_c(1L),
-        mox_c(3L),
-        None,
-        mox_c(3L),
+        mox_c('/tmp'), mox_c(1), mox_c(3), None, mox_c(3),
         mox_c(win32_file_watcher._FILE_FLAG_BACKUP_SEMANTICS),
         None).AndReturn(31415)
     # pylint: disable=unused-argument
@@ -133,7 +125,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     def found_nothing(
         handle, buff, size, recursive, change_type, size_returned_by_ref,
         unused1, unused2):
-      ctypes.cast(size_returned_by_ref, ctypes.POINTER(ctypes.c_ulong))[0] = 0L
+      ctypes.cast(size_returned_by_ref, ctypes.POINTER(ctypes.c_ulong))[0] = 0
 
     ctypes.windll.kernel32.ReadDirectoryChangesW(
         31415,
@@ -158,11 +150,7 @@ class Win32FileWatcherTest(unittest.TestCase):
     watcher = win32_file_watcher.Win32FileWatcher('/tmp')
 
     ctypes.windll.kernel32.CreateFileW(
-        mox_c('/tmp'),
-        mox_c(1L),
-        mox_c(3L),
-        None,
-        mox_c(3L),
+        mox_c('/tmp'), mox_c(1), mox_c(3), None, mox_c(3),
         mox_c(win32_file_watcher._FILE_FLAG_BACKUP_SEMANTICS),
         None).AndReturn(win32_file_watcher._INVALID_HANDLE_VALUE)
 

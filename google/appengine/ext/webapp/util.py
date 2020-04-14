@@ -27,6 +27,7 @@
 
 
 
+from __future__ import print_function
 
 
 __all__ = ['login_required',
@@ -145,7 +146,7 @@ def _start_response(status, headers, exc_info=None):
   if exc_info is not None:
 
     raise exc_info[0], exc_info[1], exc_info[2]
-  print "Status: %s" % status
+  print('Status: %s' % status)
   for name, val in headers:
 
     try:
@@ -173,6 +174,6 @@ def _start_response(status, headers, exc_info=None):
       logging.warn('Stripped header "%s": invalid character in value "%s".',
                    name, val)
       continue
-    print "%s: %s" % (name, val)
-  print
+    print('%s: %s' % (name, val))
+  print()
   return sys.stdout.write

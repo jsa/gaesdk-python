@@ -16,8 +16,6 @@
 #
 
 
-
-
 """Builder for mapping YAML documents to object instances.
 
 ObjectBuilder is responsible for mapping a YAML document to classes defined

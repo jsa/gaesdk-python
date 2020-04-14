@@ -86,9 +86,10 @@ class GaeGoApplication(object):
 
     app_root = self._module_configuration.application_root
     exe_name = os.path.join(self._work_dir, '_ah_exe')
-    args = ['build', '-o', exe_name, self._main_executable_path]
+    args = ['build']
     if self._enable_debugging:
-      args.extend(['-N', '-l'])
+      args.extend(['-gcflags', '"all=-N -l"'])
+    args.extend(['-o', exe_name, self._main_executable_path])
     try:
       cwd = os.getcwd()
       os.chdir(app_root)

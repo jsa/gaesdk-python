@@ -103,6 +103,7 @@ class Dispatcher(request_info.Dispatcher):
                module_to_threadsafe_override,
                external_port,
                specified_service_ports=None,
+               addn_host=None,
                enable_host_checking=True,
                ssl_certificate_paths=None,
                test_ssl_port=None):
@@ -159,6 +160,8 @@ class Dispatcher(request_info.Dispatcher):
           ports is more flexible.
       specified_service_ports: A dict of string(service_name)->int(port number).
           This allows services of given names to run on specified ports.
+      addn_host: A list of additional HTTP hosts to be whitelisted if
+          enable_host_checking is turned on.
       enable_host_checking: A bool indicating that HTTP Host checking should
           be enforced for incoming requests.
       ssl_certificate_paths: A ssl_utils.SSLCertificatePaths instance. If
@@ -198,6 +201,7 @@ class Dispatcher(request_info.Dispatcher):
     self._port_registry = PortRegistry()
     self._external_port = external_port
     self._specified_service_ports = specified_service_ports or {}
+    self._addn_host = addn_host
     self._enable_host_checking = enable_host_checking
     self._ssl_certificate_paths = ssl_certificate_paths
     self._test_ssl_port = test_ssl_port
@@ -386,6 +390,7 @@ class Dispatcher(request_info.Dispatcher):
         automatic_restarts=self._automatic_restart,
         allow_skipped_files=self._allow_skipped_files,
         threadsafe_override=threadsafe_override,
+        addn_host=self._addn_host,
         enable_host_checking=self._enable_host_checking,
         ssl_certificate_paths=self._ssl_certificate_paths,
         ssl_port=ssl_port)
@@ -814,7 +819,7 @@ class Dispatcher(request_info.Dispatcher):
 
     else:
       if ':' in hostname:
-        port = int(hostname.split(':', 1)[1])
+        port = int(hostname.rsplit(':', 1)[1])
       else:
         port = 80
       try:

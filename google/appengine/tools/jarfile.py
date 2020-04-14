@@ -147,7 +147,10 @@ def _ParseManifestSection(section, jar_file_name):
     raise InvalidJarError('%s: Invalid manifest %r' % (jar_file_name, section))
 
 
-def Make(input_directory, output_directory, base_name, maximum_size=sys.maxint,
+def Make(input_directory,
+         output_directory,
+         base_name,
+         maximum_size=sys.maxsize,
          include_predicate=lambda name: True):
   """Makes one or more jars from a directory hierarchy.
 
@@ -194,7 +197,9 @@ def Make(input_directory, output_directory, base_name, maximum_size=sys.maxint,
         maker.Write(name, abs_fs_name)
 
 
-def SplitJar(input_jar, output_directory, maximum_size=sys.maxint,
+def SplitJar(input_jar,
+             output_directory,
+             maximum_size=sys.maxsize,
              include_predicate=lambda name: True):
   """Copies an input jar into a directory, splitting if necessary.
 
@@ -259,7 +264,7 @@ class _Maker(object):
   This class is designed to be used in a with statement.
   """
 
-  def __init__(self, output_directory, base_name, maximum_size=sys.maxint):
+  def __init__(self, output_directory, base_name, maximum_size=sys.maxsize):
     self.base_name = base_name
     self.output_directory = os.path.normpath(output_directory)
     self.maximum_size = maximum_size

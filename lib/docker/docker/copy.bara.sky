@@ -1,0 +1,16 @@
+""" copybara file for docker-py"""
+
+load("//devtools/copybara/library/workflow", "exclude_paths", "git_to_third_party")
+
+git_to_third_party(
+    url = "https://github.com/docker/docker-py/",
+    git_files = exclude_paths([".gitignore", "LICENSE", ".travis.yml", ".editorconfig", ".readthedocs.yml", "Jenkinsfile"]),
+    google3_path = "third_party/py/docker",
+    google3_exclude = ["LICENSE", "OWNERS", "import_test.py"],
+    transformations = [
+        core.move(
+            "docker",
+            "",
+        ),
+    ],
+)

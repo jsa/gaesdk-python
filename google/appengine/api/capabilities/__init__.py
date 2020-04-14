@@ -185,9 +185,16 @@ class CapabilitySet(object):
       req.add_call(method)
 
     resp = capability_service_pb.IsEnabledResponse()
-    self._stub_map.MakeSyncCall('capability_service', 'IsEnabled', req, resp)
-
-    if resp.summary_status() == IsEnabledResponse.UNKNOWN:
-      raise UnknownCapabilityError()
+    if (self._package == 'datastore_v3' and 'write' in self._capabilities or
+        self._methods != 0):
+      self._stub_map.MakeSyncCall('capability_service', 'IsEnabled', req, resp)
+    else:
+      resp = IsEnabledResponse()
+      resp.set_summary_status(IsEnabledResponse.ENABLED)
+      for capability in self._capabilities:
+        resp.add_config(
+            package=self._package,
+            capability=capability,
+            status=CapabilityConfig.ENABLED)
 
     return resp

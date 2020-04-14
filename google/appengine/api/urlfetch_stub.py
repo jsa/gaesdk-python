@@ -133,7 +133,7 @@ def _IsAllowedPort(port):
     return True
   try:
     port = int(port)
-  except ValueError, e:
+  except ValueError as e:
     return False
 
 
@@ -474,11 +474,11 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
             http_response_data = http_response.read()
         finally:
           connection.close()
-      except _fancy_urllib_InvalidCertException, e:
+      except _fancy_urllib_InvalidCertException as e:
         raise apiproxy_errors.ApplicationError(
           urlfetch_service_pb.URLFetchServiceError.SSL_CERTIFICATE_ERROR,
           str(e))
-      except _fancy_urllib_SSLError, e:
+      except _fancy_urllib_SSLError as e:
 
 
 
@@ -489,10 +489,10 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
             if 'timed out' in e.message else
             urlfetch_service_pb.URLFetchServiceError.SSL_CERTIFICATE_ERROR)
         raise apiproxy_errors.ApplicationError(app_error, str(e))
-      except socket.timeout, e:
+      except socket.timeout as e:
         raise apiproxy_errors.ApplicationError(
           urlfetch_service_pb.URLFetchServiceError.DEADLINE_EXCEEDED, str(e))
-      except (httplib.error, socket.error, IOError), e:
+      except (httplib.error, socket.error, IOError) as e:
         raise apiproxy_errors.ApplicationError(
           urlfetch_service_pb.URLFetchServiceError.FETCH_ERROR, str(e))
 

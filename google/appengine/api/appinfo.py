@@ -16,6 +16,7 @@
 #
 
 
+
 """AppInfo tools.
 
 This library allows you to work with AppInfo records in memory, as well as store
@@ -36,6 +37,8 @@ and load from configuration files.
 
 
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 import logging
 import os
 import re
@@ -82,9 +85,7 @@ _NON_WHITE_SPACE_REGEX = r'^\S+$'
 
 
 
-_ALLOWED_SERVICES = ['mail', 'mail_bounce', 'xmpp_message', 'xmpp_subscribe',
-                     'xmpp_presence', 'xmpp_error', 'channel_presence', 'rest',
-                     'warmup']
+_ALLOWED_SERVICES = ['mail', 'mail_bounce', 'rest', 'warmup']
 _SERVICE_RE_STRING = '(' + '|'.join(_ALLOWED_SERVICES) + ')'
 
 
@@ -169,7 +170,7 @@ GCE_RESOURCE_PATH_REGEX = r'^[a-z\d-]+(/[a-z\d-]+)*$'
 
 GCE_RESOURCE_NAME_REGEX = r'^[a-z]([a-z\d-]{0,61}[a-z\d])?$'
 
-VPC_ACCESS_CONNECTOR_NAME_REGEX = r'^[a-z\d-]+(/[a-z\d-]+)*$'
+VPC_ACCESS_CONNECTOR_NAME_REGEX = r'^[a-z\d-]+(/.+)*$'
 
 ALTERNATE_HOSTNAME_SEPARATOR = '-dot-'
 
@@ -545,6 +546,7 @@ _SUPPORTED_LIBRARIES = [
         'grpcio',
         'http://www.grpc.io/',
         'A high performance general RPC framework',
+
         ['1.0.0'],
         latest_version='1.0.0',
         experimental_versions=['1.0.0'],
@@ -595,6 +597,13 @@ _SUPPORTED_LIBRARIES = [
         deprecated_versions=['1.2.4b4', '1.2.4'],
         ),
     _VersionedLibrary(
+        'mysqlclient',
+        'http://mysql-python.sourceforge.net/',
+        'A Python DB API v2.0 compatible interface to MySQL.',
+        ['1.4.4'],
+        latest_version='1.4.4',
+        ),
+    _VersionedLibrary(
         'numpy',
         'http://numpy.scipy.org/',
         'A general-purpose library for array-processing.',
@@ -610,7 +619,7 @@ _SUPPORTED_LIBRARIES = [
         ),
     _VersionedLibrary(
         'protorpc',
-        'https://code.google.com/p/google-protorpc/',
+        'https://github.com/google/protorpc',
         'A framework for implementing HTTP-based remote procedure call (RPC) '
         'services.',
         ['1.0'],
@@ -640,6 +649,13 @@ _SUPPORTED_LIBRARIES = [
         ['3.0.0'],
         latest_version='3.0.0',
         experimental_versions=['3.0.0'],
+        ),
+    _VersionedLibrary(
+        'psycopg2',
+        'http://initd.org/psycopg/',
+        'A Python DB API v2.0 compatible interface to PostgreSQL.',
+        ['2.8.3'],
+        latest_version='2.8.3',
         ),
     _VersionedLibrary(
         'PyAMF',
@@ -678,9 +694,9 @@ _SUPPORTED_LIBRARIES = [
         'ssl',
         'http://docs.python.org/dev/library/ssl.html',
         'The SSL socket wrapper built-in module.',
-        ['2.7', '2.7.11'],
+        ['2.7', '2.7.11', '2.7.16', '2.7.current'],
         latest_version='2.7.11',
-        deprecated_versions=['2.7']
+        deprecated_versions=['2.7', '2.7.16']
         ),
     _VersionedLibrary(
         'ujson',
@@ -802,7 +818,7 @@ _MAX_URL_LENGTH = 2047
 
 _MAX_HEADER_SIZE_FOR_EXEMPTED_HEADERS = 10240
 
-_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'go', 'php', 'php55', 'php72',
+_CANNED_RUNTIMES = ('contrib-dart', 'dart', 'php', 'php55', 'php72',
                     'python', 'python27', 'python-compat', 'java', 'java7',
                     'java8', 'vm', 'custom', 'nodejs', 'ruby', 'go111',
                     'go112')
@@ -945,7 +961,7 @@ class HttpHeadersDict(validation.ValidatedDict):
             'HTTP header values must not contain non-ASCII data'))
 
 
-      name = name.lower()
+      name = name.lower().decode('ascii')
 
       if not _HTTP_TOKEN_RE.match(name):
         raise appinfo_errors.InvalidHttpHeaderName(
@@ -1002,12 +1018,12 @@ class HttpHeadersDict(validation.ValidatedDict):
          https://www.ietf.org/rfc/rfc2616.txt
       """
 
+      error = appinfo_errors.InvalidHttpHeaderValue(
+          'HTTP header values must not contain non-ASCII data')
       if isinstance(value, six_subset.string_types):
-        value = EnsureAsciiBytes(value, appinfo_errors.InvalidHttpHeaderValue(
-            'HTTP header values must not contain non-ASCII data'))
-        b_value = value
+        b_value = EnsureAsciiBytes(value, error)
       else:
-        b_value = ('%s' % value).encode('ascii')
+        b_value = EnsureAsciiBytes(('%s' % value), error)
 
 
       key = key.lower()
@@ -1027,7 +1043,7 @@ class HttpHeadersDict(validation.ValidatedDict):
 
     @staticmethod
     def AssertHeaderNotTooLong(name, value):
-      header_length = len('%s: %s\r\n' % (name, value))
+      header_length = len(('%s: %s\r\n' % (name, value)).encode('ascii'))
 
 
 
@@ -2777,7 +2793,6 @@ def ParseExpiration(expiration):
 
 
 
-
 _file_path_negative_1_re = re.compile(r'\.\.|^\./|\.$|/\./|^-|^_ah/|^/')
 
 
@@ -2822,5 +2837,3 @@ def ValidFilename(filename):
   if _file_path_negative_3_re.search(filename) is not None:
     return 'Any spaces must be in the middle of a filename: %s' % filename
   return ''
-
-

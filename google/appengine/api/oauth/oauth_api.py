@@ -214,7 +214,7 @@ def _maybe_call_get_oauth_user(scope):
       else:
         os.environ['OAUTH_IS_ADMIN'] = '0'
       os.environ['OAUTH_ERROR_CODE'] = ''
-    except apiproxy_errors.ApplicationError, e:
+    except apiproxy_errors.ApplicationError as e:
       os.environ['OAUTH_ERROR_CODE'] = str(e.application_error)
       os.environ['OAUTH_ERROR_DETAIL'] = e.error_detail
     os.environ['OAUTH_LAST_SCOPE'] = scope_str

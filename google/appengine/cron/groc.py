@@ -20,9 +20,6 @@
 
 
 
-
-
-
 """A wrapper around the generated Groc parser and lexer."""
 
 from __future__ import absolute_import
@@ -51,6 +48,7 @@ class GrocLexerWithErrors(GrocLexer.GrocLexer):
 
     Arguments:
       msg: the error message
+
     Raises:
       GrocException: always.
     """
@@ -68,6 +66,7 @@ class GrocParserWithErrors(GrocParser.GrocParser):
 
     Arguments:
       msg: the error message
+
     Raises:
       GrocException: always.
     """

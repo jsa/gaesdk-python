@@ -26,7 +26,6 @@ http://www.python.org/dev/peps/pep-0249/
 import collections
 import datetime
 import decimal
-import exceptions
 import time
 import types
 
@@ -74,7 +73,8 @@ version_info = (1, 2, 2, 'final', 0)
 
 
 
-class Warning(StandardError, exceptions.Warning):
+
+class Warning(StandardError, Warning):
   pass
 
 class Error(StandardError):
