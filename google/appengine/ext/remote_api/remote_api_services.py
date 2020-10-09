@@ -48,7 +48,6 @@ from google.appengine.api.search import search_service_pb
 from google.appengine.api.system import system_service_pb
 from google.appengine.api.taskqueue import taskqueue_service_pb
 from google.appengine.api.taskqueue import taskqueue_stub_service_pb
-from google.appengine.api.xmpp import xmpp_service_pb
 from google.appengine.datastore import datastore_pb
 from google.appengine.datastore import datastore_v4_pb
 from google.appengine.ext.remote_api import remote_api_pb
@@ -282,22 +281,6 @@ def get_service_pb_map():
                               user_service_pb.CreateLogoutURLResponse),
           'GetOAuthUser': (user_service_pb.GetOAuthUserRequest,
                            user_service_pb.GetOAuthUserResponse),
-      },
-      'xmpp': {
-          'GetPresence': (xmpp_service_pb.PresenceRequest,
-                          xmpp_service_pb.PresenceResponse),
-          'BulkGetPresence': (xmpp_service_pb.BulkPresenceRequest,
-                              xmpp_service_pb.BulkPresenceResponse),
-          'SendMessage': (xmpp_service_pb.XmppMessageRequest,
-                          xmpp_service_pb.XmppMessageResponse),
-          'SendInvite': (xmpp_service_pb.XmppInviteRequest,
-                         xmpp_service_pb.XmppInviteResponse),
-          'SendPresence': (xmpp_service_pb.XmppSendPresenceRequest,
-                           xmpp_service_pb.XmppSendPresenceResponse),
-          'CreateChannel': (channel_service_pb.CreateChannelRequest,
-                            channel_service_pb.CreateChannelResponse),
-          'SendChannelMessage': (channel_service_pb.SendMessageRequest,
-                                 api_base_pb.VoidProto),
       },
   }
 

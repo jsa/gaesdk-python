@@ -60,6 +60,26 @@ def TruncateToFourByteFloat(original):
     return struct.unpack('<f', struct.pack('<f', original))[0]
 
 
+def ToShortestFloat(original):
+  """Returns the shortest float that has same value in wire."""
+
+
+
+  if TruncateToFourByteFloat(original) != original:
+    return original
+
+
+
+
+
+  precision = 6
+  rounded = float('{0:.{1}g}'.format(original, precision))
+  while TruncateToFourByteFloat(rounded) != original:
+    precision += 1
+    rounded = float('{0:.{1}g}'.format(original, precision))
+  return rounded
+
+
 def SupportsOpenEnums(field_descriptor):
   return field_descriptor.containing_type.syntax == "proto3"
 

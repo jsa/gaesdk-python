@@ -47,7 +47,6 @@ PY2 = sys.version_info[0] == 2
 if PY2:
   from google.appengine.api.channel import channel_service_stub  # deprecated
   from google.appengine.api.remote_socket import _remote_socket_stub  # deprecated pylint: disable=g-line-too-long
-  from google.appengine.api.xmpp import xmpp_service_stub  # deprecated
   from google.appengine.datastore import datastore_sqlite_stub
   from google.appengine.datastore import datastore_v4_pb
 
@@ -301,10 +300,6 @@ def setup_stubs(
       user_service_stub.UserServiceStub(login_url=user_login_url,
                                         logout_url=user_logout_url,
                                         request_data=request_data))
-
-  if PY2:
-    apiproxy_stub_map.apiproxy.RegisterStub('xmpp',
-                                            xmpp_service_stub.XmppServiceStub())
 
 
 def setup_test_stubs(
